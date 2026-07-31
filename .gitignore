@@ -1,0 +1,43 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Local agent instructions
+AGENTS.md
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local data, generated results, and model artifacts
+data/*
+!data/.gitkeep
+results/*
+!results/.gitkeep
+models/
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Notebook and tooling noise
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Operating-system/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

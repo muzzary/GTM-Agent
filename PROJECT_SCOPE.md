@@ -1,13 +1,6 @@
 # Project Scope: GTM Outreach Intelligence Agent
 
-Status: proposed scope — review and approve before implementation.  
-Purpose: a focused portfolio project demonstrating the model-training,
-evaluation, agent-runtime, and open-source serving skills expected for the
-graph8 Applied AI Engineer role.
-
-This scope replaces the IoT-botnet fine-tuning direction for the next project
-iteration. Existing IoT artifacts remain historical research and are not part
-of this MVP.
+Status: proposed scope — review and approve before implementation.
 
 ## 1. Objective
 
@@ -26,24 +19,7 @@ The system will:
 
 The system is a research/demo artifact, not an autonomous sales system.
 
-## 2. Why this project exists
-
-The project is designed to create interview evidence for graph8. The domain
-is marketing/GTM because it naturally demonstrates the same agent-system
-patterns graph8 uses: research over external information, planning, model
-adaptation, structured outputs, evaluation harnesses, and runtime
-orchestration.
-
-The interview claim should be:
-
-> I built and evaluated a local, open-model GTM agent with a fine-tuned
-> outreach adapter, source-backed research, structured outputs, regression
-> checks, and a local serving path.
-
-The claim must not be that the system guarantees viral growth, replaces a
-marketing team, or achieves production conversion rates.
-
-## 3. Assumptions
+## 2. Assumptions
 
 These assumptions are explicit and must be corrected before implementation if
 they are wrong:
@@ -63,7 +39,7 @@ they are wrong:
    evaluation use tools, retrieval, prompts, and deterministic checks until
    evidence proves another adapter is needed.
 
-## 4. Target user and workflow
+## 3. Target user and workflow
 
 ### Target user
 
@@ -89,7 +65,7 @@ Campaign quality evaluator
 Human-approved draft
 ```
 
-## 5. Scope of the MVP
+## 4. Scope of the MVP
 
 ### In scope
 
@@ -123,7 +99,7 @@ Human-approved draft
 - Fine-tuning three adapters before one adapter has demonstrated value.
 - Treating scraped text as automatically true.
 
-## 6. System architecture
+## 5. System architecture
 
 ### Components
 
@@ -169,7 +145,7 @@ Human-approved draft
    - local FastAPI endpoint second
    - vLLM only when the model and hardware path are proven useful
 
-## 7. Model strategy
+## 6. Model strategy
 
 ### Base model
 
@@ -207,7 +183,7 @@ The model is downloaded once, fine-tuned with LoRA/QLoRA, and served locally.
 The model repository is storage and distribution infrastructure, not the
 generation backend.
 
-## 8. Data specification
+## 7. Data specification
 
 ### Product record
 
@@ -260,7 +236,7 @@ generation backend.
 Training data must be reviewed. Teacher-generated examples may bootstrap the
 dataset but are weak supervision, not unquestionable ground truth.
 
-## 9. Evaluation strategy
+## 8. Evaluation strategy
 
 ### Outreach generation
 
@@ -309,7 +285,7 @@ Measure:
 - tool failure handling
 - reproducibility with a fixed seed/configuration
 
-## 10. Phased implementation plan
+## 9. Phased implementation plan
 
 ### Phase 0 — scope and data policy
 
@@ -385,7 +361,7 @@ Acceptance:
 
 Verify: clean-environment run and interview rehearsal.
 
-## 11. Proposed project structure
+## 10. Proposed project structure
 
 ```text
 src/
@@ -402,7 +378,7 @@ results/            evaluation reports and samples
 docs/               architecture, interview notes, decisions
 ```
 
-## 12. Proposed commands
+## 11. Proposed commands
 
 These commands become authoritative after the implementation stack is
 approved:
@@ -420,7 +396,7 @@ No new dependency should be added without approval. The likely stack is
 Python, NumPy/pandas, Pydantic, scikit-learn, Transformers, PEFT, TRL,
 FastAPI, pytest, and a selected permitted source-extraction library.
 
-## 13. Boundaries
+## 12. Boundaries
 
 ### Always do
 
@@ -454,7 +430,7 @@ FastAPI, pytest, and a selected permitted source-extraction library.
 - report synthetic examples as real business outcomes
 - remove failing tests to make the model look better
 
-## 14. Risks and mitigations
+## 13. Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
@@ -466,11 +442,11 @@ FastAPI, pytest, and a selected permitted source-extraction library.
 | Demo becomes too broad | Keep one product, one ICP, and one channel |
 | Results cannot be defended | Save prompts, versions, seeds, splits, sources, and reports |
 
-## 15. Interview deliverables
+## 14. Project deliverables
 
 The finished project must include:
 
-- a public, reproducible repository
+- a reproducible repository
 - architecture diagram
 - local inference demo
 - one trained outreach adapter
@@ -479,9 +455,9 @@ The finished project must include:
 - source-backed research example
 - failure analysis and limitations
 - short README with setup and commands
-- five-minute interview walkthrough
+- short project walkthrough
 
-## 16. Open questions for approval
+## 15. Open questions for approval
 
 1. What hypothetical product should the demonstration sell?
 2. Which single ICP should be used first?
