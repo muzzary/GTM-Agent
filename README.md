@@ -72,3 +72,11 @@ npm.cmd run build
 
 GitHub Actions runs the same backend and frontend quality gates on every push
 and pull request.
+
+## Phase 1 Colab gate
+
+Phase 1 uses a fixed model benchmark, a minimal QLoRA smoke test, and a
+versioned inference-result bundle. Follow
+[`docs/PHASE1_COLAB_RUNBOOK.md`](docs/PHASE1_COLAB_RUNBOOK.md) to run the real
+GPU workload and validate its result locally. Generated reports, model files,
+and smoke adapters remain outside Git.

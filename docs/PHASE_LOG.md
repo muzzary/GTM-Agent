@@ -178,3 +178,44 @@
   responsibilities describe the same Colab-to-local boundary.
 - No dependency, runtime code, model artifact, credential, or generated result
   was added by this documentation-only correction.
+
+## Phase 1: Local feasibility package
+
+**Status:** Awaiting manual Colab run and base-model approval
+
+**Changed:**
+
+- Added strict inference request, response, model identity, runtime metadata,
+  and result-bundle contracts.
+- Added canonical SHA-256 integrity checks, request/revision matching, duplicate
+  rejection, and a size-bounded local bundle reader.
+- Added a deterministic inference test double for later local workflows.
+- Added a fixed nine-case benchmark spanning three product categories and
+  three ICP patterns.
+- Pinned Qwen3 4B Instruct and Phi-4 Mini Instruct to immutable revisions and
+  recorded their licenses.
+- Added hard-gate scoring and a deterministic tie-break rule.
+- Added the clean Colab notebook for environment capture, candidate benchmark,
+  QLoRA smoke, incremental Drive persistence, human review, and real inference
+  bundle export.
+- Added the manual Colab runbook and model-comparison report template.
+
+**Automated verification:**
+
+- Strict contracts reject extra fields, non-finite metrics, tampering,
+  request/revision mismatches, and duplicate bundles.
+- Benchmark tests cover matrix diversity, strict output parsing, unsupported
+  claims, hard gates, and deterministic selection.
+- Notebook tests verify pinned revisions/dependencies, empty outputs, prohibited
+  tunnel absence, and Python syntax for every code cell.
+- Backend and notebook suite: 19 tests passed.
+- Backend lint passed and the uv lockfile resolved without changes.
+- Frontend regression suite: 1 test passed; typecheck, lint, and production build
+  passed.
+- Production npm dependency audit found zero vulnerabilities.
+
+**Manual review needed:**
+
+- Run `docs/PHASE1_COLAB_RUNBOOK.md` on a Colab GPU.
+- Return the environment, candidate, comparison, and validated bundle results.
+- Approve one base model only if every hard gate passes.
