@@ -139,3 +139,11 @@
 - Run the backend and frontend using the README instructions.
 - Confirm the frontend foundation screen renders and `/health` returns the
   documented JSON response.
+
+### CI import-path correction
+
+- Reproduced the Linux CI collection failure locally with the exact
+  `uv run pytest -q` command.
+- Configured Pytest to add the repository root to its import path so the
+  application package resolves consistently from its console entry point.
+- Kept CI and the documented local verification command identical.
