@@ -2,7 +2,7 @@
 
 ## Phase 0: Repository scaffold
 
-**Status:** Ready for manual review
+**Status:** Approved
 
 **Changed:**
 
@@ -30,7 +30,7 @@
 
 ## Planning phase: implementation roadmap
 
-**Status:** Awaiting approval
+**Status:** Superseded by the approved reusable-agent roadmap
 
 **Changed:**
 
@@ -55,7 +55,7 @@
 
 ## Privacy cleanup: public scope boundary
 
-**Status:** Ready for manual review
+**Status:** Complete
 
 **Changed:**
 
@@ -72,3 +72,35 @@
   references.
 - Confirmed `AGENTS.md` is ignored while remaining available locally.
 - Confirmed the scope heading sequence remains consistent.
+
+## Intent finalization: reusable GTM agent
+
+**Status:** Ready for manual review
+
+**Changed:**
+
+- Replaced the single fictional product/ICP assumption with configurable
+  product and ICP inputs.
+- Added form-driven onboarding, researched product profiles, claim approval,
+  prospect discovery/ranking, user prospect selection, and final draft review.
+- Set B2B email as the initial channel.
+- Set Colab as the MVP environment for model benchmarking, training,
+  evaluation, and temporary authenticated session inference.
+- Deferred permanent model hosting and automatic sending until after the MVP.
+- Added a multi-product/ICP generalization benchmark and a reviewed-data pilot.
+- Reworked the implementation plan into ten dependency-ordered phases.
+- Added the React/TypeScript frontend responsibility to the directory map.
+
+**Verification:**
+
+- Scope and implementation phases describe the same workflow and runtime
+  boundary.
+- The old open questions and single-scenario assumptions were removed.
+- Every implementation phase has a concrete acceptance condition, automated
+  checks, and a manual gate.
+- No dependencies were installed and no external data was collected.
+
+**Manual review needed:**
+
+- Confirm the revised public scope and roadmap before Phase 0 dependency
+  selection and scaffolding.

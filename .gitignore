@@ -32,6 +32,8 @@ checkpoints/
 .ipynb_checkpoints/
 .coverage
 htmlcov/
+node_modules/
+coverage/
 dist/
 build/
 *.egg-info/

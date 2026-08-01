@@ -1,211 +1,291 @@
 # Project Scope: GTM Outreach Intelligence Agent
 
-Status: proposed scope — review and approve before implementation.
+Status: approved for phased implementation.
 
 ## 1. Objective
 
-Build a locally runnable agent system for a hypothetical software company that
-wants to understand its market and create evidence-backed personalized
-outreach.
+Build a reusable GTM agent that can support different B2B products and ideal
+customer profiles (ICPs) without hard-coding one company, product, or market.
 
 The system will:
 
-1. Collect and summarize permitted public market and competitor information.
-2. Produce a positioning brief for a selected prospect segment.
-3. Generate a personalized outreach draft using a locally served open model.
-4. Evaluate the draft against a repeatable marketing-quality rubric.
-5. Revise the draft when the evaluator finds unsupported claims, weak
-   personalization, poor clarity, or a weak call to action.
+1. Accept product details, a short product description, and an ICP through a
+   structured user form.
+2. Research permitted public sources and propose a normalized product profile.
+3. Present product claims and limitations for human approval before they can
+   influence outreach.
+4. Discover and rank prospect companies that match the approved ICP.
+5. Let the user select a prospect for deeper evidence-backed research.
+6. Produce a positioning brief and personalized B2B email.
+7. Evaluate and revise the draft with bounded retries and visible reasons.
+8. Require human approval before a draft can be exported.
 
-The system is a research/demo artifact, not an autonomous sales system.
+The system is a research and decision-support artifact, not an autonomous
+email sender.
 
-## 2. Assumptions
+## 2. Confirmed decisions
 
-These assumptions are explicit and must be corrected before implementation if
-they are wrong:
-
-1. The product and company are hypothetical, so no private company data is
-   required.
-2. The first target channel is personalized B2B email outreach, not mass
-   consumer advertising.
-3. The first demonstration uses a small, invented software product and a
-   small set of fictional prospect profiles grounded in public company
-   information.
-4. No hosted LLM inference API is used. Open model weights may be downloaded
-   from a model repository, but generation runs locally.
-5. Google Colab may be used for occasional GPU fine-tuning; the local Windows
-   machine remains the development and inference environment.
-6. The first fine-tuned adapter is for outreach generation. Research and
-   evaluation use tools, retrieval, prompts, and deterministic checks until
-   evidence proves another adapter is needed.
+1. The architecture is product-agnostic and ICP-agnostic. Products and ICPs
+   are runtime inputs, not code-level assumptions.
+2. The initial outreach channel is personalized B2B email.
+3. A user starts a campaign by completing a structured product and ICP form.
+4. The agent may research and propose product facts, but only user-approved
+   claims can be used in positioning or outreach.
+5. The agent discovers and ranks prospect companies; the user chooses which
+   prospect receives deeper research and outreach generation.
+6. Research may use any permitted public source that passes source-policy,
+   access, privacy, and provenance checks.
+7. The base model will be selected through a Colab feasibility benchmark for
+   business reasoning, structured output, license suitability, latency, and
+   available GPU memory.
+8. Training, evaluation, and model inference remain in Google Colab for the
+   MVP. Quantization may be used when needed.
+9. The local application communicates with a manually started, authenticated,
+   session-based Colab inference endpoint. The endpoint is temporary and stops
+   when the Colab runtime ends.
+10. Permanent model hosting is a post-MVP decision and will be reassessed after
+    the project is complete.
+11. Training data may combine permitted public business/outreach datasets,
+    reviewed synthetic examples, marketing principles, and product-selling
+    scenarios. Every training example used must pass the project review rules.
 
 ## 3. Target user and workflow
 
 ### Target user
 
-A founder, GTM engineer, or marketing operator who needs to research a
-prospect, decide what message is relevant, draft outreach, and check the draft
-before sending it.
+A founder, GTM engineer, sales operator, or marketing operator who needs to
+turn product context into evidence-backed prospecting and personalized B2B
+outreach.
 
 ### Primary workflow
 
 ```text
-Product context + verified claims
-                ↓
-Prospect profile + permitted public sources
-                ↓
-Research and evidence collection
-                ↓
+Product + ICP form
+        |
+        v
+Public research and proposed product profile
+        |
+        v
+Human approval of claims and limitations
+        |
+        v
+Prospect discovery and ranking
+        |
+        v
+User selects a prospect
+        |
+        v
+Deep research and evidence collection
+        |
+        v
 Positioning brief
-                ↓
-Local outreach model
-                ↓
-Campaign quality evaluator
-                ↓
-Human-approved draft
+        |
+        v
+Colab-hosted outreach model
+        |
+        v
+Campaign evaluator and bounded revision
+        |
+        v
+Human-approved exportable draft
 ```
 
 ## 4. Scope of the MVP
 
 ### In scope
 
-- One hypothetical B2B software product.
-- One target segment and one outreach channel: B2B email.
+- Configurable product and ICP inputs.
+- One initial channel: personalized B2B email.
+- A small React and TypeScript form for product/ICP input, claim approval,
+  prospect selection, and draft review.
+- A Python/FastAPI backend for schemas, orchestration, research, evaluation,
+  and communication with the Colab inference endpoint.
+- Product-profile research and human claim approval.
+- Prospect discovery, ranking, and user selection.
+- Public competitor pages, product documentation, company pages, public
+  reports, public reviews, and trend material where collection is permitted.
+- Source URLs, collection timestamps, content hashes, excerpts, and citations.
 - A local evidence store using JSONL or SQLite.
-- Public competitor pages, public documentation, public reports, public
-  reviews, and public trend material where collection is permitted.
-- Source URLs, collection timestamps, content hashes, and citations.
-- A positioning brief with evidence and uncertainty.
-- A local open-weight language model.
+- Structured JSON output and trace records for every agent stage.
 - One LoRA/QLoRA outreach adapter trained on reviewed examples.
-- Structured JSON output for every agent stage.
-- A campaign evaluator with a human-defined rubric.
-- A local API or CLI demo.
-- Automated tests for schemas, data transforms, model output parsing, and
-  evaluation metrics.
-- A benchmark comparing a prompt-only base model with the adapted model.
-- A concise README, architecture diagram, phase log, and interview demo.
+- A temporary authenticated Colab inference endpoint.
+- A campaign evaluator with deterministic checks and a human-defined rubric.
+- Bounded revision, explicit failures, and human approval gates.
+- Automated schema, transformation, collection, orchestration, API-contract,
+  model-output, and evaluation tests.
+- A prompt-only base-model versus adapted-model benchmark.
+- Generalization evaluation across multiple product and ICP combinations.
+- A concise README, architecture diagram, phase log, evaluation report, and
+  repeatable project walkthrough.
 
 ### Explicitly out of scope
 
 - Automatic email sending.
 - Spam, mass outreach, or evasion of provider limits.
-- Login-gated, paywalled, private, or CAPTCHA-protected scraping.
+- Login-gated, paywalled, private, or CAPTCHA-protected collection.
 - Collection of unnecessary personal data.
 - Production CRM integration.
-- Paid LLM APIs or hosted inference as a required dependency.
+- Permanent or production-grade model hosting during the MVP.
+- Paid LLM APIs as a required dependency.
 - Claims about actual sales conversion or virality.
-- Training a language model from scratch.
-- Fine-tuning three adapters before one adapter has demonstrated value.
-- Treating scraped text as automatically true.
+- Training a foundation model from scratch.
+- Multiple fine-tuned adapters before one adapter demonstrates measurable
+  value.
+- Treating public or model-generated text as automatically true.
 
 ## 5. System architecture
 
 ### Components
 
-1. **Product knowledge store**
-   - verified capabilities
-   - verified limitations
-   - approved claims
-   - customer/problem hypotheses
+1. **Web interface**
+   - captures product details, short description, ICP, and campaign settings
+   - displays proposed claims for approval
+   - displays ranked prospects and evidence
+   - supports prospect selection and final draft approval
 
-2. **Research collector**
+2. **Product profile service**
+   - validates user input
+   - researches product context
+   - proposes capabilities, limitations, target problems, and claims
+   - records approval status for every claim
+
+3. **Research collector**
    - fetches permitted public pages or manually supplied documents
-   - stores content, URL, title, timestamp, and hash
-   - applies rate limits and caching
+   - enforces source policy, timeouts, rate limits, and caching
+   - stores URL, title, timestamp, content hash, and collection status
 
-3. **Evidence and retrieval layer**
+4. **Evidence and retrieval layer**
    - searches collected documents
    - returns source excerpts with citations
    - distinguishes facts, inferences, and unknowns
+   - prevents unapproved product claims from entering downstream prompts
 
-4. **Positioning agent**
+5. **Prospect discovery and ranking agent**
+   - searches for companies matching the approved ICP
+   - ranks candidates with evidence and uncertainty
+   - records why each prospect matches or fails the ICP
+
+6. **Positioning agent**
    - identifies prospect pain hypotheses
-   - compares product capability to prospect context
+   - compares approved product capabilities with prospect evidence
    - produces a structured positioning brief
 
-5. **Outreach model**
-   - receives only structured context and verified evidence
-   - generates a subject, message, CTA, evidence list, and uncertainty fields
+7. **Colab model service**
+   - loads the selected base model and outreach adapter
+   - exposes a temporary authenticated inference contract
+   - returns structured output and model metadata
+   - records model revision, adapter revision, latency, and failures
 
-6. **Campaign evaluator**
-   - checks schema validity
-   - checks evidence support
+8. **Campaign evaluator**
+   - validates schema and evidence support
    - scores relevance, clarity, differentiation, credibility, CTA quality,
      and brand fit
+   - explains failures and requests bounded revision where appropriate
 
-7. **Orchestrator**
-   - calls tools in a controlled order
-   - records intermediate artifacts
-   - retries malformed outputs with clear limits
-   - stops for human approval before sending
+9. **Agent runtime**
+   - controls tool permissions and workflow state
+   - records traces and intermediate artifacts
+   - handles timeouts, retries, endpoint unavailability, and malformed output
+   - supports base-versus-adapter shadow comparisons
+   - stops for human approval at claim, prospect, and final-draft gates
 
-8. **Serving layer**
-   - local CLI first
-   - local FastAPI endpoint second
-   - vLLM only when the model and hardware path are proven useful
+10. **Local API and storage**
+    - exposes the application contract through FastAPI
+    - stores non-secret campaign state, evidence, traces, and evaluations
+    - keeps secrets in local environment variables only
 
-## 6. Model strategy
+## 6. Model and inference strategy
 
-### Base model
+### Base-model selection
 
-Start with a small open instruction-tuned model suitable for Colab
-experimentation and local inference. Gemma 3 270M-it is the initial candidate;
-the model is a candidate, not a permanent commitment.
+Do not commit to a model before benchmarking candidates in Colab. Select the
+best open instruction-tuned model that satisfies all of these constraints:
 
-Selection criteria:
-
-- local inference is possible on the available laptop
-- the license permits the intended demo use
-- the model follows structured instructions reliably
-- fine-tuning fits the available GPU budget
-- output quality is sufficient for short B2B drafts
+- license permits the intended public demonstration
+- fits the available Colab GPU for inference and LoRA/QLoRA training
+- follows structured business instructions reliably
+- produces concise, credible B2B writing
+- handles evidence and uncertainty without inventing facts
+- provides acceptable latency and memory usage
+- supports quantization when needed
 
 ### Adapter strategy
 
-The initial adapter is an **outreach adapter**. It learns:
+The first adapter is an **outreach adapter**. It targets:
 
 - professional B2B tone
-- concise structure
-- personalization behavior
-- evidence-aware wording
+- concise email structure
+- product/ICP generalization
+- evidence-aware personalization
 - clear calls to action
 - refusal to invent missing facts
 
-The research and evaluator components do not receive adapters initially. They
-will use retrieval, prompts, schemas, rules, and evaluation code. A second or
-third adapter requires evidence of a repeatable failure that fine-tuning can
-solve.
+Research, ranking, and evaluation do not receive separate adapters initially.
+They use tools, retrieval, schemas, deterministic checks, and prompts. Another
+adapter requires evidence of a distinct, repeatable failure that fine-tuning
+can solve.
 
-### No hosted inference API
+### Colab inference boundary
 
-The model is downloaded once, fine-tuned with LoRA/QLoRA, and served locally.
-The model repository is storage and distribution infrastructure, not the
-generation backend.
+Training, evaluation, and model inference run in Colab. Model artifacts are
+stored in an approved persistent location such as private cloud storage or a
+model repository; secrets are never stored in the notebook.
 
-## 7. Data specification
+The MVP uses a manually started, authenticated, session-based inference
+endpoint. The local application must treat that endpoint as unreliable:
 
-### Product record
+- validate endpoint identity and API credentials
+- use explicit connection and generation timeouts
+- never silently fall back to unapproved model output
+- report unavailable or expired sessions clearly
+- record model and adapter revisions with each response
+
+Colab is not presented as permanent hosting. A separate post-MVP assessment
+will compare free or low-cost hosting options and production inference tools.
+
+## 7. Core data contracts
+
+### Campaign input
 
 ```json
 {
-  "product_id": "demo-product",
-  "capabilities": ["automated reporting"],
-  "verified_claims": ["exports a report in under five minutes"],
-  "limitations": ["requires an API integration"],
-  "target_segments": ["mid-market logistics teams"]
+  "product_name": "Example Product",
+  "product_url": "https://example.com",
+  "short_description": "Automates recurring operational reports.",
+  "known_capabilities": ["scheduled reporting"],
+  "known_limitations": ["requires source-system access"],
+  "icp": {
+    "industries": ["logistics"],
+    "company_size": "mid-market",
+    "roles": ["Head of Operations"],
+    "pain_hypotheses": ["manual reporting overhead"]
+  }
 }
 ```
 
-### Prospect record
+### Proposed product claim
+
+```json
+{
+  "claim_id": "claim-001",
+  "claim": "The product supports scheduled reporting.",
+  "status": "pending_approval",
+  "evidence_ids": ["evidence-001"],
+  "uncertainty": "low"
+}
+```
+
+### Prospect candidate
 
 ```json
 {
   "company": "Example Logistics",
   "industry": "logistics",
-  "role": "Head of Operations",
-  "public_signals": ["recently expanded operations"],
-  "source_urls": ["https://example.com/source"]
+  "matched_icp_fields": ["industry", "company_size"],
+  "public_signals": ["recent operations expansion"],
+  "evidence_ids": ["evidence-002"],
+  "score": 0.82,
+  "uncertainty": "medium"
 }
 ```
 
@@ -214,16 +294,16 @@ generation backend.
 ```json
 {
   "input": {
-    "product": "...",
-    "prospect": "...",
+    "approved_product_profile": "...",
+    "selected_prospect": "...",
     "positioning": "...",
     "evidence": ["..."]
   },
   "approved_output": {
     "subject": "...",
     "body": "...",
-    "claims_used": ["..."],
-    "personalization_evidence": ["..."]
+    "claims_used": ["claim-001"],
+    "personalization_evidence": ["evidence-002"]
   },
   "review": {
     "factual": true,
@@ -233,238 +313,193 @@ generation backend.
 }
 ```
 
-Training data must be reviewed. Teacher-generated examples may bootstrap the
-dataset but are weak supervision, not unquestionable ground truth.
+Training data must be reviewed. Teacher-generated examples are weak
+supervision and cannot become training truth without validation.
 
 ## 8. Evaluation strategy
 
+### Generalization benchmark
+
+Evaluate across a product/ICP matrix rather than one hard-coded scenario. The
+initial benchmark should include at least three distinct product categories
+and three distinct ICP patterns, with company/prospect separation across data
+splits.
+
 ### Outreach generation
 
-Compare prompt-only base model versus adapted model on a held-out set.
-
+Compare the prompt-only base model with the adapted model on a held-out set.
 Measure:
 
-- valid JSON rate: target 100% after repair/retry limits
-- factual claim support: target 100% on the curated evaluation set
-- personalization relevance: human score, target at least 80% acceptable
-- brand/style fit: human score, target at least 80% acceptable
-- unsupported claim rate: target 0% on verified test cases
-- CTA quality: rubric score and reviewer comments
+- valid structured-output rate
+- approved-claim compliance
+- factual claim support
+- personalization relevance
+- brand/style fit
+- unsupported-claim rate
+- CTA quality
+- latency and peak GPU memory
 
 ### Campaign evaluator
 
-Create a rubric with 1–5 scores for relevance, clarity, differentiation,
-credibility, CTA quality, and brand fit.
-
-Measure:
+Use 1-5 scores for relevance, clarity, differentiation, credibility, CTA
+quality, and brand fit. Measure:
 
 - agreement with human reviewers
 - consistency on repeated evaluations
-- ability to identify deliberately inserted flaws
-- false praise rate
-- false criticism rate
+- detection of deliberately inserted flaws
+- false-praise and false-criticism rates
 
-### Research and positioning
+### Research and prospecting
 
 Measure:
 
-- source citation coverage
-- claim-to-source correctness
+- source citation coverage and correctness
 - freshness timestamp presence
-- separation of fact from inference
-- usefulness to a human reviewer
-- competitor comparison completeness
+- fact/inference/unknown separation
+- ICP-match precision on reviewed candidates
+- usefulness of ranking explanations
+- unsupported claim detection
 
-### Runtime
+### Agent runtime and inference
 
 Measure:
 
-- local generation latency
-- peak memory usage
-- malformed-output retry rate
+- complete trace coverage across agent stages
+- malformed-output and retry rates
+- endpoint-unavailable behavior
 - tool failure handling
-- reproducibility with a fixed seed/configuration
+- approval-gate enforcement
+- base-versus-adapter shadow comparison
+- Colab generation latency and memory
+- reproducibility with fixed configuration and revision identifiers
 
-## 9. Phased implementation plan
+## 9. Implementation phases
 
-### Phase 0 — scope and data policy
+The authoritative task-level roadmap is
+[`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md). Its phases are:
 
-Acceptance:
+0. Reproducible project foundation.
+1. Colab model and temporary inference feasibility.
+2. Structured backend walking skeleton.
+3. Product onboarding and claim approval.
+4. Public research, prospect discovery, and ranking.
+5. Baseline outreach, traces, and evaluation harness.
+6. Reviewed dataset and one LoRA/QLoRA adapter.
+7. Campaign evaluator, bounded revision, and shadow comparison.
+8. End-to-end agent runtime and web workflow.
+9. Reproducible evaluation package and release.
 
-- product, ICP, channel, claims, and data policy are documented
-- no private or paid data is required
-- source provenance schema exists
+Every phase requires automated checks, self-review, user manual verification,
+an atomic commit, and a push before the next phase begins.
 
-Verify: human review of this scope.
-
-### Phase 1 — structured baseline without fine-tuning
-
-Acceptance:
-
-- product and prospect records load successfully
-- a deterministic positioning brief is produced
-- a base model produces valid structured output
-- baseline outputs are saved for comparison
-
-Verify: unit tests and manual review of 10 examples.
-
-### Phase 2 — evidence and research tools
-
-Acceptance:
-
-- collected documents retain source URL and timestamp
-- the system can retrieve supporting excerpts
-- unsupported claims are flagged
-- scraping respects allowlists, rate limits, and source policy
-
-Verify: fixture-based collector tests and citation review.
-
-### Phase 3 — outreach dataset and LoRA adapter
-
-Acceptance:
-
-- reviewed train/validation/test split exists
-- no prospect appears across conflicting splits
-- adapter trains in Colab
-- base-versus-adapter evaluation is reproducible
-
-Verify: training log, held-out metrics, and manual comparison.
-
-### Phase 4 — campaign evaluator
-
-Acceptance:
-
-- rubric is encoded
-- evaluator flags deliberately inserted errors
-- evaluator outputs structured scores and reasons
-
-Verify: human-rated test set and agreement report.
-
-### Phase 5 — agent orchestration
-
-Acceptance:
-
-- research → positioning → outreach → evaluation → revision works end to end
-- tool errors are explicit
-- generated drafts require human approval
-
-Verify: end-to-end tests with mocked source data and manual demo.
-
-### Phase 6 — local serving and interview packaging
-
-Acceptance:
-
-- local CLI or FastAPI endpoint serves the adapter
-- README explains setup and limitations
-- architecture diagram and evaluation report are complete
-- a five-minute demo is repeatable
-
-Verify: clean-environment run and interview rehearsal.
-
-## 10. Proposed project structure
+## 10. Project structure
 
 ```text
+frontend/           React + TypeScript product/ICP and review workflow
 src/
-  data/             collection, normalization, provenance
-  schemas/          product, prospect, evidence, campaign models
-  research/         retrieval and positioning tools
-  outreach/         prompts, adapter loading, generation
-  evaluation/       rubric, metrics, regression checks
-  runtime/          orchestration and local API
-tests/              unit and integration tests
-notebooks/          Colab setup and fine-tuning experiments
-data/               gitignored local data only
-results/            evaluation reports and samples
-docs/               architecture, interview notes, decisions
+  data/             collection, normalization, caching, provenance
+  schemas/          product, ICP, claim, prospect, evidence, campaign models
+  research/         product research, retrieval, prospect discovery/ranking
+  outreach/         prompts, Colab inference client, output parsing
+  evaluation/       rubric, metrics, shadow comparison, regression checks
+  runtime/          orchestration, workflow state, FastAPI application
+tests/              unit, fixture, contract, integration, regression tests
+notebooks/          Colab model benchmark, training, evaluation, serving demo
+data/               gitignored local evidence and working datasets
+results/            generated metrics and samples; reviewed reports may commit
+configs/            non-secret source, model, runtime, and evaluation config
+docs/               architecture, plans, phase logs, reports, limitations
 ```
 
-## 11. Proposed commands
+## 11. Planned commands
 
-These commands become authoritative after the implementation stack is
-approved:
+Commands become authoritative when Phase 0 selects and locks the toolchain.
+The intended interface is:
 
 ```powershell
 python -m pytest -q
-python -m src.data.collect --config configs/sources.json
-python -m src.research.position --input data/prospects/example.json
-python -m src.outreach.generate --input data/prospects/example.json
+python -m ruff check .
+python -m src.runtime.api
 python -m src.evaluation.run --split test
-python -m src.runtime.local_api
+npm --prefix frontend run test
+npm --prefix frontend run lint
+npm --prefix frontend run build
 ```
 
-No new dependency should be added without approval. The likely stack is
-Python, NumPy/pandas, Pydantic, scikit-learn, Transformers, PEFT, TRL,
-FastAPI, pytest, and a selected permitted source-extraction library.
+No dependency is installed without approval. Candidate dependencies and phase
+gates are listed in `docs/IMPLEMENTATION_PLAN.md`.
 
 ## 12. Boundaries
 
 ### Always do
 
-- keep product claims separate from model-generated language
-- attach source URLs and timestamps to research evidence
-- validate every structured model output
-- keep human approval before outreach is sent
-- run tests before committing
-- record data provenance and evaluation configuration
-- store secrets in `.env`, never in notebooks or source files
-- report failures and uncertainty explicitly
+- validate user input, public-source content, and model output
+- keep unapproved product claims out of downstream prompts
+- attach provenance to research evidence and prospect ranking
+- record traces, model revisions, prompts, seeds, and evaluation configuration
+- keep human approval before claim use and final export
+- enforce bounded retries, tool permissions, and explicit failures
+- run tests and self-review before every phase commit
+- keep secrets in ignored environment files or Colab secret storage
 
 ### Ask first
 
-- adding dependencies
-- changing the base model or license
-- collecting a new source domain
-- storing personal or CRM data
-- adding automatic email sending
-- changing the evaluation rubric
-- changing the project’s target user or channel
-- moving from local serving to a paid hosted service
+- adding or changing dependencies
+- selecting or changing the base model or license
+- enabling collection from a source with unclear permission
+- storing personal, customer, or CRM data
+- changing the B2B email channel
+- changing the evaluation rubric or approval gates
+- adding automatic sending
+- moving from temporary Colab inference to another host
 
 ### Never do
 
-- bypass login, paywalls, CAPTCHAs, or access controls
+- bypass access controls, paywalls, logins, robots restrictions, or CAPTCHAs
 - scrape private pages or unnecessary personal data
 - send automated outreach without human approval
-- fabricate competitor facts, customer feedback, or product claims
-- commit tokens, credentials, private datasets, or unreviewed customer data
+- fabricate product claims, competitor facts, or prospect signals
+- use pending/rejected claims in outreach
+- commit tokens, credentials, private datasets, model weights, or unreviewed
+  customer data
+- pass unvalidated model output into tools, file paths, queries, or commands
 - report synthetic examples as real business outcomes
-- remove failing tests to make the model look better
+- remove failing tests to improve reported results
 
 ## 13. Risks and mitigations
 
 | Risk | Mitigation |
-|---|---|
-| Too little high-quality training data | Start with prompting; fine-tune only one adapter after review |
-| Model invents prospect facts | Require source-backed evidence fields and claim validation |
-| Scraping breaks or violates policy | Use an allowlist, rate limits, caching, and source review |
-| 270M model quality is insufficient | Benchmark a larger permitted model before expanding scope |
-| Evaluator praises every draft | Insert known flaws and compare against human ratings |
-| Demo becomes too broad | Keep one product, one ICP, and one channel |
-| Results cannot be defended | Save prompts, versions, seeds, splits, sources, and reports |
+| --- | --- |
+| Generality becomes vague or untestable | Benchmark a fixed matrix of product categories and ICP patterns. |
+| Colab endpoint stops or changes | Treat it as session-based, surface failures, persist revisions, and test reconnection behavior. |
+| Model quality is insufficient | Benchmark several permitted candidates before selecting one. |
+| Too little reviewed training data | Set the pilot size after the baseline, inspect learning curves, and expand where quality or coverage is weak. |
+| Product or prospect facts are invented | Require evidence IDs, claim approval, and deterministic support checks. |
+| Public collection violates policy | Enforce source review, access rules, rate limits, caching, and provenance. |
+| Dataset leakage inflates results | Split by product, company, and prospect identity; report overlap checks. |
+| Evaluator rewards fluent unsupported text | Combine deterministic checks, flawed fixtures, and human-rated comparisons. |
+| Agent loops or overreaches | Bound retries, constrain tools, record traces, and require approval gates. |
+| Dependency sprawl | Add packages only when a phase acceptance test demonstrates the need. |
 
 ## 14. Project deliverables
 
-The finished project must include:
-
-- a reproducible repository
-- architecture diagram
-- local inference demo
+- public reproducible repository with no private context or secrets
+- configurable product/ICP onboarding workflow
+- claim-approval and prospect-selection workflow
+- source-backed prospect research and ranking example
+- Colab model benchmark, training notebook, and evaluation notebook
 - one trained outreach adapter
-- baseline-versus-adapter evaluation
-- campaign-quality rubric and report
-- source-backed research example
-- failure analysis and limitations
-- short README with setup and commands
-- short project walkthrough
+- authenticated session-based Colab inference demonstration
+- base-versus-adapter and generalization evaluation reports
+- campaign-quality rubric, traces, regression checks, and failure analysis
+- tested Python/FastAPI agent runtime and small React/TypeScript interface
+- architecture diagram, setup guide, limitations, and project walkthrough
 
-## 15. Open questions for approval
+## 15. Post-MVP decisions
 
-1. What hypothetical product should the demonstration sell?
-2. Which single ICP should be used first?
-3. Should the first channel remain B2B email?
-4. Which model license and model size are acceptable?
-5. Which public source domains are in scope for the research collector?
-6. What minimum number of reviewed outreach examples can we create?
+After the MVP is complete and measured:
 
-Implementation should not begin until these questions are answered and this
-scope is approved.
+1. Compare free or low-cost persistent hosting options for the selected model.
+2. Evaluate vLLM or another production inference server on compatible hardware.
+3. Decide whether CRM integration, another outreach channel, or additional
+   adapters are justified by evidence.
