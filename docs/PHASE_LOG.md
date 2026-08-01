@@ -85,7 +85,9 @@
   prospect discovery/ranking, user prospect selection, and final draft review.
 - Set B2B email as the initial channel.
 - Set Colab as the MVP environment for model benchmarking, training,
-  evaluation, and temporary authenticated session inference.
+  evaluation, and temporary authenticated session inference. The transport
+  portion of this decision was later superseded by the Phase 1 boundary
+  revision below.
 - Deferred permanent model hosting and automatic sending until after the MVP.
 - Added a multi-product/ICP generalization benchmark and a reviewed-data pilot.
 - Reworked the implementation plan into ten dependency-ordered phases.
@@ -147,3 +149,32 @@
 - Configured Pytest to add the repository root to its import path so the
   application package resolves consistently from its console entry point.
 - Kept CI and the documented local verification command identical.
+
+## Phase 1 boundary revision: Colab result handoff
+
+**Status:** Approved scope correction
+
+**Changed:**
+
+- Kept model benchmarking, QLoRA feasibility, training, evaluation, and real
+  base/adapted inference in Colab.
+- Removed the public reverse-tunnel and live Colab API requirement because a
+  managed Colab runtime is not a reliable or clearly compliant web host.
+- Replaced synchronous local-to-Colab calls with strict, versioned, hashed
+  inference-result bundles that the local application validates and imports.
+- Deferred a live application-to-model transport until a compliant post-MVP
+  host is selected.
+
+**Demonstration impact:**
+
+- Real inference and fine-tuned-model results remain demonstrable in Colab.
+- The local workflow can evaluate and display those real outputs after bundle
+  import.
+- Synchronous generation initiated from the local web interface is deferred.
+
+**Verification:**
+
+- Scope, implementation phases, README, environment template, and directory
+  responsibilities describe the same Colab-to-local boundary.
+- No dependency, runtime code, model artifact, credential, or generated result
+  was added by this documentation-only correction.

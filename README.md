@@ -7,8 +7,9 @@ evaluated personalized draft.
 
 The local React/TypeScript and Python/FastAPI application orchestrates research,
 evidence, approvals, evaluation, and workflow state. Model benchmarking,
-fine-tuning, evaluation, and temporary authenticated inference run in Google
-Colab for the MVP.
+fine-tuning, evaluation, and real inference run in Google Colab for the MVP.
+Colab exports versioned result bundles that the local application validates and
+imports; the MVP does not expose a public Colab inference endpoint.
 
 Read [PROJECT_SCOPE.md](PROJECT_SCOPE.md) for the product boundary and
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the phased build
@@ -36,8 +37,8 @@ npm.cmd ci
 Set-Location ..
 ```
 
-No credential is required in Phase 0. `.env.example` documents future Colab
-settings; real values belong in ignored local environment variables.
+No credential is required in Phase 0. Future credentials remain in ignored
+local environment variables or Colab secret storage and never in notebooks.
 
 ## Run
 

@@ -40,9 +40,9 @@ email sender.
    available GPU memory.
 8. Training, evaluation, and model inference remain in Google Colab for the
    MVP. Quantization may be used when needed.
-9. The local application communicates with a manually started, authenticated,
-   session-based Colab inference endpoint. The endpoint is temporary and stops
-   when the Colab runtime ends.
+9. Real base-model and adapter inference is demonstrated inside Colab. Colab
+   exports versioned, hashed inference-result bundles that the local application
+   validates and imports; the MVP does not expose a public Colab endpoint.
 10. Permanent model hosting is a post-MVP decision and will be reassessed after
     the project is complete.
 11. Training data may combine permitted public business/outreach datasets,
@@ -81,7 +81,10 @@ Deep research and evidence collection
 Positioning brief
         |
         v
-Colab-hosted outreach model
+Manual Colab outreach-model run
+        |
+        v
+Validated inference-result bundle
         |
         v
 Campaign evaluator and bounded revision
@@ -99,7 +102,7 @@ Human-approved exportable draft
 - A small React and TypeScript form for product/ICP input, claim approval,
   prospect selection, and draft review.
 - A Python/FastAPI backend for schemas, orchestration, research, evaluation,
-  and communication with the Colab inference endpoint.
+  and validation/import of Colab inference-result bundles.
 - Product-profile research and human claim approval.
 - Prospect discovery, ranking, and user selection.
 - Public competitor pages, product documentation, company pages, public
@@ -108,7 +111,8 @@ Human-approved exportable draft
 - A local evidence store using JSONL or SQLite.
 - Structured JSON output and trace records for every agent stage.
 - One LoRA/QLoRA outreach adapter trained on reviewed examples.
-- A temporary authenticated Colab inference endpoint.
+- Real base-model and adapted-model inference demonstrations in Colab.
+- Versioned, hashed result bundles for reviewed handoff to the local workflow.
 - A campaign evaluator with deterministic checks and a human-defined rubric.
 - Bounded revision, explicit failures, and human approval gates.
 - Automated schema, transformation, collection, orchestration, API-contract,
@@ -170,10 +174,10 @@ Human-approved exportable draft
    - compares approved product capabilities with prospect evidence
    - produces a structured positioning brief
 
-7. **Colab model service**
+7. **Colab model workspace**
    - loads the selected base model and outreach adapter
-   - exposes a temporary authenticated inference contract
-   - returns structured output and model metadata
+   - runs benchmark, training, evaluation, and real inference demonstrations
+   - exports structured result bundles that follow the inference contract
    - records model revision, adapter revision, latency, and failures
 
 8. **Campaign evaluator**
@@ -185,7 +189,7 @@ Human-approved exportable draft
 9. **Agent runtime**
    - controls tool permissions and workflow state
    - records traces and intermediate artifacts
-   - handles timeouts, retries, endpoint unavailability, and malformed output
+   - handles missing, malformed, mismatched, or duplicate result bundles
    - supports base-versus-adapter shadow comparisons
    - stops for human approval at claim, prospect, and final-draft gates
 
@@ -225,20 +229,23 @@ They use tools, retrieval, schemas, deterministic checks, and prompts. Another
 adapter requires evidence of a distinct, repeatable failure that fine-tuning
 can solve.
 
-### Colab inference boundary
+### Colab inference and artifact boundary
 
 Training, evaluation, and model inference run in Colab. Model artifacts are
 stored in an approved persistent location such as private cloud storage or a
 model repository; secrets are never stored in the notebook.
 
-The MVP uses a manually started, authenticated, session-based inference
-endpoint. The local application must treat that endpoint as unreliable:
+The MVP does not expose a public web service or reverse tunnel from a managed
+Colab runtime. Instead, a user manually runs real inference in the notebook and
+exports a versioned result bundle containing the request identifier, contract
+version, structured output, model and adapter revisions, generation settings,
+latency, and integrity hashes. The local application validates and imports only
+reviewed bundles that match the pending request and approved revisions.
 
-- validate endpoint identity and API credentials
-- use explicit connection and generation timeouts
-- never silently fall back to unapproved model output
-- report unavailable or expired sessions clearly
-- record model and adapter revisions with each response
+This boundary preserves demonstrations of real base-model and fine-tuned-model
+inference. It does not provide synchronous local-application-to-model calls.
+During automated development the local application uses a contract-compatible
+test double; a compliant live host is selected after the MVP.
 
 Colab is not presented as permanent hosting. A separate post-MVP assessment
 will compare free or low-cost hosting options and production inference tools.
@@ -366,7 +373,7 @@ Measure:
 
 - complete trace coverage across agent stages
 - malformed-output and retry rates
-- endpoint-unavailable behavior
+- missing, malformed, mismatched, and duplicate result-bundle behavior
 - tool failure handling
 - approval-gate enforcement
 - base-versus-adapter shadow comparison
@@ -379,7 +386,7 @@ The authoritative task-level roadmap is
 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md). Its phases are:
 
 0. Reproducible project foundation.
-1. Colab model and temporary inference feasibility.
+1. Colab model, QLoRA, and inference-result feasibility.
 2. Structured backend walking skeleton.
 3. Product onboarding and claim approval.
 4. Public research, prospect discovery, and ranking.
@@ -400,11 +407,11 @@ src/
   data/             collection, normalization, caching, provenance
   schemas/          product, ICP, claim, prospect, evidence, campaign models
   research/         product research, retrieval, prospect discovery/ranking
-  outreach/         prompts, Colab inference client, output parsing
+  outreach/         prompts, inference contracts, result-bundle validation
   evaluation/       rubric, metrics, shadow comparison, regression checks
   runtime/          orchestration, workflow state, FastAPI application
 tests/              unit, fixture, contract, integration, regression tests
-notebooks/          Colab model benchmark, training, evaluation, serving demo
+notebooks/          Colab benchmark, QLoRA, training, evaluation, inference demo
 data/               gitignored local evidence and working datasets
 results/            generated metrics and samples; reviewed reports may commit
 configs/            non-secret source, model, runtime, and evaluation config
@@ -451,7 +458,7 @@ gates are listed in `docs/IMPLEMENTATION_PLAN.md`.
 - changing the B2B email channel
 - changing the evaluation rubric or approval gates
 - adding automatic sending
-- moving from temporary Colab inference to another host
+- adding any live model host or public inference transport
 
 ### Never do
 
@@ -471,7 +478,8 @@ gates are listed in `docs/IMPLEMENTATION_PLAN.md`.
 | Risk | Mitigation |
 | --- | --- |
 | Generality becomes vague or untestable | Benchmark a fixed matrix of product categories and ICP patterns. |
-| Colab endpoint stops or changes | Treat it as session-based, surface failures, persist revisions, and test reconnection behavior. |
+| Colab hardware or sessions vary | Record the allocated hardware/runtime, persist incremental artifacts, and require explicit feasibility thresholds. |
+| Result bundle does not match the pending request | Validate request ID, contract version, revisions, schema, and integrity hashes before import. |
 | Model quality is insufficient | Benchmark several permitted candidates before selecting one. |
 | Too little reviewed training data | Set the pilot size after the baseline, inspect learning curves, and expand where quality or coverage is weak. |
 | Product or prospect facts are invented | Require evidence IDs, claim approval, and deterministic support checks. |
@@ -489,7 +497,8 @@ gates are listed in `docs/IMPLEMENTATION_PLAN.md`.
 - source-backed prospect research and ranking example
 - Colab model benchmark, training notebook, and evaluation notebook
 - one trained outreach adapter
-- authenticated session-based Colab inference demonstration
+- real base-model and adapted-model inference demonstrations in Colab
+- validated Colab-to-local inference-result handoff
 - base-versus-adapter and generalization evaluation reports
 - campaign-quality rubric, traces, regression checks, and failure analysis
 - tested Python/FastAPI agent runtime and small React/TypeScript interface

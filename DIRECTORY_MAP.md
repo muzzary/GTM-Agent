@@ -30,7 +30,7 @@ introduced.
 | `src/data/` | Collection, normalization, caching, and provenance handling. |
 | `src/schemas/` | Structured records for products, prospects, evidence, and campaigns. |
 | `src/research/` | Retrieval, evidence selection, and positioning workflows. |
-| `src/outreach/` | Prompts, Colab inference client, generation contracts, and output parsing. |
+| `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `src/runtime/api.py` | FastAPI application and health endpoint. |
 | `src/runtime/settings.py` | Validated environment configuration. |
@@ -40,7 +40,7 @@ introduced.
 | Path | Responsibility |
 | --- | --- |
 | `tests/` | Backend unit, fixture-based, integration, and regression tests. |
-| `notebooks/` | Reproducible Colab model benchmarks, training, evaluation, and session-inference notebooks. |
+| `notebooks/` | Reproducible Colab model benchmarks, QLoRA checks, training, evaluation, and real-inference notebooks. |
 
 ## Data and deliverables
 
