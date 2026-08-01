@@ -13,13 +13,13 @@
       "revision": "cfbefacb99257ffa30c83adab238a50856ac3083",
       "license": "MIT",
       "license_url": "https://huggingface.co/microsoft/Phi-4-mini-instruct/blob/cfbefacb99257ffa30c83adab238a50856ac3083/LICENSE",
-      "trust_remote_code": true
+      "trust_remote_code": false
     }
   ],
   "generation": {
     "seed": 42,
     "do_sample": false,
-    "max_new_tokens": 256,
+    "max_new_tokens": 384,
     "warmup_runs": 1,
     "measured_runs": 2
   },

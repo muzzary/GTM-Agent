@@ -181,7 +181,7 @@
 
 ## Phase 1: Local feasibility package
 
-**Status:** Awaiting manual Colab run and base-model approval
+**Status:** Complete; Qwen3 4B Instruct approved as the fine-tuning base
 
 **Changed:**
 
@@ -214,8 +214,19 @@
   passed.
 - Production npm dependency audit found zero vulnerabilities.
 
-**Manual review needed:**
+**Manual verification completed:**
 
-- Run `docs/PHASE1_COLAB_RUNBOOK.md` on a Colab GPU.
-- Return the environment, candidate, comparison, and validated bundle results.
-- Approve one base model only if every hard gate passes.
+- Ran both exact model revisions on a Colab Tesla T4 using deterministic
+  generation and the fixed nine-case benchmark.
+- Qwen passed with 18/18 valid outputs, zero unsupported claim IDs, and a
+  successful QLoRA smoke test.
+- Phi completed QLoRA but failed the strict JSON gate for all 18 outputs and
+  was excluded.
+- Human review scored Qwen 2.5/5 and approved it as a fine-tuning base while
+  recording its CTA, differentiation, and semantic-claim weaknesses.
+- Locally validated the real Qwen inference bundle against its request ID,
+  immutable model revision, and SHA-256 integrity digest.
+- Final repository verification passed 21 backend/notebook tests plus frontend
+  test, typecheck, lint, and production build gates.
+- Kept candidate reports, generated bodies, adapters, and model files outside
+  Git.

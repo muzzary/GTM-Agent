@@ -24,6 +24,15 @@ def test_manifest_covers_three_product_and_icp_patterns() -> None:
     assert all(len(candidate.revision) == 40 for candidate in manifest.candidates)
 
 
+def test_manifest_records_the_validated_colab_runtime_configuration() -> None:
+    manifest = load_manifest(MANIFEST_PATH)
+
+    assert manifest.generation.max_new_tokens == 384
+    assert all(
+        candidate.trust_remote_code is False for candidate in manifest.candidates
+    )
+
+
 def test_model_output_must_be_strict_json() -> None:
     valid = json.dumps(
         {

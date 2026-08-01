@@ -13,8 +13,8 @@ a web service.
   adapters.
 
 The two initial candidates are public and do not require a Hugging Face token.
-Phi uses pinned remote model code from its immutable model revision; do not
-change that revision during the comparison.
+Both use model implementations built into the pinned Transformers release;
+remote repository code remains disabled.
 
 ## Run the benchmark
 

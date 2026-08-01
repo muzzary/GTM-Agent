@@ -18,10 +18,26 @@ def test_notebook_is_clean_and_contains_required_feasibility_steps() -> None:
     assert "capture_environment" in source
     assert "run_candidate_benchmark" in source
     assert "run_qlora_smoke" in source
+    assert "gate_summary" in source
     assert "create_bundle" in source
     assert "drive.mount" in source
     assert "cloudflared" not in source.lower()
     assert "ngrok" not in source.lower()
+    assert not Path("phase-1-colab-feasibility").exists()
+
+
+def test_notebook_uses_manifest_settings_and_preserves_manual_approval() -> None:
+    notebook = json.loads(NOTEBOOK_PATH.read_text(encoding="utf-8"))
+    source = "\n".join(
+        "".join(cell.get("source", [])) for cell in notebook["cells"]
+    )
+
+    assert 'APPROVED_MODEL_ID = ""' in source
+    assert "trust_remote_code=False" in source
+    assert "use_safetensors=True" in source
+    assert "Do not use Markdown or code fences" in source
+    assert "effective_generation" not in source
+    assert "effective_candidates" not in source
 
 
 def test_notebook_pins_candidates_and_colab_libraries() -> None:
