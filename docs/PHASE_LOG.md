@@ -104,3 +104,38 @@
 
 - Confirm the revised public scope and roadmap before Phase 0 dependency
   selection and scaffolding.
+
+## Phase 0: Reproducible project foundation
+
+**Status:** Ready for manual review
+
+**Changed:**
+
+- Pinned the project to uv-managed Python 3.12 and added `pyproject.toml` plus
+  `uv.lock`.
+- Added a minimal FastAPI application, validated environment settings, and
+  backend smoke tests.
+- Added a React/TypeScript/Vite frontend with Vitest, Testing Library, type
+  checking, linting, and a production build.
+- Removed unused Vite starter assets and added project-specific page metadata
+  and a lightweight favicon.
+- Added `.env.example` without credentials and expanded artifact exclusions.
+- Added separate backend and frontend GitHub Actions quality jobs.
+- Added cross-platform line-ending rules and practical setup/run/test commands.
+
+**Verification:**
+
+- Backend tests: `3 passed`.
+- Backend lint: clean.
+- Frontend tests: `1 passed`.
+- Frontend lint and type check: clean.
+- Frontend production build: successful.
+- Python lockfile check: current.
+- Production npm dependency audit: zero known vulnerabilities.
+- Public-reference and tracked-secret scans: clean.
+
+**Manual review needed:**
+
+- Run the backend and frontend using the README instructions.
+- Confirm the frontend foundation screen renders and `/health` returns the
+  documented JSON response.

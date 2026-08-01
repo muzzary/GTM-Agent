@@ -12,25 +12,34 @@ introduced.
 | `DIRECTORY_MAP.md` | This map of files, directories, and responsibilities. |
 | `README.md` | Concise project overview and links to the scope and implementation plan. |
 | `PROJECT_SCOPE.md` | Approved project objective, workflow, boundaries, and architecture. |
+| `pyproject.toml` | Python metadata, dependency declarations, and test/lint configuration. |
+| `uv.lock` | Exact cross-platform Python dependency lockfile managed by uv. |
+| `.python-version` | Project Python version used by uv and CI. |
+| `.env.example` | Non-secret environment-variable template. |
+| `.gitattributes` | Cross-platform text and line-ending rules. |
 | `.gitignore` | Prevents local data, secrets, caches, model files, and build output from entering Git. |
+| `.github/workflows/ci.yml` | Backend and frontend quality checks for pushes and pull requests. |
 
 ## Application code
 
 | Path | Responsibility |
 | --- | --- |
-| `frontend/` | React and TypeScript product/ICP form, claim approval, prospect selection, and draft review. |
+| `frontend/src/` | React and TypeScript application, styles, and component tests. |
+| `frontend/package.json` | Frontend commands and dependency declarations. |
+| `frontend/package-lock.json` | Exact npm dependency lockfile used by local setup and CI. |
 | `src/data/` | Collection, normalization, caching, and provenance handling. |
 | `src/schemas/` | Structured records for products, prospects, evidence, and campaigns. |
 | `src/research/` | Retrieval, evidence selection, and positioning workflows. |
 | `src/outreach/` | Prompts, Colab inference client, generation contracts, and output parsing. |
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
-| `src/runtime/` | Agent orchestration, workflow state, model routing, and FastAPI application. |
+| `src/runtime/api.py` | FastAPI application and health endpoint. |
+| `src/runtime/settings.py` | Validated environment configuration. |
 
 ## Verification and experiments
 
 | Path | Responsibility |
 | --- | --- |
-| `tests/` | Unit, fixture-based, integration, and regression tests. |
+| `tests/` | Backend unit, fixture-based, integration, and regression tests. |
 | `notebooks/` | Reproducible Colab model benchmarks, training, evaluation, and session-inference notebooks. |
 
 ## Data and deliverables

@@ -14,5 +14,60 @@ Read [PROJECT_SCOPE.md](PROJECT_SCOPE.md) for the product boundary and
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the phased build
 plan, dependency candidates, and required resources.
 
-The scope is approved. Implementation proceeds one verified phase at a time,
-starting with the reproducible project foundation.
+## Current status
+
+Phase 0 provides a reproducible Python/FastAPI and React/TypeScript foundation.
+The current UI and `/health` endpoint are smoke paths; campaign behavior begins
+in later phases.
+
+## Requirements
+
+- Python 3.12
+- `uv` 0.11.19 or compatible
+- Node.js 24
+- npm 11
+
+## Setup
+
+```powershell
+uv sync --locked --dev
+Set-Location frontend
+npm.cmd ci
+Set-Location ..
+```
+
+No credential is required in Phase 0. `.env.example` documents future Colab
+settings; real values belong in ignored local environment variables.
+
+## Run
+
+Backend:
+
+```powershell
+uv run uvicorn src.runtime.api:app --reload
+```
+
+Frontend, in a second terminal:
+
+```powershell
+Set-Location frontend
+npm.cmd run dev
+```
+
+Open the URL printed by Vite. The API health check is available at
+`http://127.0.0.1:8000/health`.
+
+## Verify
+
+```powershell
+uv run ruff check .
+uv run pytest -q
+Set-Location frontend
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+```
+
+GitHub Actions runs the same backend and frontend quality gates on every push
+and pull request.
