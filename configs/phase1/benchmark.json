@@ -1,0 +1,180 @@
+{
+  "manifest_version": "1.0",
+  "candidates": [
+    {
+      "model_id": "Qwen/Qwen3-4B-Instruct-2507",
+      "revision": "cdbee75f17c01a7cc42f958dc650907174af0554",
+      "license": "Apache-2.0",
+      "license_url": "https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/cdbee75f17c01a7cc42f958dc650907174af0554/LICENSE",
+      "trust_remote_code": false
+    },
+    {
+      "model_id": "microsoft/Phi-4-mini-instruct",
+      "revision": "cfbefacb99257ffa30c83adab238a50856ac3083",
+      "license": "MIT",
+      "license_url": "https://huggingface.co/microsoft/Phi-4-mini-instruct/blob/cfbefacb99257ffa30c83adab238a50856ac3083/LICENSE",
+      "trust_remote_code": true
+    }
+  ],
+  "generation": {
+    "seed": 42,
+    "do_sample": false,
+    "max_new_tokens": 256,
+    "warmup_runs": 1,
+    "measured_runs": 2
+  },
+  "hard_gates": {
+    "minimum_valid_output_rate": 0.9,
+    "maximum_unsupported_claim_count": 0,
+    "require_qlora_smoke": true
+  },
+  "human_rubric": {
+    "scale_min": 1,
+    "scale_max": 5,
+    "dimensions": [
+      "relevance",
+      "clarity",
+      "differentiation",
+      "credibility",
+      "cta_quality",
+      "brand_fit"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "case-reporting-regulated",
+      "product_category": "reporting_automation",
+      "icp_pattern": "regulated_mid_market",
+      "product_name": "FlowReport",
+      "product_description": "Automates recurring operational reports from approved source systems.",
+      "approved_claims": [
+        {"claim_id": "claim-report-schedule", "text": "Supports scheduled report generation."},
+        {"claim_id": "claim-report-access", "text": "Requires authorized access to source systems."}
+      ],
+      "prospect_name": "Northstar Health",
+      "prospect_evidence": ["The company publicly describes weekly compliance reporting."],
+      "target_role": "Director of Operations",
+      "pain_hypothesis": "Recurring compliance reports may require repetitive manual consolidation."
+    },
+    {
+      "case_id": "case-reporting-operations",
+      "product_category": "reporting_automation",
+      "icp_pattern": "distributed_operations",
+      "product_name": "FlowReport",
+      "product_description": "Automates recurring operational reports from approved source systems.",
+      "approved_claims": [
+        {"claim_id": "claim-report-schedule", "text": "Supports scheduled report generation."},
+        {"claim_id": "claim-report-access", "text": "Requires authorized access to source systems."}
+      ],
+      "prospect_name": "Harborline Logistics",
+      "prospect_evidence": ["The company publicly lists operations across twelve regional hubs."],
+      "target_role": "Head of Operations",
+      "pain_hypothesis": "Distributed teams may spend time consolidating regional reports."
+    },
+    {
+      "case_id": "case-reporting-growth",
+      "product_category": "reporting_automation",
+      "icp_pattern": "high_growth_software",
+      "product_name": "FlowReport",
+      "product_description": "Automates recurring operational reports from approved source systems.",
+      "approved_claims": [
+        {"claim_id": "claim-report-schedule", "text": "Supports scheduled report generation."},
+        {"claim_id": "claim-report-access", "text": "Requires authorized access to source systems."}
+      ],
+      "prospect_name": "OrbitScale Software",
+      "prospect_evidence": ["The company publicly announced expansion into three markets."],
+      "target_role": "VP of Operations",
+      "pain_hypothesis": "Rapid expansion may increase recurring reporting coordination."
+    },
+    {
+      "case_id": "case-security-regulated",
+      "product_category": "security_compliance",
+      "icp_pattern": "regulated_mid_market",
+      "product_name": "SecureTrack",
+      "product_description": "Maintains an evidence-oriented inventory of approved cloud assets.",
+      "approved_claims": [
+        {"claim_id": "claim-security-inventory", "text": "Maintains an inventory of connected cloud assets."},
+        {"claim_id": "claim-security-no-guarantee", "text": "Does not guarantee regulatory compliance."}
+      ],
+      "prospect_name": "Cedar Finance",
+      "prospect_evidence": ["The company publishes an annual security and risk statement."],
+      "target_role": "Head of Security",
+      "pain_hypothesis": "Evidence preparation may require consolidating asset information."
+    },
+    {
+      "case_id": "case-security-operations",
+      "product_category": "security_compliance",
+      "icp_pattern": "distributed_operations",
+      "product_name": "SecureTrack",
+      "product_description": "Maintains an evidence-oriented inventory of approved cloud assets.",
+      "approved_claims": [
+        {"claim_id": "claim-security-inventory", "text": "Maintains an inventory of connected cloud assets."},
+        {"claim_id": "claim-security-no-guarantee", "text": "Does not guarantee regulatory compliance."}
+      ],
+      "prospect_name": "Atlas Field Services",
+      "prospect_evidence": ["The company publicly lists teams in multiple operating regions."],
+      "target_role": "IT Director",
+      "pain_hypothesis": "Distributed assets may make inventory evidence harder to maintain."
+    },
+    {
+      "case_id": "case-security-growth",
+      "product_category": "security_compliance",
+      "icp_pattern": "high_growth_software",
+      "product_name": "SecureTrack",
+      "product_description": "Maintains an evidence-oriented inventory of approved cloud assets.",
+      "approved_claims": [
+        {"claim_id": "claim-security-inventory", "text": "Maintains an inventory of connected cloud assets."},
+        {"claim_id": "claim-security-no-guarantee", "text": "Does not guarantee regulatory compliance."}
+      ],
+      "prospect_name": "LaunchGrid",
+      "prospect_evidence": ["The company publicly advertises a growing multi-cloud platform."],
+      "target_role": "Security Engineering Lead",
+      "pain_hypothesis": "A growing cloud footprint may increase asset-inventory effort."
+    },
+    {
+      "case_id": "case-devtools-regulated",
+      "product_category": "developer_productivity",
+      "icp_pattern": "regulated_mid_market",
+      "product_name": "BuildLens",
+      "product_description": "Summarizes CI failure patterns from connected repositories.",
+      "approved_claims": [
+        {"claim_id": "claim-dev-ci", "text": "Summarizes CI failure patterns."},
+        {"claim_id": "claim-dev-access", "text": "Requires authorized repository access."}
+      ],
+      "prospect_name": "Meridian Insurance Tech",
+      "prospect_evidence": ["The engineering page describes controlled software release processes."],
+      "target_role": "Director of Engineering",
+      "pain_hypothesis": "Controlled releases may make repeated CI investigation expensive."
+    },
+    {
+      "case_id": "case-devtools-operations",
+      "product_category": "developer_productivity",
+      "icp_pattern": "distributed_operations",
+      "product_name": "BuildLens",
+      "product_description": "Summarizes CI failure patterns from connected repositories.",
+      "approved_claims": [
+        {"claim_id": "claim-dev-ci", "text": "Summarizes CI failure patterns."},
+        {"claim_id": "claim-dev-access", "text": "Requires authorized repository access."}
+      ],
+      "prospect_name": "RouteWorks",
+      "prospect_evidence": ["The company publicly describes distributed product teams."],
+      "target_role": "Platform Engineering Lead",
+      "pain_hypothesis": "Distributed teams may duplicate CI failure investigation."
+    },
+    {
+      "case_id": "case-devtools-growth",
+      "product_category": "developer_productivity",
+      "icp_pattern": "high_growth_software",
+      "product_name": "BuildLens",
+      "product_description": "Summarizes CI failure patterns from connected repositories.",
+      "approved_claims": [
+        {"claim_id": "claim-dev-ci", "text": "Summarizes CI failure patterns."},
+        {"claim_id": "claim-dev-access", "text": "Requires authorized repository access."}
+      ],
+      "prospect_name": "PeakStack",
+      "prospect_evidence": ["The company publicly reports rapid engineering-team growth."],
+      "target_role": "VP of Engineering",
+      "pain_hypothesis": "Team growth may increase the volume of repeated CI failures."
+    }
+  ]
+}
