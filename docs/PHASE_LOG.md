@@ -233,7 +233,7 @@
 
 ## Phase 2: Structured backend walking skeleton
 
-**Status:** Ready for manual review
+**Status:** Approved
 
 **Changed:**
 
@@ -262,9 +262,11 @@
 - Phase 0 and Phase 1 backend/notebook regression checks remain in the full
   test suite.
 
-**Manual review needed:**
+**Manual verification completed:**
 
-- Follow `docs/PHASE2_API_RUNBOOK.md` and inspect the proposed claims, ranked
-  fixture prospects, validated draft, evaluation checks, and ten-event trace.
-- Confirm the data contracts and state names are understandable before Phase 3
-  builds the product and ICP interface on top of them.
+- Completed the campaign API walkthrough using port 8001 because another local
+  Python application occupied the default port 8000.
+- Reviewed the proposed claims, ranked fixture prospects, selected prospect,
+  validated draft, and passing deterministic evaluation.
+- Confirmed the complete ordered trace contains all ten expected events from
+  `campaign_created` through `draft_evaluated`.

@@ -60,8 +60,9 @@ Set-Location frontend
 npm.cmd run dev
 ```
 
-Open the URL printed by Vite. The API health check is available at
-`http://127.0.0.1:8000/health`.
+Open the URL printed by Vite. By default, the API health check is available at
+`http://127.0.0.1:8000/health`; the Phase 2 runbook explains how to use another
+local port when 8000 is occupied.
 
 ## Phase 2 campaign API
 

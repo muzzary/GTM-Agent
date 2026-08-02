@@ -12,8 +12,21 @@ From the repository root:
 uv run uvicorn src.runtime.api:app --reload
 ```
 
+If another local application already uses port 8000, choose an available port:
+
+```powershell
+uv run uvicorn src.runtime.api:app --reload --host 127.0.0.1 --port 8001
+```
+
 Open a second PowerShell terminal in the repository root for the remaining
-steps.
+steps. Set the base URL to the port printed by Uvicorn:
+
+```powershell
+$baseUrl = "http://127.0.0.1:8000"
+Invoke-RestMethod "$baseUrl/health"
+```
+
+Use `http://127.0.0.1:8001` instead when Uvicorn was started on port 8001.
 
 ## 2. Create a campaign
 
@@ -34,7 +47,7 @@ $campaignBody = @{
 
 $campaign = Invoke-RestMethod `
     -Method Post `
-    -Uri "http://127.0.0.1:8000/campaigns" `
+    -Uri "$baseUrl/campaigns" `
     -ContentType "application/json" `
     -Body $campaignBody
 
@@ -60,7 +73,7 @@ $decisions = for ($index = 0; $index -lt $campaign.claims.Count; $index++) {
 $decisionBody = @{ decisions = @($decisions) } | ConvertTo-Json -Depth 4
 $campaign = Invoke-RestMethod `
     -Method Post `
-    -Uri "http://127.0.0.1:8000/campaigns/$($campaign.campaign_id)/claim-decisions" `
+    -Uri "$baseUrl/campaigns/$($campaign.campaign_id)/claim-decisions" `
     -ContentType "application/json" `
     -Body $decisionBody
 
@@ -75,12 +88,12 @@ campaign.
 
 ```powershell
 $prospects = Invoke-RestMethod `
-    -Uri "http://127.0.0.1:8000/campaigns/$($campaign.campaign_id)/prospects"
+    -Uri "$baseUrl/campaigns/$($campaign.campaign_id)/prospects"
 
 $selected = $prospects[0]
 $campaign = Invoke-RestMethod `
     -Method Post `
-    -Uri "http://127.0.0.1:8000/campaigns/$($campaign.campaign_id)/prospects/$($selected.prospect_id)/select"
+    -Uri "$baseUrl/campaigns/$($campaign.campaign_id)/prospects/$($selected.prospect_id)/select"
 
 $campaign.state
 ```
@@ -92,7 +105,7 @@ The state should be `prospect_selected`.
 ```powershell
 $campaign = Invoke-RestMethod `
     -Method Post `
-    -Uri "http://127.0.0.1:8000/campaigns/$($campaign.campaign_id)/draft"
+    -Uri "$baseUrl/campaigns/$($campaign.campaign_id)/draft"
 
 $campaign.state
 $campaign.draft
@@ -107,7 +120,7 @@ or model inference.
 
 ```powershell
 $trace = Invoke-RestMethod `
-    -Uri "http://127.0.0.1:8000/campaigns/$($campaign.campaign_id)/trace"
+    -Uri "$baseUrl/campaigns/$($campaign.campaign_id)/trace"
 
 $trace | Select-Object sequence, event_type, summary
 ```
