@@ -100,7 +100,7 @@ class ProductClaim(StrictModel):
 
 class ClaimDecision(StrictModel):
     claim_id: str = Field(pattern=r"^claim-[a-z0-9-]{4,64}$")
-    decision: ApprovalDecision
+    decision: ApprovalDecision = Field(strict=False)
 
 
 class ClaimDecisionBatch(StrictModel):
