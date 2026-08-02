@@ -33,7 +33,11 @@ introduced.
 | `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
-| `src/runtime/api.py` | FastAPI application and health endpoint. |
+| `src/schemas/base.py` | Shared strict, immutable Pydantic model configuration. |
+| `src/schemas/campaign.py` | Phase 2 campaign, approval, evidence, prospect, outreach, evaluation, and trace contracts. |
+| `src/runtime/api.py` | FastAPI health and deterministic campaign workflow endpoints. |
+| `src/runtime/fixtures.py` | Deterministic fixture research, ranking, positioning, generation, and evaluation stages. |
+| `src/runtime/workflow.py` | Campaign state machine, approval enforcement, trace creation, and in-memory repository. |
 | `src/runtime/settings.py` | Validated environment configuration. |
 
 ## Verification and experiments
@@ -42,6 +46,7 @@ introduced.
 | --- | --- |
 | `tests/` | Backend unit, fixture-based, integration, and regression tests. |
 | `notebooks/phase1_colab_feasibility.ipynb` | Pinned Colab benchmark, QLoRA smoke test, environment capture, and real result-bundle export. |
+| `docs/PHASE2_API_RUNBOOK.md` | Manual PowerShell walkthrough for the deterministic campaign API. |
 
 ## Data and deliverables
 

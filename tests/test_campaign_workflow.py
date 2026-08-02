@@ -13,10 +13,12 @@ from src.runtime.workflow import (
 )
 from src.schemas.campaign import (
     ApprovalDecision,
+    Campaign,
     CampaignInput,
     CampaignState,
     ClaimDecision,
     ClaimDecisionBatch,
+    ClaimStatus,
     TraceEventType,
 )
 
@@ -139,6 +141,17 @@ def test_fixture_workflow_propagates_inputs_and_produces_complete_trace() -> Non
         TraceEventType.DRAFT_EVALUATED,
     ]
     assert [event.sequence for event in completed.trace] == list(range(1, 11))
+    ranking_event = completed.trace[4]
+    prospect_evidence_ids = {
+        evidence_id
+        for prospect in completed.prospects
+        for evidence_id in prospect.evidence_ids
+    }
+    assert {prospect.prospect_id for prospect in completed.prospects} <= set(
+        ranking_event.output_ids
+    )
+    assert prospect_evidence_ids <= set(ranking_event.output_ids)
+    assert Campaign.model_validate_json(completed.model_dump_json()) == completed
 
 
 def test_contrasting_inputs_change_ranked_prospect_and_draft_content() -> None:
@@ -219,6 +232,48 @@ def test_illegal_transitions_and_unknown_ids_do_not_mutate_campaign() -> None:
         workflow.get_campaign("campaign-9999")
 
     assert repository.get(created.campaign_id) == before
+
+
+def test_unknown_prospect_and_repeated_commands_leave_state_unchanged() -> None:
+    workflow, repository = build_workflow()
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+    after_decisions = repository.get(created.campaign_id)
+
+    repeated_batch = ClaimDecisionBatch(
+        decisions=[
+            ClaimDecision(
+                claim_id=claim.claim_id,
+                decision=(
+                    ApprovalDecision.APPROVED
+                    if claim.status is ClaimStatus.APPROVED
+                    else ApprovalDecision.REJECTED
+                ),
+            )
+            for claim in after_decisions.claims
+        ]
+    )
+    with pytest.raises(WorkflowConflictError, match="cannot decide claims"):
+        workflow.decide_claims(created.campaign_id, repeated_batch)
+    with pytest.raises(WorkflowConflictError, match="ranked for this campaign"):
+        workflow.select_prospect(created.campaign_id, "prospect-9999")
+    assert repository.get(created.campaign_id) == after_decisions
+
+    selected = workflow.select_prospect(
+        created.campaign_id,
+        after_decisions.prospects[0].prospect_id,
+    )
+    with pytest.raises(WorkflowConflictError, match="cannot select a prospect"):
+        workflow.select_prospect(
+            created.campaign_id,
+            after_decisions.prospects[0].prospect_id,
+        )
+    assert repository.get(created.campaign_id) == selected
+
+    completed = workflow.generate_draft(created.campaign_id)
+    with pytest.raises(WorkflowConflictError, match="cannot generate a draft"):
+        workflow.generate_draft(created.campaign_id)
+    assert repository.get(created.campaign_id) == completed
 
 
 class FailingEvaluationPipeline(DeterministicFixturePipeline):

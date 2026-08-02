@@ -197,7 +197,10 @@ class CampaignWorkflow:
                     if claim.status is ClaimStatus.APPROVED
                 ),
             ),
-            output_ids=tuple(prospect.prospect_id for prospect in prospects),
+            output_ids=(
+                *(prospect.prospect_id for prospect in prospects),
+                *(item.evidence_id for item in prospect_evidence),
+            ),
             summary="Fixture prospects were ranked from submitted ICP fields.",
         )
         updated = campaign.model_copy(

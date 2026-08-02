@@ -17,9 +17,14 @@ plan, dependency candidates, and required resources.
 
 ## Current status
 
-Phase 0 provides a reproducible Python/FastAPI and React/TypeScript foundation.
-The current UI and `/health` endpoint are smoke paths; campaign behavior begins
-in later phases.
+Phase 2 provides a deterministic FastAPI campaign workflow. Product and ICP
+input can pass through fixture research, claim approval, prospect ranking and
+selection, positioning, outreach generation, validation, evaluation, and an
+ordered trace. The workflow intentionally uses in-memory state and fixture
+services; live research begins in Phase 4 and real model generation begins in
+Phase 5.
+
+The React interface remains a foundation screen until Phase 3.
 
 ## Requirements
 
@@ -57,6 +62,23 @@ npm.cmd run dev
 
 Open the URL printed by Vite. The API health check is available at
 `http://127.0.0.1:8000/health`.
+
+## Phase 2 campaign API
+
+The local fixture workflow exposes these endpoints:
+
+- `POST /campaigns`
+- `GET /campaigns/{campaign_id}`
+- `POST /campaigns/{campaign_id}/claim-decisions`
+- `GET /campaigns/{campaign_id}/prospects`
+- `POST /campaigns/{campaign_id}/prospects/{prospect_id}/select`
+- `POST /campaigns/{campaign_id}/draft`
+- `GET /campaigns/{campaign_id}/trace`
+
+Campaign state is intentionally process-local and is cleared when the backend
+restarts. Follow
+[`docs/PHASE2_API_RUNBOOK.md`](docs/PHASE2_API_RUNBOOK.md) for a complete
+PowerShell walkthrough.
 
 ## Verify
 

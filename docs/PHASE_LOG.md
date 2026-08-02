@@ -230,3 +230,41 @@
   test, typecheck, lint, and production build gates.
 - Kept candidate reports, generated bodies, adapters, and model files outside
   Git.
+
+## Phase 2: Structured backend walking skeleton
+
+**Status:** Ready for manual review
+
+**Changed:**
+
+- Added strict product, ICP, campaign, evidence, claim, approval, prospect,
+  positioning, outreach, evaluation, and trace contracts.
+- Added the four-state campaign workflow and explicit legal transitions.
+- Added deterministic fixture stages that propagate submitted product and ICP
+  fields without making live-source or model claims.
+- Enforced complete claim decisions, at least one approved claim, selected
+  ranked prospects, approved-only draft claims, and resolved evidence.
+- Added atomic in-memory aggregate replacement and ordered immutable trace
+  records with injectable IDs and timestamps.
+- Exposed the minimal FastAPI campaign workflow with explicit 404, 409, and
+  422 behavior.
+- Added the Phase 2 PowerShell API walkthrough.
+
+**Automated verification:**
+
+- Full backend and notebook suite: 32 tests passed.
+- Contract tests cover strict input, first-class approval/evaluation records,
+  immutable trace events, and stable JSON timestamps.
+- Workflow tests cover legal and illegal transitions, two contrasting product
+  and ICP inputs, approval barriers, evidence resolution, complete traces, and
+  atomic failure behavior.
+- API tests complete the fixture workflow and verify status/error contracts.
+- Phase 0 and Phase 1 backend/notebook regression checks remain in the full
+  test suite.
+
+**Manual review needed:**
+
+- Follow `docs/PHASE2_API_RUNBOOK.md` and inspect the proposed claims, ranked
+  fixture prospects, validated draft, evaluation checks, and ten-event trace.
+- Confirm the data contracts and state names are understandable before Phase 3
+  builds the product and ICP interface on top of them.
