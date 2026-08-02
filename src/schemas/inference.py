@@ -1,15 +1,8 @@
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
-
-class StrictModel(BaseModel):
-    model_config = ConfigDict(
-        allow_inf_nan=False,
-        extra="forbid",
-        frozen=True,
-        strict=True,
-    )
+from src.schemas.base import StrictModel
 
 
 class ModelIdentity(StrictModel):

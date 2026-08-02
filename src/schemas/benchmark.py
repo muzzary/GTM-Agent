@@ -2,7 +2,8 @@ from typing import Literal
 
 from pydantic import Field, HttpUrl, computed_field
 
-from src.schemas.inference import OutreachOutput, StrictModel
+from src.schemas.base import StrictModel
+from src.schemas.inference import OutreachOutput
 
 
 class CandidateConfig(StrictModel):
