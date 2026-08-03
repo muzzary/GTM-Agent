@@ -12,6 +12,7 @@ function fillRequiredFields(): void {
     target: { value: 'exception reporting' },
   })
   fireEvent.change(screen.getByLabelText('Industries'), { target: { value: 'logistics' } })
+  fireEvent.change(screen.getByLabelText('Regions'), { target: { value: 'United States' } })
   fireEvent.change(screen.getByLabelText('Company size'), { target: { value: 'mid-market' } })
   fireEvent.change(screen.getByLabelText('Target roles'), {
     target: { value: 'Head of Operations' },
@@ -51,6 +52,7 @@ describe('CampaignForm', () => {
 
     await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
     expect(onCreate.mock.calls[0][0].known_capabilities).toEqual(['reporting', 'alerts'])
+    expect(onCreate.mock.calls[0][0].icp.regions).toEqual(['United States'])
   })
 
   it('announces server errors without clearing the form', async () => {

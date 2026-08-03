@@ -136,6 +136,7 @@ class CampaignWorkflow:
             icp_id=self._new_id("icp"),
             campaign_id=campaign_id,
             industries=tuple(campaign_input.icp.industries),
+            regions=tuple(campaign_input.icp.regions),
             company_size=campaign_input.icp.company_size,
             roles=tuple(campaign_input.icp.roles),
             pain_hypotheses=tuple(campaign_input.icp.pain_hypotheses),

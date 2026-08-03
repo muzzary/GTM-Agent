@@ -14,6 +14,7 @@ export interface CampaignInput {
   known_limitations: string[]
   icp: {
     industries: string[]
+    regions: string[]
     company_size: string
     roles: string[]
     pain_hypotheses: string[]
@@ -135,6 +136,7 @@ export interface Campaign {
     icp_id: string
     campaign_id: string
     industries: string[]
+    regions: string[]
     company_size: string
     roles: string[]
     pain_hypotheses: string[]
@@ -305,6 +307,7 @@ function validateCampaign(value: unknown): asserts value is Campaign {
   owned(value.icp, campaignId)
   text(value.icp.icp_id, 80)
   texts(value.icp.industries, 12, 120)
+  texts(value.icp.regions, 12, 120)
   text(value.icp.company_size, 120)
   texts(value.icp.roles, 12, 120)
   texts(value.icp.pain_hypotheses, 12, 500)

@@ -7,6 +7,7 @@ export type CampaignField =
   | 'known_capabilities'
   | 'known_limitations'
   | 'industries'
+  | 'regions'
   | 'company_size'
   | 'roles'
   | 'pain_hypotheses'
@@ -54,6 +55,7 @@ export function parseCampaignFields(fields: CampaignFields): ParsedCampaignField
     false,
   )
   const industries = lines(fields.industries, 'Industries', 12, 120, errors, 'industries')
+  const regions = lines(fields.regions, 'Regions', 12, 120, errors, 'regions', false)
   const roles = lines(fields.roles, 'Roles', 12, 120, errors, 'roles')
   const pains = lines(
     fields.pain_hypotheses,
@@ -84,6 +86,7 @@ export function parseCampaignFields(fields: CampaignFields): ParsedCampaignField
       known_limitations: limitations,
       icp: {
         industries,
+        regions,
         company_size: companySize,
         roles,
         pain_hypotheses: pains,

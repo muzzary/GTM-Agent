@@ -95,8 +95,12 @@ class DeterministicFixturePipeline:
         evidence_items: list[EvidenceRecord] = []
         prospects: list[ProspectCandidate] = []
         for company, score in prospect_specs:
+            region_text = (
+                f" Synthetic region: {icp.regions[0]}." if icp.regions else ""
+            )
             excerpt = (
                 f"Fixture signal for {company}: {role} teams may experience {pain}."
+                f"{region_text}"
             )
             evidence = EvidenceRecord(
                 evidence_id=new_id("evidence"),
@@ -116,7 +120,12 @@ class DeterministicFixturePipeline:
                     company=company,
                     industry=industry,
                     target_role=role,
-                    matched_icp_fields=("industry", "company_size", "role"),
+                    matched_icp_fields=(
+                        "industry",
+                        "company_size",
+                        "role",
+                        *(("region",) if icp.regions else ()),
+                    ),
                     public_signals=(f"Fixture pain hypothesis: {pain}",),
                     evidence_ids=(evidence.evidence_id,),
                     score=score,

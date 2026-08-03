@@ -21,6 +21,7 @@ function researchCampaign(): Campaign {
       campaign_id: 'campaign-0001',
       icp_id: 'icp-0001',
       industries: ['logistics'],
+      regions: [],
       company_size: 'mid-market',
       roles: ['operations'],
       pain_hypotheses: ['manual review'],

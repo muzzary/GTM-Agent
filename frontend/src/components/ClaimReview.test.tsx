@@ -20,6 +20,7 @@ const campaign: Campaign = {
     icp_id: 'icp-0001',
     campaign_id: 'campaign-0001',
     industries: ['logistics'],
+    regions: [],
     company_size: 'mid-market',
     roles: ['Head of Operations'],
     pain_hypotheses: ['manual exception review'],

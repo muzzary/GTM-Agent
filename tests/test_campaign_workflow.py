@@ -66,6 +66,7 @@ def campaign_input(
     product_name: str = "RouteSignal",
     capability: str = "exception reporting",
     industry: str = "logistics",
+    region: str | None = None,
     role: str = "Head of Operations",
     pain: str = "manual exception review",
 ) -> CampaignInput:
@@ -77,6 +78,7 @@ def campaign_input(
         "known_limitations": ["requires source-system access"],
         "icp": {
             "industries": [industry],
+            "regions": [region] if region is not None else [],
             "company_size": "mid-market",
             "roles": [role],
             "pain_hypotheses": [pain],
@@ -130,7 +132,7 @@ def research_selected(workflow: CampaignWorkflow, campaign_id: str) -> None:
 def test_fixture_workflow_propagates_inputs_and_produces_complete_trace() -> None:
     workflow, _ = build_workflow()
 
-    created = workflow.create_campaign(campaign_input())
+    created = workflow.create_campaign(campaign_input(region="United States"))
     decide_claims(workflow, created.campaign_id)
     ranked = workflow.get_campaign(created.campaign_id)
     selected = workflow.select_prospect(
@@ -148,6 +150,8 @@ def test_fixture_workflow_propagates_inputs_and_produces_complete_trace() -> Non
     assert completed.evaluation.passed is True
     assert completed.product.name in completed.draft.body
     assert completed.icp.roles[0] in completed.draft.body
+    assert completed.icp.regions == ("United States",)
+    assert "region" in completed.prospects[0].matched_icp_fields
     assert completed.icp.pain_hypotheses[0] in completed.draft.body
     approved_ids = {
         approval.claim_id

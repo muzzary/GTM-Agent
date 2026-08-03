@@ -116,12 +116,13 @@ class TraceEventType(StrEnum):
 
 class ICPInput(StrictModel):
     industries: list[Text120] = Field(min_length=1, max_length=12)
+    regions: list[Text120] = Field(default_factory=list, max_length=12)
     company_size: Text120
     roles: list[Text120] = Field(min_length=1, max_length=12)
     pain_hypotheses: list[Text500] = Field(min_length=1, max_length=12)
 
     _normalize_lists = field_validator(
-        "industries", "roles", "pain_hypotheses", mode="before"
+        "industries", "regions", "roles", "pain_hypotheses", mode="before"
     )(_normalize_unique_items)
     _safe_company_size = field_validator("company_size", mode="before")(
         _reject_control_characters
@@ -158,6 +159,7 @@ class ICPProfile(StrictModel):
     icp_id: str = Field(pattern=r"^icp-[a-z0-9-]{4,64}$")
     campaign_id: str = Field(pattern=r"^campaign-[a-z0-9-]{4,64}$")
     industries: tuple[str, ...] = Field(min_length=1, max_length=12)
+    regions: tuple[str, ...] = Field(default_factory=tuple, max_length=12)
     company_size: str = Field(min_length=1, max_length=80)
     roles: tuple[str, ...] = Field(min_length=1, max_length=12)
     pain_hypotheses: tuple[str, ...] = Field(min_length=1, max_length=12)

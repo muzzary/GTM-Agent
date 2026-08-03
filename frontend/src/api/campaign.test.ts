@@ -11,6 +11,7 @@ const input: CampaignInput = {
   known_limitations: ['requires dispatch data'],
   icp: {
     industries: ['logistics'],
+    regions: [],
     company_size: 'mid-market',
     roles: ['Head of Operations'],
     pain_hypotheses: ['manual exception review'],
@@ -34,6 +35,7 @@ function campaignResponse(): Campaign {
       campaign_id: 'campaign-0001',
       icp_id: 'icp-0001',
       industries: ['logistics'],
+      regions: [],
       company_size: 'mid-market',
       roles: ['Head of Operations'],
       pain_hypotheses: ['manual exception review'],

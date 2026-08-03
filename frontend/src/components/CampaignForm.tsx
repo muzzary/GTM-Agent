@@ -74,6 +74,7 @@ function CampaignForm({ onCreate }: CampaignFormProps) {
       <fieldset>
         <legend>Ideal customer profile</legend>
         <TextField name="industries" label="Industries" help="One industry per line; up to 12." error={errors.industries} multiline />
+        <TextField name="regions" label="Regions" help="Optional. One intended country or market region per line; supplied regions become hard live-discovery filters." error={errors.regions} multiline />
         <TextField name="company_size" label="Company size" help="For example: 50–500 employees or mid-market." error={errors.company_size} />
         <TextField name="roles" label="Target roles" help="One buyer role per line; up to 12." error={errors.roles} multiline />
         <TextField name="pain_hypotheses" label="Pain hypotheses" help="One suspected buyer pain per line; up to 12." error={errors.pain_hypotheses} multiline />

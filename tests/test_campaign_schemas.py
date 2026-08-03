@@ -75,6 +75,21 @@ def test_campaign_input_trims_values_without_reordering_them() -> None:
     assert parsed.known_capabilities == ["reporting", "alerts"]
 
 
+def test_campaign_input_normalizes_optional_regions() -> None:
+    payload = valid_campaign_input()
+
+    global_campaign = CampaignInput.model_validate(payload)
+    payload["icp"]["regions"] = [" United States ", "Canada"]  # type: ignore[index]
+    regional_campaign = CampaignInput.model_validate(payload)
+
+    assert global_campaign.icp.regions == []
+    assert regional_campaign.icp.regions == ["United States", "Canada"]
+
+    payload["icp"]["regions"] = ["Canada", " Canada "]  # type: ignore[index]
+    with pytest.raises(ValidationError):
+        CampaignInput.model_validate(payload)
+
+
 def test_claim_decision_enforces_edit_authorization_shape() -> None:
     with pytest.raises(ValidationError, match="rejected claim cannot include"):
         ClaimDecision(
