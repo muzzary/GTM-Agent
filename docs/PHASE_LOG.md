@@ -426,7 +426,7 @@
 
 **Automated verification:**
 
-- Full Python suite: 115 tests passed.
+- Full Python suite: 116 tests passed.
 - Frontend suite: 19 tests passed across six files.
 - Backend Ruff, frontend Oxlint, frontend typecheck, and production build:
   successful.
