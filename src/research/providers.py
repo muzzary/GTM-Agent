@@ -322,6 +322,19 @@ class WikidataDiscoveryProvider:
         return f"{cls._base_url}?{query}"
 
     @classmethod
+    def entity_url(cls, entity_ids: Sequence[str]) -> str:
+        query = urlencode(
+            {
+                "action": "wbgetentities",
+                "format": "json",
+                "ids": "|".join(entity_ids),
+                "languages": "en",
+                "props": "labels",
+            }
+        )
+        return f"{cls._base_url}?{query}"
+
+    @classmethod
     def company_query_url(
         cls,
         industry_ids: Sequence[str],
@@ -338,20 +351,14 @@ class WikidataDiscoveryProvider:
         else:
             region_clause = "  OPTIONAL { ?company wdt:P17 ?region. }"
         sparql = f"""
-SELECT ?company ?companyLabel ?website ?industry ?region WHERE {{
-  {{
-    SELECT DISTINCT ?company ?website ?industry ?region WHERE {{
-      VALUES ?industry {{ {values} }}
-      ?company wdt:P452 ?industry;
-               wdt:P856 ?website.
-{_indent(region_clause, 4)}
-      FILTER(STRSTARTS(STR(?website), "https://"))
-    }}
-    LIMIT 10
-  }}
-  ?company rdfs:label ?companyLabel.
-  FILTER(LANG(?companyLabel) = "en")
+SELECT DISTINCT ?company ?website ?industry ?region WHERE {{
+  VALUES ?industry {{ {values} }}
+  ?company wdt:P452 ?industry;
+           wdt:P856 ?website.
+{region_clause}
+  FILTER(STRSTARTS(STR(?website), "https://"))
 }}
+LIMIT 10
 """.strip()
         return f"{cls._query_url}?{urlencode({'format': 'json', 'query': sparql})}"
 
@@ -365,77 +372,109 @@ SELECT ?company ?companyLabel ?website ?industry ?region WHERE {{
         regions_by_id = self._resolve_entities(icp.regions)
         if icp.regions and len(regions_by_id) != len(icp.regions):
             return ()
-        for industry in icp.industries[:3]:
-            industries_by_id = self._resolve_entities((industry,))
-            if not industries_by_id:
+        industries_by_id = self._resolve_entities(icp.industries[:3])
+        if not industries_by_id:
+            return ()
+        query_document = self._collector.collect(
+            self.company_query_url(
+                tuple(industries_by_id), tuple(regions_by_id)
+            ),
+            self._query_policy,
+        )
+        results = _json_object(query_document.text).get("results", {})
+        bindings = results.get("bindings", []) if isinstance(results, dict) else []
+        if not isinstance(bindings, list):
+            return ()
+        candidates: list[tuple[str, str, str, str]] = []
+        for binding in bindings:
+            if not isinstance(binding, dict):
                 continue
-            query_document = self._collector.collect(
-                self.company_query_url(
-                    tuple(industries_by_id), tuple(regions_by_id)
-                ),
-                self._query_policy,
+            entity_id = _entity_id(_binding_value(binding, "company"))
+            official_url = _binding_value(binding, "website")
+            industry_id = _entity_id(_binding_value(binding, "industry"))
+            region_id = _entity_id(_binding_value(binding, "region"))
+            if (
+                not entity_id
+                or entity_id in seen_entities
+                or not official_url.startswith("https://")
+                or industry_id not in industries_by_id
+                or (icp.regions and region_id not in regions_by_id)
+            ):
+                continue
+            seen_entities.add(entity_id)
+            candidates.append(
+                (
+                    entity_id,
+                    official_url,
+                    industries_by_id[industry_id],
+                    regions_by_id.get(region_id, ""),
+                )
             )
-            results = _json_object(query_document.text).get("results", {})
-            bindings = results.get("bindings", []) if isinstance(results, dict) else []
-            if not isinstance(bindings, list):
+        labels = self._resolve_entity_labels(
+            tuple(entity_id for entity_id, *_rest in candidates)
+        )
+        for entity_id, official_url, industry_label, region_label in candidates:
+            company = labels.get(entity_id)
+            if not company:
                 continue
-            for binding in bindings:
-                if not isinstance(binding, dict):
-                    continue
-                entity_uri = _binding_value(binding, "company")
-                company = _binding_value(binding, "companyLabel")
-                official_url = _binding_value(binding, "website")
-                industry_id = _entity_id(_binding_value(binding, "industry"))
-                region_id = _entity_id(_binding_value(binding, "region"))
-                industry_label = industries_by_id.get(industry_id, industry)
-                region_label = regions_by_id.get(region_id, "")
-                match = re.fullmatch(
-                    r"https?://www\.wikidata\.org/entity/(Q[1-9][0-9]*)",
-                    entity_uri,
-                )
-                if (
-                    match is None
-                    or not company
-                    or not official_url.startswith("https://")
-                ):
-                    continue
-                entity_id = match.group(1)
-                if entity_id in seen_entities:
-                    continue
-                seen_entities.add(entity_id)
-                citation_url = f"https://www.wikidata.org/wiki/{entity_id}"
-                observation = SourceObservation(
+            citation_url = f"https://www.wikidata.org/wiki/{entity_id}"
+            observation = SourceObservation(
+                provider="wikidata",
+                publisher="Wikidata",
+                source_category=SourceCategory.STRUCTURED_PUBLIC,
+                title=f"Wikidata entity {entity_id}: {company}",
+                url=citation_url,
+                retrieval_url=query_document.canonical_url,
+                text=(
+                    f"{company}. Industry: {industry_label}."
+                    + (f" Region: {region_label}." if region_label else "")
+                ),
+                body_sha256=query_document.body_sha256,
+                policy_version=self._query_policy.policy_version,
+                license_basis="CC0 structured data; excerpt only",
+                fetched_at=query_document.fetched_at,
+                observed_at=query_document.observed_at,
+                cache_hit=query_document.cache_hit,
+            )
+            suggestions.append(
+                CandidateSuggestion(
+                    company=company,
+                    industry=industry_label,
+                    region=region_label or None,
+                    official_url=official_url,
                     provider="wikidata",
-                    publisher="Wikidata",
-                    source_category=SourceCategory.STRUCTURED_PUBLIC,
-                    title=f"Wikidata entity {entity_id}: {company}",
-                    url=citation_url,
-                    retrieval_url=query_document.canonical_url,
-                    text=(
-                        f"{company}. Industry: {industry_label}."
-                        + (f" Region: {region_label}." if region_label else "")
-                    ),
-                    body_sha256=query_document.body_sha256,
-                    policy_version=self._query_policy.policy_version,
-                    license_basis="CC0 structured data; excerpt only",
-                    fetched_at=query_document.fetched_at,
-                    observed_at=query_document.observed_at,
-                    cache_hit=query_document.cache_hit,
+                    observations=(observation,),
+                    source_entity_id=entity_id,
                 )
-                suggestions.append(
-                    CandidateSuggestion(
-                        company=company,
-                        industry=industry,
-                        region=region_label or None,
-                        official_url=official_url,
-                        provider="wikidata",
-                        observations=(observation,),
-                        source_entity_id=entity_id,
-                    )
-                )
-                if len(suggestions) == 20:
-                    return tuple(suggestions)
+            )
         return tuple(suggestions)
+
+    def _resolve_entity_labels(
+        self,
+        entity_ids: Sequence[str],
+    ) -> dict[str, str]:
+        if not entity_ids:
+            return {}
+        document = self._collector.collect(
+            self.entity_url(entity_ids),
+            self._search_policy,
+        )
+        entities = _json_object(document.text).get("entities", {})
+        if not isinstance(entities, dict):
+            return {}
+        labels: dict[str, str] = {}
+        for entity_id in entity_ids:
+            entity = entities.get(entity_id, {})
+            entity_labels = entity.get("labels", {}) if isinstance(entity, dict) else {}
+            english = (
+                entity_labels.get("en", {})
+                if isinstance(entity_labels, dict)
+                else {}
+            )
+            value = english.get("value") if isinstance(english, dict) else None
+            if isinstance(value, str) and value.strip():
+                labels[entity_id] = value.strip()
+        return labels
 
     def _resolve_entities(
         self,

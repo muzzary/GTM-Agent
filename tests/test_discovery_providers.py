@@ -270,6 +270,7 @@ def test_website_expander_rejects_unknown_suffix_identity_match() -> None:
 def test_wikidata_resolves_industry_then_queries_companies() -> None:
     search_url = WikidataDiscoveryProvider.search_url("logistics")
     query_url = WikidataDiscoveryProvider.company_query_url(("Q177777",))
+    labels_url = WikidataDiscoveryProvider.entity_url(("Q1",))
     search_payload = {
         "search": [
             {"id": "Q100", "label": "military logistics"},
@@ -280,18 +281,16 @@ def test_wikidata_resolves_industry_then_queries_companies() -> None:
     query_payload = {
         "results": {
             "bindings": [
-                {
-                    "company": {"value": "http://www.wikidata.org/entity/Q1"},
-                    "companyLabel": {"value": "Acme Logistics"},
-                    "website": {"value": "https://acme.example/"},
+                    {
+                        "company": {"value": "http://www.wikidata.org/entity/Q1"},
+                        "website": {"value": "https://acme.example/"},
                     "industry": {
                         "value": "http://www.wikidata.org/entity/Q177777"
                     },
                 },
-                {
-                    "company": {"value": "not-a-wikidata-entity"},
-                    "companyLabel": {"value": "Invalid"},
-                    "website": {"value": "https://invalid.example/"},
+                    {
+                        "company": {"value": "not-a-wikidata-entity"},
+                        "website": {"value": "https://invalid.example/"},
                     "industry": {
                         "value": "http://www.wikidata.org/entity/Q177777"
                     },
@@ -310,6 +309,17 @@ def test_wikidata_resolves_industry_then_queries_companies() -> None:
                 query_url,
                 text=json.dumps(query_payload),
                 content_type="application/sparql-results+json",
+            ),
+            labels_url: _document(
+                labels_url,
+                text=json.dumps(
+                    {
+                        "entities": {
+                            "Q1": {"labels": {"en": {"value": "Acme Logistics"}}}
+                        }
+                    }
+                ),
+                content_type="application/json",
             ),
         }
     )
@@ -331,13 +341,14 @@ def test_wikidata_query_limits_before_label_resolution() -> None:
     assert "wdt:P159/wdt:P131*" not in sparql
     assert "SELECT DISTINCT ?company ?website ?industry ?region" in sparql
     assert "LIMIT 10" in sparql
-    assert sparql.index("LIMIT 10") < sparql.index("rdfs:label")
+    assert "rdfs:label" not in sparql
 
 
 def test_wikidata_resolves_and_retains_region_evidence() -> None:
     region_url = WikidataDiscoveryProvider.search_url("United States")
     industry_url = WikidataDiscoveryProvider.search_url("logistics")
     query_url = WikidataDiscoveryProvider.company_query_url(("Q100",), ("Q30",))
+    labels_url = WikidataDiscoveryProvider.entity_url(("Q1",))
     collector = FakeCollector(
         {
             region_url: _document(
@@ -367,7 +378,6 @@ def test_wikidata_resolves_and_retains_region_evidence() -> None:
                                     "company": {
                                         "value": "http://www.wikidata.org/entity/Q1"
                                     },
-                                    "companyLabel": {"value": "Acme Logistics"},
                                     "website": {"value": "https://acme.example/"},
                                     "industry": {
                                         "value": "http://www.wikidata.org/entity/Q100"
@@ -382,12 +392,23 @@ def test_wikidata_resolves_and_retains_region_evidence() -> None:
                 ),
                 content_type="application/sparql-results+json",
             ),
+            labels_url: _document(
+                labels_url,
+                text=json.dumps(
+                    {
+                        "entities": {
+                            "Q1": {"labels": {"en": {"value": "Acme Logistics"}}}
+                        }
+                    }
+                ),
+                content_type="application/json",
+            ),
         }
     )
     icp = _icp().model_copy(update={"regions": ("United States",)})
 
     suggestions = WikidataDiscoveryProvider(collector).discover(icp, ())
 
-    assert collector.calls == [region_url, industry_url, query_url]
+    assert collector.calls == [region_url, industry_url, query_url, labels_url]
     assert suggestions[0].region == "United States"
     assert "Region: United States" in suggestions[0].observations[0].text
