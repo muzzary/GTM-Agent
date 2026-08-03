@@ -13,8 +13,10 @@ from src.schemas.campaign import (
     ProductClaim,
     ProductProfile,
     ProspectCandidate,
+    ProspectResearchProfile,
     Uncertainty,
 )
+from src.schemas.research import SupportedSignal
 
 NewId = Callable[[str], str]
 
@@ -131,6 +133,7 @@ class DeterministicFixturePipeline:
         icp: ICPProfile,
         approved_approvals: Sequence[ApprovalRecord],
         prospect: ProspectCandidate,
+        prospect_research: ProspectResearchProfile,
         new_id: NewId,
     ) -> PositioningBrief:
         claim_evidence = tuple(
@@ -146,12 +149,63 @@ class DeterministicFixturePipeline:
                 approval.claim_id for approval in approved_approvals
             ),
             approval_ids=tuple(approval.approval_id for approval in approved_approvals),
-            evidence_ids=tuple(dict.fromkeys(claim_evidence + prospect.evidence_ids)),
+            evidence_ids=tuple(
+                dict.fromkeys(
+                    claim_evidence
+                    + prospect.evidence_ids
+                    + prospect_research.evidence_ids
+                )
+            ),
             value_hypothesis=(
                 f"Position {product.name} for {icp.roles[0]} teams at "
                 f"{prospect.company} around {icp.pain_hypotheses[0]}."
             ),
         )
+
+    def research_prospect(
+        self,
+        *,
+        campaign_id: str,
+        prospect: ProspectCandidate,
+        run_id: str,
+        new_id: NewId,
+        collected_at: datetime,
+    ) -> tuple[tuple[EvidenceRecord, ...], ProspectResearchProfile]:
+        excerpt = (
+            f"Synthetic research fixture for {prospect.company}: company, "
+            "offerings, projects, and news sections are available for workflow tests."
+        )
+        evidence = EvidenceRecord(
+            evidence_id=new_id("evidence"),
+            campaign_id=campaign_id,
+            source_kind="fixture",
+            title=f"Synthetic prospect research for {prospect.company}",
+            excerpt=excerpt,
+            content_sha256=_digest(excerpt),
+            collected_at=collected_at,
+        )
+        signal = SupportedSignal(
+            signal_id=new_id("signal"),
+            research_run_id=run_id,
+            category="fixture_research",
+            text="Synthetic evidence exercises the prospect-research gate.",
+            evidence_ids=(evidence.evidence_id,),
+            observed_at=collected_at,
+            uncertainty="high",
+        )
+        profile = ProspectResearchProfile(
+            profile_id=new_id("research-profile"),
+            campaign_id=campaign_id,
+            prospect_id=prospect.prospect_id,
+            research_run_id=run_id,
+            evidence_ids=(evidence.evidence_id,),
+            signals=(signal,),
+            covered_sections=("company", "offerings", "projects", "news"),
+            evidence_quality=0.4,
+            research_completeness=1.0,
+            completed_at=collected_at,
+        )
+        return (evidence,), profile
 
     def generate_draft(
         self,

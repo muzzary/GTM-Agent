@@ -33,4 +33,3 @@ def test_sqlite_cache_round_trip_expiry_and_hash_validation(tmp_path: Path) -> N
             (b"tampered", entry.cache_key),
         )
     assert cache.get(entry.cache_key, "website-v1", NOW) is None
-

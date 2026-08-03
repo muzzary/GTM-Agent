@@ -33,8 +33,7 @@ class ValidatedUrl:
 
 def system_resolver(host: str) -> tuple[str, ...]:
     addresses = {
-        item[4][0]
-        for item in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+        item[4][0] for item in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
     }
     return tuple(sorted(addresses))
 

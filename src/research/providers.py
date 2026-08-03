@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import Sequence
 from urllib.parse import urlencode, urlsplit
 
@@ -27,13 +28,6 @@ _PAGE_CATEGORIES = (
     ("news", 3),
     ("press", 3),
 )
-_COMPANY_CLASS_IDS = {
-    "Q43229",  # organization
-    "Q4830453",  # business
-    "Q6881511",  # enterprise
-    "Q783794",  # company
-    "Q891723",  # public company
-}
 
 
 class MarketSeedDiscoveryProvider:
@@ -51,9 +45,8 @@ class MarketSeedDiscoveryProvider:
         seen_hosts: set[str] = set()
         for seed_url in seed_urls[:10]:
             seed_host = _host(seed_url)
-            policy = _website_policy(
+            policy = website_policy(
                 seed_host,
-                source_category=SourceCategory.APPROVED_MARKET_SOURCE,
                 policy_version="market-seed-v1",
             )
             document = self._collector.collect(seed_url, policy)
@@ -98,9 +91,8 @@ class WebsiteCandidateExpander:
 
     def expand(self, suggestion: CandidateSuggestion) -> CandidateSuggestion:
         host = _host(suggestion.official_url)
-        policy = _website_policy(
+        policy = website_policy(
             host,
-            source_category=SourceCategory.OFFICIAL_WEBSITE,
             policy_version="official-website-v1",
         )
         try:
@@ -147,9 +139,9 @@ class WebsiteCandidateExpander:
         detail = next((link for rank, link in ordered if rank > 0), None)
         selected = tuple(link for link in (about, detail) if link is not None)
         if len(selected) < 2:
-            selected += tuple(
-                link for _, link in ordered if link not in selected
-            )[: 2 - len(selected)]
+            selected += tuple(link for _, link in ordered if link not in selected)[
+                : 2 - len(selected)
+            ]
         return selected
 
     @staticmethod
@@ -168,14 +160,25 @@ class WikidataDiscoveryProvider:
     name = "wikidata"
 
     _base_url = "https://www.wikidata.org/w/api.php"
+    _query_url = "https://query.wikidata.org/sparql"
 
     def __init__(self, collector: ControlledHttpCollector) -> None:
         self._collector = collector
-        self._policy = SourcePolicy(
+        self._search_policy = SourcePolicy(
             policy_version="wikidata-v1",
             allowed_hosts=frozenset({"www.wikidata.org"}),
             allowed_path_prefixes=("/w/api.php",),
             allowed_content_types=frozenset({"application/json"}),
+            robots_required=False,
+            max_redirects=0,
+        )
+        self._query_policy = SourcePolicy(
+            policy_version="wikidata-query-v1",
+            allowed_hosts=frozenset({"query.wikidata.org"}),
+            allowed_path_prefixes=("/sparql",),
+            allowed_content_types=frozenset(
+                {"application/json", "application/sparql-results+json"}
+            ),
             robots_required=False,
             max_redirects=0,
         )
@@ -195,17 +198,20 @@ class WikidataDiscoveryProvider:
         return f"{cls._base_url}?{query}"
 
     @classmethod
-    def entity_url(cls, entity_ids: Sequence[str]) -> str:
-        query = urlencode(
-            {
-                "action": "wbgetentities",
-                "format": "json",
-                "ids": "|".join(entity_ids),
-                "languages": "en",
-                "props": "labels|descriptions|claims",
-            }
-        )
-        return f"{cls._base_url}?{query}"
+    def company_query_url(cls, industry_ids: Sequence[str]) -> str:
+        values = " ".join(f"wd:{item}" for item in industry_ids)
+        sparql = f"""
+SELECT ?company ?companyLabel ?website ?industryLabel WHERE {{
+  VALUES ?industry {{ {values} }}
+  ?company wdt:P452 ?industry;
+           wdt:P856 ?website;
+           wdt:P31/wdt:P279* wd:Q4830453.
+  FILTER(STRSTARTS(STR(?website), "https://"))
+  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+}}
+LIMIT 20
+""".strip()
+        return f"{cls._query_url}?{urlencode({'format': 'json', 'query': sparql})}"
 
     def discover(
         self,
@@ -216,7 +222,7 @@ class WikidataDiscoveryProvider:
         seen_entities: set[str] = set()
         for industry in icp.industries[:3]:
             search_document = self._collector.collect(
-                self.search_url(industry), self._policy
+                self.search_url(industry), self._search_policy
             )
             search_payload = _json_object(search_document.text)
             entity_ids = tuple(
@@ -226,21 +232,36 @@ class WikidataDiscoveryProvider:
                 and isinstance(item.get("id"), str)
                 and item["id"].startswith("Q")
                 and item["id"] not in seen_entities
-            )[:20]
+            )[:3]
             if not entity_ids:
                 continue
-            entity_document = self._collector.collect(
-                self.entity_url(entity_ids), self._policy
+            query_document = self._collector.collect(
+                self.company_query_url(entity_ids), self._query_policy
             )
-            entities = _json_object(entity_document.text).get("entities", {})
-            if not isinstance(entities, dict):
+            results = _json_object(query_document.text).get("results", {})
+            bindings = results.get("bindings", []) if isinstance(results, dict) else []
+            if not isinstance(bindings, list):
                 continue
-            for entity_id in entity_ids:
-                entity = entities.get(entity_id)
-                parsed = _company_entity(entity)
-                if parsed is None:
+            for binding in bindings:
+                if not isinstance(binding, dict):
                     continue
-                company, description, official_url = parsed
+                entity_uri = _binding_value(binding, "company")
+                company = _binding_value(binding, "companyLabel")
+                official_url = _binding_value(binding, "website")
+                industry_label = _binding_value(binding, "industryLabel")
+                match = re.fullmatch(
+                    r"https?://www\.wikidata\.org/entity/(Q[1-9][0-9]*)",
+                    entity_uri,
+                )
+                if (
+                    match is None
+                    or not company
+                    or not official_url.startswith("https://")
+                ):
+                    continue
+                entity_id = match.group(1)
+                if entity_id in seen_entities:
+                    continue
                 seen_entities.add(entity_id)
                 citation_url = f"https://www.wikidata.org/wiki/{entity_id}"
                 observation = SourceObservation(
@@ -249,14 +270,14 @@ class WikidataDiscoveryProvider:
                     source_category=SourceCategory.STRUCTURED_PUBLIC,
                     title=f"Wikidata entity {entity_id}: {company}",
                     url=citation_url,
-                    retrieval_url=entity_document.canonical_url,
-                    text=f"{company}. {description}.",
-                    body_sha256=entity_document.body_sha256,
-                    policy_version=self._policy.policy_version,
+                    retrieval_url=query_document.canonical_url,
+                    text=f"{company}. Industry: {industry_label}.",
+                    body_sha256=query_document.body_sha256,
+                    policy_version=self._query_policy.policy_version,
                     license_basis="CC0 structured data; excerpt only",
-                    fetched_at=entity_document.fetched_at,
-                    observed_at=entity_document.observed_at,
-                    cache_hit=entity_document.cache_hit,
+                    fetched_at=query_document.fetched_at,
+                    observed_at=query_document.observed_at,
+                    cache_hit=query_document.cache_hit,
                 )
                 suggestions.append(
                     CandidateSuggestion(
@@ -273,13 +294,11 @@ class WikidataDiscoveryProvider:
         return tuple(suggestions)
 
 
-def _website_policy(
+def website_policy(
     host: str,
     *,
-    source_category: SourceCategory,
     policy_version: str,
 ) -> SourcePolicy:
-    del source_category
     aliases = {host}
     if host.startswith("www."):
         aliases.add(host.removeprefix("www."))
@@ -318,49 +337,8 @@ def _json_object(text: str) -> dict:
     return value
 
 
-def _company_entity(entity: object) -> tuple[str, str, str] | None:
-    if not isinstance(entity, dict):
-        return None
-    claims = entity.get("claims")
-    if not isinstance(claims, dict) or not claims.get("P452"):
-        return None
-    entity_classes = _statement_entity_ids(claims.get("P31"))
-    if not entity_classes & _COMPANY_CLASS_IDS:
-        return None
-    website_claims = claims.get("P856")
-    if not isinstance(website_claims, list):
-        return None
-    website = next(
-        (
-            claim.get("mainsnak", {}).get("datavalue", {}).get("value")
-            for claim in website_claims
-            if isinstance(claim, dict)
-        ),
-        None,
-    )
-    if not isinstance(website, str) or not website.startswith("https://"):
-        return None
-    labels = entity.get("labels", {})
-    descriptions = entity.get("descriptions", {})
-    label = labels.get("en", {}).get("value") if isinstance(labels, dict) else None
-    description = (
-        descriptions.get("en", {}).get("value")
-        if isinstance(descriptions, dict)
-        else None
-    )
-    if not isinstance(label, str) or not isinstance(description, str):
-        return None
-    return label[:160], description[:500], website
-
-
-def _statement_entity_ids(statements: object) -> set[str]:
-    if not isinstance(statements, list):
-        return set()
-    values: set[str] = set()
-    for statement in statements:
-        if not isinstance(statement, dict):
-            continue
-        value = statement.get("mainsnak", {}).get("datavalue", {}).get("value")
-        if isinstance(value, dict) and isinstance(value.get("id"), str):
-            values.add(value["id"])
-    return values
+def _binding_value(binding: dict, key: str) -> str:
+    value = binding.get(key)
+    if not isinstance(value, dict) or not isinstance(value.get("value"), str):
+        return ""
+    return value["value"]

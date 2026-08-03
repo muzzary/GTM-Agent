@@ -1,8 +1,14 @@
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from threading import RLock
+from typing import Protocol
 from uuid import uuid4
 
+from src.data.http_collector import ResearchCollectionError
+from src.data.source_policy import SourcePolicyError
+from src.research.discovery import DiscoveryResult
+from src.research.prospect import ProspectResearchResult
 from src.runtime.fixtures import DeterministicFixturePipeline
 from src.schemas.campaign import (
     ApprovalDecision,
@@ -15,8 +21,17 @@ from src.schemas.campaign import (
     ClaimWordingSource,
     ICPProfile,
     ProductProfile,
+    ProspectCandidate,
+    ResearchOutcome,
     TraceEvent,
     TraceEventType,
+)
+from src.schemas.research import (
+    ProspectResearchRequest,
+    ResearchRequest,
+    ResearchRun,
+    ResearchStage,
+    ResearchStatus,
 )
 
 NewId = Callable[[str], str]
@@ -29,6 +44,42 @@ class CampaignNotFoundError(LookupError):
 
 class WorkflowConflictError(ValueError):
     pass
+
+
+class ResearchUnavailableError(RuntimeError):
+    pass
+
+
+class ResearchExecutionError(RuntimeError):
+    def __init__(self, code: str, run_id: str) -> None:
+        self.code = code
+        self.run_id = run_id
+        super().__init__(f"public research failed: {code}")
+
+
+class DiscoveryRunner(Protocol):
+    def run(
+        self,
+        *,
+        campaign_id: str,
+        icp: ICPProfile,
+        run_id: str,
+        seed_urls: tuple[str, ...],
+        new_id: NewId,
+        now: datetime,
+    ) -> DiscoveryResult: ...
+
+
+class ProspectResearchRunner(Protocol):
+    def research(
+        self,
+        *,
+        campaign_id: str,
+        prospect: ProspectCandidate,
+        run_id: str,
+        new_id: NewId,
+        now: datetime,
+    ) -> ProspectResearchResult: ...
 
 
 class InMemoryCampaignRepository:
@@ -52,14 +103,19 @@ class CampaignWorkflow:
         *,
         repository: InMemoryCampaignRepository,
         pipeline: DeterministicFixturePipeline,
+        discovery_runner: DiscoveryRunner | None = None,
+        prospect_research_runner: ProspectResearchRunner | None = None,
         new_id: NewId | None = None,
         clock: Clock | None = None,
     ) -> None:
         self._repository = repository
         self._pipeline = pipeline
+        self._discovery_runner = discovery_runner
+        self._prospect_research_runner = prospect_research_runner
         self._new_id = new_id or _random_id
         self._clock = clock or _utc_now
         self._mutation_lock = RLock()
+        self._active_research_campaigns: set[str] = set()
 
     def create_campaign(self, campaign_input: CampaignInput) -> Campaign:
         with self._mutation_lock:
@@ -252,6 +308,129 @@ class CampaignWorkflow:
         self._repository.save(updated)
         return updated.model_copy(deep=True)
 
+    def run_discovery(
+        self,
+        campaign_id: str,
+        request: ResearchRequest,
+    ) -> ResearchOutcome:
+        if self._discovery_runner is None:
+            raise ResearchUnavailableError(
+                "live research requires GTM_RESEARCH_CONTACT configuration"
+            )
+        with self._mutation_lock:
+            campaign = self.get_campaign(campaign_id)
+            existing = self._find_request(campaign, request.request_id)
+            if existing is not None:
+                if existing.stage is not ResearchStage.DISCOVERY:
+                    raise WorkflowConflictError(
+                        "research request ID is already used by another stage"
+                    )
+                if existing.status is ResearchStatus.FAILED:
+                    raise ResearchExecutionError(
+                        existing.failure_code or "source_failure",
+                        existing.run_id,
+                    )
+                return ResearchOutcome(run=existing, campaign=campaign)
+            self._require_state(
+                campaign,
+                CampaignState.AWAITING_PROSPECT_SELECTION,
+                "run prospect discovery",
+            )
+            if len(campaign.icp.industries) > 3:
+                raise WorkflowConflictError(
+                    "live discovery supports at most three ICP industries"
+                )
+            self._begin_research(campaign, ResearchStage.DISCOVERY)
+            snapshot = campaign
+            run_id = self._new_id("research-run")
+            started_at = self._clock()
+        try:
+            result = self._discovery_runner.run(
+                campaign_id=campaign_id,
+                icp=campaign.icp,
+                run_id=run_id,
+                seed_urls=tuple(str(url) for url in request.market_seed_urls),
+                new_id=self._new_id,
+                now=self._clock(),
+            )
+        except (ResearchCollectionError, SourcePolicyError) as error:
+            code = self._safe_failure_code(error)
+            try:
+                self._persist_failed_run(
+                    campaign_id=campaign_id,
+                    request_id=request.request_id,
+                    run_id=run_id,
+                    stage=ResearchStage.DISCOVERY,
+                    prospect_id=None,
+                    started_at=started_at,
+                    code=code,
+                    snapshot=snapshot,
+                )
+            finally:
+                with self._mutation_lock:
+                    self._active_research_campaigns.discard(campaign_id)
+            raise ResearchExecutionError(code, run_id) from error
+        except Exception:
+            with self._mutation_lock:
+                self._active_research_campaigns.discard(campaign_id)
+            raise
+
+        with self._mutation_lock:
+            try:
+                current = self.get_campaign(campaign_id)
+                self._require_unchanged(current, snapshot)
+                if len(current.evidence) + len(result.evidence) > 64:
+                    raise WorkflowConflictError("campaign evidence capacity reached")
+                if len(current.collection_attempts) + len(result.attempts) > 64:
+                    raise WorkflowConflictError("collection-attempt capacity reached")
+                completed_at = self._clock()
+                run = ResearchRun(
+                    run_id=run_id,
+                    request_id=request.request_id,
+                    campaign_id=campaign_id,
+                    icp_id=current.icp.icp_id,
+                    stage=ResearchStage.DISCOVERY,
+                    status=ResearchStatus.COMPLETED,
+                    providers=result.providers,
+                    attempt_ids=tuple(item.attempt_id for item in result.attempts),
+                    evidence_ids=tuple(item.evidence_id for item in result.evidence),
+                    prospect_ids=tuple(item.prospect_id for item in result.prospects),
+                    policy_versions=tuple(
+                        dict.fromkeys(item.policy_version for item in result.evidence)
+                    ),
+                    warnings=result.warnings,
+                    started_at=started_at,
+                    completed_at=completed_at,
+                )
+                event = self._trace_event(
+                    campaign_id,
+                    len(current.trace) + 1,
+                    TraceEventType.LIVE_DISCOVERY_COMPLETED,
+                    input_ids=(current.icp.icp_id, request.request_id),
+                    output_ids=(run.run_id, *run.prospect_ids, *run.evidence_ids),
+                    summary=(
+                        "Bounded public-source discovery produced evidence-backed "
+                        "prospect priorities."
+                    ),
+                )
+                updated = current.model_copy(
+                    update={
+                        "evidence": current.evidence + result.evidence,
+                        "prospects": result.prospects,
+                        "collection_attempts": (
+                            current.collection_attempts + result.attempts
+                        ),
+                        "research_runs": current.research_runs + (run,),
+                        "trace": current.trace + (event,),
+                        "updated_at": event.occurred_at,
+                    },
+                    deep=True,
+                )
+                self._repository.save(updated)
+                return ResearchOutcome(run=run, campaign=updated.model_copy(deep=True))
+            finally:
+                self._active_research_campaigns.discard(campaign_id)
+
     def select_prospect(self, campaign_id: str, prospect_id: str) -> Campaign:
         with self._mutation_lock:
             return self._select_prospect(campaign_id, prospect_id)
@@ -277,7 +456,7 @@ class CampaignWorkflow:
         )
         updated = campaign.model_copy(
             update={
-                "state": CampaignState.PROSPECT_SELECTED,
+                "state": CampaignState.AWAITING_PROSPECT_RESEARCH,
                 "selected_prospect_id": prospect_id,
                 "trace": campaign.trace + (event,),
                 "updated_at": event.occurred_at,
@@ -287,6 +466,158 @@ class CampaignWorkflow:
         self._repository.save(updated)
         return updated.model_copy(deep=True)
 
+    def research_prospect(
+        self,
+        campaign_id: str,
+        prospect_id: str,
+        request: ProspectResearchRequest,
+    ) -> ResearchOutcome:
+        with self._mutation_lock:
+            campaign = self.get_campaign(campaign_id)
+            existing = self._find_request(campaign, request.request_id)
+            if existing is not None:
+                if (
+                    existing.stage is not ResearchStage.PROSPECT
+                    or existing.prospect_id != prospect_id
+                ):
+                    raise WorkflowConflictError(
+                        "research request ID is already used by another target"
+                    )
+                if existing.status is ResearchStatus.FAILED:
+                    raise ResearchExecutionError(
+                        existing.failure_code or "source_failure",
+                        existing.run_id,
+                    )
+                return ResearchOutcome(run=existing, campaign=campaign)
+            self._require_state(
+                campaign,
+                CampaignState.AWAITING_PROSPECT_RESEARCH,
+                "research a prospect",
+            )
+            if campaign.selected_prospect_id != prospect_id:
+                raise WorkflowConflictError(
+                    "prospect research must target the selected prospect"
+                )
+            selected = next(
+                item for item in campaign.prospects if item.prospect_id == prospect_id
+            )
+            is_live = selected.research_run_id is not None
+            if is_live and self._prospect_research_runner is None:
+                raise ResearchUnavailableError(
+                    "live research requires GTM_RESEARCH_CONTACT configuration"
+                )
+            self._begin_research(campaign, ResearchStage.PROSPECT)
+            snapshot = campaign
+            run_id = self._new_id("research-run")
+            started_at = self._clock()
+        try:
+            if is_live:
+                assert self._prospect_research_runner is not None
+                result = self._prospect_research_runner.research(
+                    campaign_id=campaign_id,
+                    prospect=selected,
+                    run_id=run_id,
+                    new_id=self._new_id,
+                    now=self._clock(),
+                )
+            else:
+                evidence, profile = self._pipeline.research_prospect(
+                    campaign_id=campaign_id,
+                    prospect=selected,
+                    run_id=run_id,
+                    new_id=self._new_id,
+                    collected_at=self._clock(),
+                )
+                result = ProspectResearchResult(
+                    evidence=evidence,
+                    profile=profile,
+                    attempts=(),
+                    providers=("fixture",),
+                    policy_versions=("fixture-v1",),
+                    warnings=(),
+                )
+        except (ResearchCollectionError, SourcePolicyError) as error:
+            code = self._safe_failure_code(error)
+            try:
+                self._persist_failed_run(
+                    campaign_id=campaign_id,
+                    request_id=request.request_id,
+                    run_id=run_id,
+                    stage=ResearchStage.PROSPECT,
+                    prospect_id=prospect_id,
+                    started_at=started_at,
+                    code=code,
+                    snapshot=snapshot,
+                )
+            finally:
+                with self._mutation_lock:
+                    self._active_research_campaigns.discard(campaign_id)
+            raise ResearchExecutionError(code, run_id) from error
+        except Exception:
+            with self._mutation_lock:
+                self._active_research_campaigns.discard(campaign_id)
+            raise
+
+        with self._mutation_lock:
+            try:
+                campaign = self.get_campaign(campaign_id)
+                self._require_unchanged(campaign, snapshot)
+                if len(campaign.evidence) + len(result.evidence) > 64:
+                    raise WorkflowConflictError("campaign evidence capacity reached")
+                if len(campaign.collection_attempts) + len(result.attempts) > 64:
+                    raise WorkflowConflictError("collection-attempt capacity reached")
+                completed_at = self._clock()
+                run = ResearchRun(
+                    run_id=run_id,
+                    request_id=request.request_id,
+                    campaign_id=campaign_id,
+                    icp_id=campaign.icp.icp_id,
+                    prospect_id=prospect_id,
+                    stage=ResearchStage.PROSPECT,
+                    status=ResearchStatus.COMPLETED,
+                    providers=result.providers,
+                    attempt_ids=tuple(item.attempt_id for item in result.attempts),
+                    evidence_ids=tuple(item.evidence_id for item in result.evidence),
+                    profile_id=result.profile.profile_id,
+                    policy_versions=result.policy_versions,
+                    warnings=result.warnings,
+                    started_at=started_at,
+                    completed_at=completed_at,
+                )
+                event = self._trace_event(
+                    campaign_id,
+                    len(campaign.trace) + 1,
+                    TraceEventType.PROSPECT_RESEARCH_COMPLETED,
+                    input_ids=(prospect_id, request.request_id),
+                    output_ids=(
+                        run.run_id,
+                        result.profile.profile_id,
+                        *run.evidence_ids,
+                    ),
+                    summary=(
+                        "Evidence-backed prospect research completed the Phase 4 "
+                        "authorization gate."
+                    ),
+                )
+                updated = campaign.model_copy(
+                    update={
+                        "state": CampaignState.PROSPECT_RESEARCHED,
+                        "evidence": campaign.evidence + result.evidence,
+                        "collection_attempts": (
+                            campaign.collection_attempts + result.attempts
+                        ),
+                        "research_runs": campaign.research_runs + (run,),
+                        "prospect_research": result.profile,
+                        "trace": campaign.trace + (event,),
+                        "updated_at": event.occurred_at,
+                    },
+                    deep=True,
+                )
+                self._repository.save(updated)
+                return ResearchOutcome(run=run, campaign=updated.model_copy(deep=True))
+            finally:
+                self._active_research_campaigns.discard(campaign_id)
+
     def generate_draft(self, campaign_id: str) -> Campaign:
         with self._mutation_lock:
             return self._generate_draft(campaign_id)
@@ -295,7 +626,7 @@ class CampaignWorkflow:
         campaign = self.get_campaign(campaign_id)
         self._require_state(
             campaign,
-            CampaignState.PROSPECT_SELECTED,
+            CampaignState.PROSPECT_RESEARCHED,
             "generate a draft",
         )
         selected = next(
@@ -308,12 +639,15 @@ class CampaignWorkflow:
             for approval in campaign.approvals
             if approval.decision is ApprovalDecision.APPROVED
         )
+        if campaign.prospect_research is None:
+            raise WorkflowConflictError("completed prospect research is required")
         positioning = self._pipeline.position(
             campaign_id=campaign_id,
             product=campaign.product,
             icp=campaign.icp,
             approved_approvals=approved_approvals,
             prospect=selected,
+            prospect_research=campaign.prospect_research,
             new_id=self._new_id,
         )
         draft = self._pipeline.generate_draft(
@@ -404,8 +738,99 @@ class CampaignWorkflow:
     def list_prospects(self, campaign_id: str):
         return self.get_campaign(campaign_id).prospects
 
+    def get_research_run(self, campaign_id: str, run_id: str) -> ResearchRun:
+        campaign = self.get_campaign(campaign_id)
+        run = next(
+            (item for item in campaign.research_runs if item.run_id == run_id),
+            None,
+        )
+        if run is None:
+            raise CampaignNotFoundError(f"research run not found: {run_id}")
+        return run
+
     def get_trace(self, campaign_id: str) -> tuple[TraceEvent, ...]:
         return self.get_campaign(campaign_id).trace
+
+    @staticmethod
+    def _find_request(campaign: Campaign, request_id: str) -> ResearchRun | None:
+        return next(
+            (run for run in campaign.research_runs if run.request_id == request_id),
+            None,
+        )
+
+    def _begin_research(
+        self,
+        campaign: Campaign,
+        stage: ResearchStage,
+    ) -> None:
+        if campaign.campaign_id in self._active_research_campaigns:
+            raise WorkflowConflictError("another research run is already active")
+        stage_count = sum(run.stage is stage for run in campaign.research_runs)
+        if stage_count >= 3 or len(campaign.research_runs) >= 6:
+            raise WorkflowConflictError("campaign research-run capacity reached")
+        self._active_research_campaigns.add(campaign.campaign_id)
+
+    @staticmethod
+    def _require_unchanged(campaign: Campaign, snapshot: Campaign) -> None:
+        if campaign != snapshot:
+            raise WorkflowConflictError(
+                "campaign changed while public research was running"
+            )
+
+    @staticmethod
+    def _safe_failure_code(
+        error: ResearchCollectionError | SourcePolicyError,
+    ) -> str:
+        candidate = str(error)
+        if re.fullmatch(r"[a-z][a-z0-9_]{2,63}", candidate):
+            return candidate
+        return "source_failure"
+
+    def _persist_failed_run(
+        self,
+        *,
+        campaign_id: str,
+        request_id: str,
+        run_id: str,
+        stage: ResearchStage,
+        prospect_id: str | None,
+        started_at: datetime,
+        code: str,
+        snapshot: Campaign,
+    ) -> None:
+        with self._mutation_lock:
+            campaign = self.get_campaign(campaign_id)
+            self._require_unchanged(campaign, snapshot)
+            run = ResearchRun(
+                run_id=run_id,
+                request_id=request_id,
+                campaign_id=campaign_id,
+                icp_id=campaign.icp.icp_id,
+                prospect_id=prospect_id,
+                stage=stage,
+                status=ResearchStatus.FAILED,
+                providers=("public_research",),
+                failure_code=code,
+                started_at=started_at,
+                completed_at=self._clock(),
+            )
+            event = self._trace_event(
+                campaign_id,
+                len(campaign.trace) + 1,
+                TraceEventType.RESEARCH_FAILED,
+                input_ids=(request_id,),
+                output_ids=(run_id,),
+                summary=f"Public research failed with code {code}.",
+            )
+            updated = campaign.model_copy(
+                update={
+                    "research_runs": campaign.research_runs + (run,),
+                    "trace": campaign.trace + (event,),
+                    "updated_at": event.occurred_at,
+                },
+                deep=True,
+            )
+            self._repository.save(updated)
 
     def _trace_event(
         self,

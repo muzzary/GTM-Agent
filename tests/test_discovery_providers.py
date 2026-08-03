@@ -72,9 +72,7 @@ def test_market_seed_discovers_bounded_external_https_domains() -> None:
         }
     )
 
-    suggestions = MarketSeedDiscoveryProvider(collector).discover(
-        _icp(), (seed,)
-    )
+    suggestions = MarketSeedDiscoveryProvider(collector).discover(_icp(), (seed,))
 
     assert [item.official_url for item in suggestions] == [
         "https://acme.example/",
@@ -99,17 +97,10 @@ def test_website_expander_fetches_home_and_two_priority_pages_only() -> None:
             products: _document(products, text="Shipment tracking products"),
         }
     )
+    seed = "https://directory.example/vendors"
     suggestion = MarketSeedDiscoveryProvider(
-        FakeCollector(
-            {
-                "https://directory.example/vendors": _document(
-                    "https://directory.example/vendors",
-                    text="vendors",
-                    links=(home,),
-                )
-            }
-        )
-    ).discover(_icp(), ("https://directory.example/vendors",))[0]
+        FakeCollector({seed: _document(seed, text="vendors", links=(home,))})
+    ).discover(_icp(), (seed,))[0]
 
     expanded = WebsiteCandidateExpander(collector).expand(suggestion)
 
@@ -118,37 +109,26 @@ def test_website_expander_fetches_home_and_two_priority_pages_only() -> None:
     assert expanded.provider == "market_seed+official_site"
 
 
-def test_wikidata_keeps_only_entities_with_company_and_website_claims() -> None:
+def test_wikidata_resolves_industry_then_queries_companies() -> None:
     search_url = WikidataDiscoveryProvider.search_url("logistics")
-    entity_url = WikidataDiscoveryProvider.entity_url(("Q1", "Q2", "Q3"))
-    search_payload = {
-        "search": [{"id": "Q1"}, {"id": "Q2"}, {"id": "Q3"}]
-    }
-    entity_payload = {
-        "entities": {
-            "Q1": {
-                "labels": {"en": {"value": "Acme Logistics"}},
-                "descriptions": {"en": {"value": "logistics company"}},
-                "claims": {
-                    "P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q4830453"}}}}],
-                    "P452": [{"mainsnak": {"datavalue": {"value": {"id": "Q物流"}}}}],
-                    "P856": [{"mainsnak": {"datavalue": {"value": "https://acme.example/"}}}],
+    query_url = WikidataDiscoveryProvider.company_query_url(("Q100", "Q101"))
+    search_payload = {"search": [{"id": "Q100"}, {"id": "Q101"}]}
+    query_payload = {
+        "results": {
+            "bindings": [
+                {
+                    "company": {"value": "http://www.wikidata.org/entity/Q1"},
+                    "companyLabel": {"value": "Acme Logistics"},
+                    "website": {"value": "https://acme.example/"},
+                    "industryLabel": {"value": "logistics"},
                 },
-            },
-            "Q2": {
-                "labels": {"en": {"value": "No Website"}},
-                "descriptions": {"en": {"value": "logistics company"}},
-                "claims": {"P31": [{}]},
-            },
-            "Q3": {
-                "labels": {"en": {"value": "A Person"}},
-                "descriptions": {"en": {"value": "logistics commentator"}},
-                "claims": {
-                    "P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q5"}}}}],
-                    "P452": [{"mainsnak": {"datavalue": {"value": {"id": "Q物流"}}}}],
-                    "P856": [{"mainsnak": {"datavalue": {"value": "https://person.example/"}}}],
+                {
+                    "company": {"value": "not-a-wikidata-entity"},
+                    "companyLabel": {"value": "Invalid"},
+                    "website": {"value": "https://invalid.example/"},
+                    "industryLabel": {"value": "logistics"},
                 },
-            },
+            ]
         }
     }
     collector = FakeCollector(
@@ -158,10 +138,10 @@ def test_wikidata_keeps_only_entities_with_company_and_website_claims() -> None:
                 text=json.dumps(search_payload),
                 content_type="application/json",
             ),
-            entity_url: _document(
-                entity_url,
-                text=json.dumps(entity_payload),
-                content_type="application/json",
+            query_url: _document(
+                query_url,
+                text=json.dumps(query_payload),
+                content_type="application/sparql-results+json",
             ),
         }
     )

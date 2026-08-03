@@ -11,7 +11,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx2
 
-from src.data.html_parser import ParsedHtml, parse_public_html
+from src.data.html_parser import ParsedHtml, parse_public_html, strip_contact_data
 from src.data.research_cache import CacheEntry, ResearchCache
 from src.data.source_policy import Resolver, SourcePolicy, validate_url
 
@@ -118,9 +118,20 @@ class ControlledHttpCollector:
         cache_key = f"{policy.policy_version}:{requested.url}"
         cached = self._cache_get(cache_key, policy, observed_at)
         if cached is not None:
+            cached_canonical = validate_url(
+                cached.canonical_url,
+                policy,
+                self._resolver,
+            )
+            if policy.robots_required and cached_canonical.url != requested.url:
+                self._require_robots_permission(
+                    cached_canonical.url,
+                    policy,
+                    observed_at,
+                )
             return self._document_from_body(
                 requested.url,
-                cached.canonical_url,
+                cached_canonical.url,
                 cached.content_type,
                 cached.body,
                 cached.fetched_at,
@@ -139,9 +150,7 @@ class ControlledHttpCollector:
                     urljoin(current.url, location), policy, self._resolver
                 )
                 if policy.robots_required:
-                    self._require_robots_permission(
-                        current.url, policy, self._now()
-                    )
+                    self._require_robots_permission(current.url, policy, self._now())
                 continue
             if response.status_code < 200 or response.status_code >= 300:
                 raise ResearchCollectionError("source_http_error")
@@ -159,8 +168,7 @@ class ControlledHttpCollector:
                     body=response.body,
                     body_sha256=sha256(response.body).hexdigest(),
                     fetched_at=fetched_at,
-                    expires_at=fetched_at
-                    + timedelta(seconds=policy.cache_ttl_seconds),
+                    expires_at=fetched_at + timedelta(seconds=policy.cache_ttl_seconds),
                 )
             )
             return self._document_from_body(
@@ -174,9 +182,7 @@ class ControlledHttpCollector:
             )
         raise ResearchCollectionError("redirect_not_allowed")
 
-    def _request(
-        self, url: str, host: str, policy: SourcePolicy
-    ) -> HttpResponse:
+    def _request(self, url: str, host: str, policy: SourcePolicy) -> HttpResponse:
         for attempt in range(2):
             interval = max(
                 policy.minimum_request_interval_seconds,
@@ -291,6 +297,8 @@ class ControlledHttpCollector:
         else:
             title = urlsplit(canonical_url).hostname or canonical_url
             text = body.decode("utf-8", errors="replace")[:100_000]
+            if content_type == "text/plain":
+                text = strip_contact_data(text)
             links = ()
         return CollectedDocument(
             requested_url=requested_url,

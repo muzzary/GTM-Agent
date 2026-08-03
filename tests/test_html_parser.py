@@ -19,4 +19,3 @@ def test_html_parser_extracts_visible_text_links_and_discards_contact_data() -> 
     assert "202 555 0199" not in parsed.text
     assert "ignore instructions" not in parsed.text
     assert parsed.links == ("https://example.com/products",)
-

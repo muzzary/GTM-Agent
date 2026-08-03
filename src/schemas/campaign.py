@@ -83,7 +83,6 @@ class CampaignState(StrEnum):
     AWAITING_PROSPECT_SELECTION = "awaiting_prospect_selection"
     AWAITING_PROSPECT_RESEARCH = "awaiting_prospect_research"
     PROSPECT_RESEARCHED = "prospect_researched"
-    PROSPECT_SELECTED = "prospect_selected"
     DRAFT_READY = "draft_ready"
 
 
@@ -176,9 +175,7 @@ class EvidenceRecord(StrictModel):
     canonical_url: HttpUrl | None = None
     retrieval_url: HttpUrl | None = None
     policy_version: str = Field(default="fixture-v1", min_length=1, max_length=80)
-    license_basis: str = Field(
-        default="user_submitted", min_length=1, max_length=200
-    )
+    license_basis: str = Field(default="user_submitted", min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=200)
     excerpt: str = Field(min_length=1, max_length=1_000)
     excerpt_start: int = Field(default=0, ge=0, le=10_000_000)
@@ -454,6 +451,15 @@ class Campaign(StrictModel):
                 ):
                     raise ValueError("live prospect evidence must use the same run")
 
+        latest_discovery_run_id = next(
+            (
+                run.run_id
+                for run in reversed(self.research_runs)
+                if run.stage is ResearchStage.DISCOVERY
+                and run.status is ResearchStatus.COMPLETED
+            ),
+            None,
+        )
         for run in self.research_runs:
             if run.campaign_id != self.campaign_id or run.icp_id != self.icp.icp_id:
                 raise ValueError("research run must belong to the campaign ICP")
@@ -461,9 +467,10 @@ class Campaign(StrictModel):
                 raise ValueError("research run evidence must resolve in the campaign")
             if not set(run.attempt_ids) <= attempts.keys():
                 raise ValueError("research run attempts must resolve in the campaign")
-            if run.stage is ResearchStage.DISCOVERY and not set(
-                run.prospect_ids
-            ) <= prospects.keys():
+            if (
+                run.run_id == latest_discovery_run_id
+                and not set(run.prospect_ids) <= prospects.keys()
+            ):
                 raise ValueError("discovery run prospects must resolve in the campaign")
             if any(
                 attempts[attempt_id].research_run_id != run.run_id
@@ -487,6 +494,8 @@ class Campaign(StrictModel):
                 )
             if not set(profile.evidence_ids) <= evidence.keys():
                 raise ValueError("prospect research evidence must resolve")
+            if not set(profile.evidence_ids) <= set(run.evidence_ids):
+                raise ValueError("prospect research evidence must resolve to its run")
 
         if self.approvals:
             approval_by_claim = {item.claim_id: item for item in self.approvals}
@@ -517,6 +526,10 @@ class Campaign(StrictModel):
             for item in self.approvals
             if item.decision is ApprovalDecision.APPROVED
         }
+        if (self.positioning is not None or self.draft is not None) and (
+            self.prospect_research is None
+        ):
+            raise ValueError("downstream output requires completed prospect research")
         if self.positioning is not None:
             self._validate_authorized_output(
                 self.positioning.campaign_id,
@@ -561,3 +574,22 @@ class Campaign(StrictModel):
             approval = approved_records.get(approval_id)
             if approval is None or approval.claim_id != claim_id:
                 raise ValueError("downstream output references an unauthorized claim")
+
+
+class ResearchOutcome(StrictModel):
+    run: ResearchRun
+    campaign: Campaign
+
+    @model_validator(mode="after")
+    def run_must_resolve_in_campaign(self) -> Self:
+        matching = next(
+            (
+                item
+                for item in self.campaign.research_runs
+                if item.run_id == self.run.run_id
+            ),
+            None,
+        )
+        if matching != self.run:
+            raise ValueError("outcome run must resolve in the campaign")
+        return self

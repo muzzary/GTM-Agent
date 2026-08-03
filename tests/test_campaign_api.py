@@ -14,7 +14,7 @@ class SequentialIds:
 
     def __call__(self, prefix: str) -> str:
         self._counts[prefix] += 1
-        return f"{prefix}-{self._counts[prefix]:04d}"
+        return f"{prefix}-{self._counts[prefix]:08d}"
 
 
 def build_client() -> TestClient:
@@ -78,7 +78,21 @@ def test_campaign_api_completes_fixture_workflow() -> None:
         f"/campaigns/{campaign_id}/prospects/{prospects[0]['prospect_id']}/select"
     )
     assert select_response.status_code == 200
-    assert select_response.json()["state"] == "prospect_selected"
+    assert select_response.json()["state"] == "awaiting_prospect_research"
+
+    research_response = client.post(
+        f"/campaigns/{campaign_id}/prospects/{prospects[0]['prospect_id']}"
+        "/research-runs",
+        json={"request_id": "research-request-fixture1"},
+    )
+    assert research_response.status_code == 200
+    researched = research_response.json()
+    assert researched["campaign"]["state"] == "prospect_researched"
+    run_id = researched["run"]["run_id"]
+    assert (
+        client.get(f"/campaigns/{campaign_id}/research-runs/{run_id}").status_code
+        == 200
+    )
 
     draft_response = client.post(f"/campaigns/{campaign_id}/draft")
     assert draft_response.status_code == 200
@@ -90,8 +104,8 @@ def test_campaign_api_completes_fixture_workflow() -> None:
     trace_response = client.get(f"/campaigns/{campaign_id}/trace")
     assert trace_response.status_code == 200
     trace = trace_response.json()
-    assert len(trace) == 10
-    assert [event["sequence"] for event in trace] == list(range(1, 11))
+    assert len(trace) == 11
+    assert [event["sequence"] for event in trace] == list(range(1, 12))
     assert all(event["occurred_at"] == "2026-08-02T10:30:00Z" for event in trace)
 
 
@@ -187,3 +201,28 @@ def test_campaign_api_rejects_blank_duplicate_and_unattested_input() -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_live_discovery_without_contact_returns_problem_details() -> None:
+    client = build_client()
+    created = client.post("/campaigns", json=valid_payload()).json()
+    decisions = [
+        {
+            "claim_id": claim["claim_id"],
+            "decision": "approved" if index == 0 else "rejected",
+        }
+        for index, claim in enumerate(created["claims"])
+    ]
+    client.post(
+        f"/campaigns/{created['campaign_id']}/claim-decisions",
+        json={"decisions": decisions},
+    )
+
+    response = client.post(
+        f"/campaigns/{created['campaign_id']}/discovery-runs",
+        json={"request_id": "research-request-live0001"},
+    )
+
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["code"] == "research_not_configured"

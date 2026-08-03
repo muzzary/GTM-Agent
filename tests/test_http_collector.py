@@ -10,7 +10,7 @@ from src.data.http_collector import (
     ResearchCollectionError,
 )
 from src.data.research_cache import ResearchCache
-from src.data.source_policy import SourcePolicy
+from src.data.source_policy import SourcePolicy, SourcePolicyError
 
 NOW = datetime(2026, 8, 3, 12, 0, tzinfo=UTC)
 
@@ -118,6 +118,33 @@ def test_collector_rejects_unexpected_content_type() -> None:
         collector.collect("https://example.com/about", policy())
 
 
+def test_plain_text_collection_removes_contact_details() -> None:
+    transport = FakeTransport(
+        {
+            "https://example.com/robots.txt": response(404, b""),
+            "https://example.com/about": response(
+                200,
+                b"Contact sales@example.com or +1 (555) 123-4567",
+                "text/plain",
+            ),
+        }
+    )
+    collector = ControlledHttpCollector(
+        transport=transport,
+        resolver=lambda _host: ("93.184.216.34",),
+        research_contact="owner@example.com",
+        now=lambda: NOW,
+        monotonic=lambda: 0.0,
+        sleep=lambda _seconds: None,
+    )
+
+    document = collector.collect("https://example.com/about", policy())
+
+    assert "sales@example.com" not in document.text
+    assert "555" not in document.text
+    assert document.text.count("[contact removed]") == 2
+
+
 def test_collector_obeys_robots_disallow() -> None:
     transport = FakeTransport(
         {
@@ -164,3 +191,36 @@ def test_collector_reuses_valid_cached_content(tmp_path: Path) -> None:
     assert first.cache_hit is False
     assert second.cache_hit is True
     assert transport.requested.count("https://example.com/about") == 1
+
+
+def test_cached_redirect_target_is_revalidated_before_use(tmp_path: Path) -> None:
+    addresses = {
+        "example.com": "93.184.216.34",
+        "www.example.com": "93.184.216.34",
+    }
+    transport = FakeTransport(
+        {
+            "https://example.com/robots.txt": response(404, b""),
+            "https://example.com/about": HttpResponse(
+                status_code=301,
+                headers={"location": "https://www.example.com/about"},
+                body=b"",
+            ),
+            "https://www.example.com/robots.txt": response(404, b""),
+            "https://www.example.com/about": response(200, b"<p>Company</p>"),
+        }
+    )
+    collector = ControlledHttpCollector(
+        transport=transport,
+        resolver=lambda host: (addresses[host],),
+        research_contact="owner@example.com",
+        cache=ResearchCache(tmp_path / "cache.sqlite3"),
+        now=lambda: NOW,
+        monotonic=lambda: 0.0,
+        sleep=lambda _seconds: None,
+    )
+    collector.collect("https://example.com/about", policy())
+    addresses["www.example.com"] = "127.0.0.1"
+
+    with pytest.raises(SourcePolicyError, match="public address"):
+        collector.collect("https://example.com/about", policy())

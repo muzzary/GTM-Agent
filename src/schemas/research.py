@@ -65,9 +65,7 @@ class ResearchRequest(StrictModel):
 
     @field_validator("market_seed_urls")
     @classmethod
-    def seed_urls_must_be_unique_https(
-        cls, urls: list[HttpUrl]
-    ) -> list[HttpUrl]:
+    def seed_urls_must_be_unique_https(cls, urls: list[HttpUrl]) -> list[HttpUrl]:
         normalized = tuple(str(url) for url in urls)
         if any(url.scheme != "https" for url in urls):
             raise ValueError("market seed URLs must use HTTPS")
@@ -144,9 +142,7 @@ class ResearchRun(StrictModel):
     request_id: str = Field(pattern=r"^research-request-[a-z0-9-]{8,64}$")
     campaign_id: str = Field(pattern=r"^campaign-[a-z0-9-]{4,64}$")
     icp_id: str = Field(pattern=r"^icp-[a-z0-9-]{4,64}$")
-    prospect_id: str | None = Field(
-        default=None, pattern=r"^prospect-[a-z0-9-]{4,64}$"
-    )
+    prospect_id: str | None = Field(default=None, pattern=r"^prospect-[a-z0-9-]{4,64}$")
     stage: ResearchStage
     status: ResearchStatus
     providers: tuple[ShortText, ...] = Field(min_length=1, max_length=8)
@@ -156,9 +152,7 @@ class ResearchRun(StrictModel):
     profile_id: Identifier | None = None
     policy_versions: tuple[ShortText, ...] = Field(default_factory=tuple, max_length=8)
     warnings: tuple[LongText, ...] = Field(default_factory=tuple, max_length=16)
-    failure_code: str | None = Field(
-        default=None, pattern=r"^[a-z][a-z0-9_]{2,63}$"
-    )
+    failure_code: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{2,63}$")
     started_at: AwareDatetime
     completed_at: AwareDatetime
 
@@ -181,6 +175,12 @@ class ResearchRun(StrictModel):
             raise ValueError("discovery run cannot target a selected prospect")
         if self.stage is ResearchStage.PROSPECT and self.prospect_id is None:
             raise ValueError("prospect research run requires a prospect")
+        if (
+            self.stage is ResearchStage.PROSPECT
+            and self.status is ResearchStatus.COMPLETED
+            and self.profile_id is None
+        ):
+            raise ValueError("completed prospect research requires a profile")
         return self
 
 
@@ -206,23 +206,25 @@ class ProspectResearchProfile(StrictModel):
     @model_validator(mode="after")
     def provenance_is_same_run_and_resolved(self) -> Self:
         if any(
-            factor.research_run_id != self.research_run_id
-            for factor in self.factors
+            factor.research_run_id != self.research_run_id for factor in self.factors
         ) or any(
-            signal.research_run_id != self.research_run_id
-            for signal in self.signals
+            signal.research_run_id != self.research_run_id for signal in self.signals
         ):
             raise ValueError("profile records must use the same research run")
         evidence = set(self.evidence_ids)
-        references = {
-            evidence_id
-            for factor in self.factors
-            for evidence_id in factor.evidence_ids
-        } | {
-            evidence_id
-            for signal in self.signals
-            for evidence_id in signal.evidence_ids
-        } | set(self.conflict_evidence_ids)
+        references = (
+            {
+                evidence_id
+                for factor in self.factors
+                for evidence_id in factor.evidence_ids
+            }
+            | {
+                evidence_id
+                for signal in self.signals
+                for evidence_id in signal.evidence_ids
+            }
+            | set(self.conflict_evidence_ids)
+        )
         if not references <= evidence:
             raise ValueError("profile references must resolve to profile evidence")
         if set(self.covered_sections) & set(self.unknown_sections):

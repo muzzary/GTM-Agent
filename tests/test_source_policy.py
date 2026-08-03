@@ -55,4 +55,3 @@ def test_url_policy_rejects_any_non_global_resolved_address(address: str) -> Non
             official_policy(),
             lambda _host: ("93.184.216.34", address),
         )
-

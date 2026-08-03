@@ -167,8 +167,7 @@ def test_no_keyword_overlap_produces_zero_score_not_a_false_match() -> None:
     prospect = prospects[0]
     assert prospect.score == 0
     assert all(
-        factor.match is FactorMatch.UNKNOWN
-        for factor in prospect.ranking_factors
+        factor.match is FactorMatch.UNKNOWN for factor in prospect.ranking_factors
     )
     assert prospect.uncertainty.value == "high"
 

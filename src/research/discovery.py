@@ -14,6 +14,7 @@ from src.schemas.campaign import (
     Uncertainty,
 )
 from src.schemas.research import (
+    CollectionAttempt,
     CollectionStatus,
     FactorMatch,
     RankingFactor,
@@ -94,6 +95,7 @@ class CandidateSuggestion:
 class DiscoveryResult:
     evidence: tuple[EvidenceRecord, ...]
     prospects: tuple[ProspectCandidate, ...]
+    attempts: tuple[CollectionAttempt, ...]
     providers: tuple[str, ...]
     warnings: tuple[str, ...]
 
@@ -135,7 +137,7 @@ class DiscoveryService:
         if not suggestions:
             raise ResearchCollectionError("no_candidates")
         expanded: list[CandidateSuggestion] = []
-        for suggestion in suggestions[:10]:
+        for suggestion in deduplicate_suggestions(suggestions)[:10]:
             expanded_item = self._expander.expand(suggestion)
             expanded.append(expanded_item)
             if len(expanded_item.observations) > len(suggestion.observations):
@@ -151,6 +153,7 @@ class DiscoveryService:
         return DiscoveryResult(
             evidence=evidence,
             prospects=prospects,
+            attempts=attempts_from_evidence(evidence, run_id, new_id),
             providers=tuple(dict.fromkeys(used_providers)),
             warnings=tuple(warnings),
         )
@@ -177,12 +180,12 @@ class DiscoveryRanker:
         new_id: NewId,
         now: datetime,
     ) -> tuple[tuple[EvidenceRecord, ...], tuple[ProspectCandidate, ...]]:
-        merged = self._deduplicate(suggestions)[:10]
+        merged = deduplicate_suggestions(suggestions)[:10]
         all_evidence: list[EvidenceRecord] = []
         prospects: list[ProspectCandidate] = []
         for suggestion in merged:
             evidence = tuple(
-                self._evidence(campaign_id, run_id, item, new_id)
+                observation_to_evidence(campaign_id, run_id, item, new_id)
                 for item in suggestion.observations
             )
             all_evidence.extend(evidence)
@@ -207,82 +210,6 @@ class DiscoveryRanker:
         )
         return tuple(all_evidence), tuple(prospects)
 
-    @staticmethod
-    def _deduplicate(
-        suggestions: Sequence[CandidateSuggestion],
-    ) -> list[CandidateSuggestion]:
-        merged: dict[str, CandidateSuggestion] = {}
-        for item in suggestions[:20]:
-            host = (urlsplit(item.official_url).hostname or "").lower()
-            key = host or item.company.casefold().strip()
-            existing = merged.get(key)
-            if existing is None:
-                merged[key] = item
-                continue
-            observations = {
-                (observation.url, observation.provider): observation
-                for observation in existing.observations + item.observations
-            }
-            providers = tuple(
-                dict.fromkeys((existing.provider + "+" + item.provider).split("+"))
-            )
-            merged[key] = replace(
-                existing,
-                provider="+".join(providers),
-                observations=tuple(observations.values()),
-                source_entity_id=(
-                    existing.source_entity_id or item.source_entity_id
-                ),
-            )
-        return list(merged.values())
-
-    @staticmethod
-    def _evidence(
-        campaign_id: str,
-        run_id: str,
-        observation: SourceObservation,
-        new_id: NewId,
-    ) -> EvidenceRecord:
-        excerpt = (observation.text.strip() or observation.title.strip())[:1_000]
-        canonical_projection = json.dumps(
-            {
-                "canonical_url": observation.url,
-                "excerpt": excerpt,
-                "fetched_at": observation.fetched_at.isoformat(),
-                "provider": observation.provider,
-                "publisher": observation.publisher,
-                "title": observation.title[:200],
-            },
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        )
-        return EvidenceRecord(
-            evidence_id=new_id("evidence"),
-            campaign_id=campaign_id,
-            source_kind=observation.source_category,
-            research_run_id=run_id,
-            provider=observation.provider,
-            publisher=observation.publisher,
-            canonical_url=observation.url,
-            retrieval_url=observation.retrieval_url or observation.url,
-            policy_version=observation.policy_version,
-            license_basis=observation.license_basis,
-            title=observation.title[:200],
-            excerpt=excerpt,
-            excerpt_start=0,
-            excerpt_end=len(excerpt),
-            content_sha256=sha256(canonical_projection.encode("utf-8")).hexdigest(),
-            collection_status=(
-                CollectionStatus.CACHE_HIT
-                if observation.cache_hit
-                else CollectionStatus.FETCHED
-            ),
-            collected_at=observation.observed_at,
-            fetched_at=observation.fetched_at,
-            observed_at=observation.observed_at,
-        )
-
     def _prospect(
         self,
         *,
@@ -299,15 +226,11 @@ class DiscoveryRanker:
             for item, record in zip(suggestion.observations, evidence, strict=True)
         )
         factors = (
-            self._term_factor(
-                "industry", icp.industries, searchable, run_id, new_id
-            ),
+            self._term_factor("industry", icp.industries, searchable, run_id, new_id),
             self._term_factor(
                 "company_size", (icp.company_size,), searchable, run_id, new_id
             ),
-            self._term_factor(
-                "role_relevance", icp.roles, searchable, run_id, new_id
-            ),
+            self._term_factor("role_relevance", icp.roles, searchable, run_id, new_id),
             self._term_factor(
                 "pain_relevance",
                 icp.pain_hypotheses,
@@ -410,9 +333,7 @@ class DiscoveryRanker:
         for target in targets:
             normalized = target.casefold().strip()
             supporting = tuple(
-                evidence_id
-                for text, evidence_id in searchable
-                if normalized in text
+                evidence_id for text, evidence_id in searchable if normalized in text
             )
             if supporting:
                 return RankingFactor(
@@ -468,3 +389,108 @@ class DiscoveryRanker:
             match=FactorMatch.UNKNOWN,
             explanation="Only one source category supports this candidate.",
         )
+
+
+def observation_to_evidence(
+    campaign_id: str,
+    run_id: str,
+    observation: SourceObservation,
+    new_id: NewId,
+) -> EvidenceRecord:
+    excerpt = (observation.text.strip() or observation.title.strip())[:1_000]
+    canonical_projection = json.dumps(
+        {
+            "canonical_url": observation.url,
+            "excerpt": excerpt,
+            "fetched_at": observation.fetched_at.isoformat(),
+            "provider": observation.provider,
+            "publisher": observation.publisher,
+            "title": observation.title[:200],
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return EvidenceRecord(
+        evidence_id=new_id("evidence"),
+        campaign_id=campaign_id,
+        source_kind=observation.source_category,
+        research_run_id=run_id,
+        provider=observation.provider,
+        publisher=observation.publisher,
+        canonical_url=observation.url,
+        retrieval_url=observation.retrieval_url or observation.url,
+        policy_version=observation.policy_version,
+        license_basis=observation.license_basis,
+        title=observation.title[:200],
+        excerpt=excerpt,
+        excerpt_start=0,
+        excerpt_end=len(excerpt),
+        content_sha256=sha256(canonical_projection.encode("utf-8")).hexdigest(),
+        collection_status=(
+            CollectionStatus.CACHE_HIT
+            if observation.cache_hit
+            else CollectionStatus.FETCHED
+        ),
+        collected_at=observation.observed_at,
+        fetched_at=observation.fetched_at,
+        observed_at=observation.observed_at,
+    )
+
+
+def deduplicate_suggestions(
+    suggestions: Sequence[CandidateSuggestion],
+) -> list[CandidateSuggestion]:
+    merged: dict[str, CandidateSuggestion] = {}
+    for item in suggestions[:20]:
+        host = (urlsplit(item.official_url).hostname or "").lower()
+        key = host or item.company.casefold().strip()
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = item
+            continue
+        observations = {
+            (observation.url, observation.provider): observation
+            for observation in existing.observations + item.observations
+        }
+        providers = tuple(
+            dict.fromkeys((existing.provider + "+" + item.provider).split("+"))
+        )
+        merged[key] = replace(
+            existing,
+            provider="+".join(providers),
+            observations=tuple(observations.values()),
+            source_entity_id=existing.source_entity_id or item.source_entity_id,
+        )
+    return list(merged.values())
+
+
+def attempts_from_evidence(
+    evidence: Sequence[EvidenceRecord],
+    run_id: str,
+    new_id: NewId,
+) -> tuple[CollectionAttempt, ...]:
+    attempts: list[CollectionAttempt] = []
+    seen_urls: set[str] = set()
+    for item in evidence:
+        if item.retrieval_url is None or item.fetched_at is None:
+            continue
+        requested_url = str(item.retrieval_url)
+        if requested_url in seen_urls:
+            continue
+        seen_urls.add(requested_url)
+        attempts.append(
+            CollectionAttempt(
+                attempt_id=new_id("attempt"),
+                research_run_id=run_id,
+                provider=item.provider,
+                source_host=urlsplit(requested_url).hostname or "unknown",
+                requested_url=requested_url,
+                status=item.collection_status,
+                http_status=200,
+                cache_hit=item.collection_status is CollectionStatus.CACHE_HIT,
+                started_at=item.fetched_at,
+                completed_at=max(item.observed_at or item.fetched_at, item.fetched_at),
+            )
+        )
+    return tuple(attempts)

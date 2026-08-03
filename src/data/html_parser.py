@@ -56,12 +56,9 @@ def parse_public_html(body: bytes, base_url: str) -> ParsedHtml:
     parser = _PublicHtmlParser()
     parser.feed(body.decode("utf-8", errors="replace"))
     title = (
-        _clean(" ".join(parser.title_parts))[:200]
-        or urlsplit(base_url).hostname
-        or ""
+        _clean(" ".join(parser.title_parts))[:200] or urlsplit(base_url).hostname or ""
     )
-    text = _clean(" ".join(parser.text_parts))
-    text = _PHONE.sub("[contact removed]", _EMAIL.sub("[contact removed]", text))
+    text = strip_contact_data(_clean(" ".join(parser.text_parts)))
     links: list[str] = []
     for href in parser.hrefs:
         resolved = urljoin(base_url, href)
@@ -77,3 +74,7 @@ def parse_public_html(body: bytes, base_url: str) -> ParsedHtml:
 
 def _clean(value: str) -> str:
     return _SPACE.sub(" ", value).strip()
+
+
+def strip_contact_data(value: str) -> str:
+    return _PHONE.sub("[contact removed]", _EMAIL.sub("[contact removed]", value))

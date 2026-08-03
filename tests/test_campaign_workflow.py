@@ -5,11 +5,22 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
+from src.data.http_collector import CollectedDocument, ResearchCollectionError
+from src.research.discovery import (
+    CandidateSuggestion,
+    DiscoveryRanker,
+    DiscoveryResult,
+    DiscoveryService,
+    SourceObservation,
+    attempts_from_evidence,
+)
+from src.research.prospect import ProspectResearchService
 from src.runtime.fixtures import DeterministicFixturePipeline
 from src.runtime.workflow import (
     CampaignNotFoundError,
     CampaignWorkflow,
     InMemoryCampaignRepository,
+    ResearchExecutionError,
     WorkflowConflictError,
 )
 from src.schemas.campaign import (
@@ -23,6 +34,11 @@ from src.schemas.campaign import (
     ClaimWordingSource,
     TraceEventType,
 )
+from src.schemas.research import (
+    ProspectResearchRequest,
+    ResearchRequest,
+    SourceCategory,
+)
 
 
 class SequentialIds:
@@ -31,7 +47,7 @@ class SequentialIds:
 
     def __call__(self, prefix: str) -> str:
         self._counts[prefix] += 1
-        return f"{prefix}-{self._counts[prefix]:04d}"
+        return f"{prefix}-{self._counts[prefix]:08d}"
 
 
 class AdvancingClock:
@@ -70,6 +86,7 @@ def campaign_input(
 
 def build_workflow(
     pipeline: DeterministicFixturePipeline | None = None,
+    **research_runners: object,
 ) -> tuple[CampaignWorkflow, InMemoryCampaignRepository]:
     repository = InMemoryCampaignRepository()
     workflow = CampaignWorkflow(
@@ -77,6 +94,7 @@ def build_workflow(
         pipeline=pipeline or DeterministicFixturePipeline(),
         new_id=SequentialIds(),
         clock=AdvancingClock(),
+        **research_runners,
     )
     return workflow, repository
 
@@ -98,6 +116,16 @@ def decide_claims(workflow: CampaignWorkflow, campaign_id: str) -> None:
     )
 
 
+def research_selected(workflow: CampaignWorkflow, campaign_id: str) -> None:
+    campaign = workflow.get_campaign(campaign_id)
+    assert campaign.selected_prospect_id is not None
+    workflow.research_prospect(
+        campaign_id,
+        campaign.selected_prospect_id,
+        ProspectResearchRequest(request_id="research-request-fixture1"),
+    )
+
+
 def test_fixture_workflow_propagates_inputs_and_produces_complete_trace() -> None:
     workflow, _ = build_workflow()
 
@@ -108,6 +136,8 @@ def test_fixture_workflow_propagates_inputs_and_produces_complete_trace() -> Non
         created.campaign_id,
         ranked.prospects[0].prospect_id,
     )
+    assert selected.state is CampaignState.AWAITING_PROSPECT_RESEARCH
+    research_selected(workflow, selected.campaign_id)
     completed = workflow.generate_draft(selected.campaign_id)
 
     assert completed.state is CampaignState.DRAFT_READY
@@ -135,12 +165,13 @@ def test_fixture_workflow_propagates_inputs_and_produces_complete_trace() -> Non
         TraceEventType.CLAIMS_DECIDED,
         TraceEventType.PROSPECTS_RANKED,
         TraceEventType.PROSPECT_SELECTED,
+        TraceEventType.PROSPECT_RESEARCH_COMPLETED,
         TraceEventType.POSITIONING_PRODUCED,
         TraceEventType.DRAFT_GENERATED,
         TraceEventType.DRAFT_VALIDATED,
         TraceEventType.DRAFT_EVALUATED,
     ]
-    assert [event.sequence for event in completed.trace] == list(range(1, 11))
+    assert [event.sequence for event in completed.trace] == list(range(1, 12))
     ranking_event = completed.trace[4]
     prospect_evidence_ids = {
         evidence_id
@@ -171,6 +202,7 @@ def test_contrasting_inputs_change_ranked_prospect_and_draft_content() -> None:
         decide_claims(workflow, campaign.campaign_id)
         ranked = workflow.get_campaign(campaign.campaign_id)
         workflow.select_prospect(campaign.campaign_id, ranked.prospects[0].prospect_id)
+        research_selected(workflow, campaign.campaign_id)
 
     logistics_result = workflow.generate_draft(logistics.campaign_id)
     security_result = workflow.generate_draft(security.campaign_id)
@@ -282,12 +314,14 @@ def test_identical_decision_retry_is_idempotent_and_other_replays_conflict() -> 
         created.campaign_id,
         after_decisions.prospects[0].prospect_id,
     )
+    research_selected(workflow, selected.campaign_id)
+    researched = repository.get(created.campaign_id)
     with pytest.raises(WorkflowConflictError, match="cannot select a prospect"):
         workflow.select_prospect(
             created.campaign_id,
             after_decisions.prospects[0].prospect_id,
         )
-    assert repository.get(created.campaign_id) == selected
+    assert repository.get(created.campaign_id) == researched
 
     completed = workflow.generate_draft(created.campaign_id)
     with pytest.raises(WorkflowConflictError, match="cannot generate a draft"):
@@ -326,6 +360,7 @@ def test_edited_approval_is_immutable_and_drives_downstream_wording() -> None:
     selected = workflow.select_prospect(
         reviewed.campaign_id, reviewed.prospects[0].prospect_id
     )
+    research_selected(workflow, selected.campaign_id)
     completed = workflow.generate_draft(selected.campaign_id)
 
     assert completed.positioning is not None
@@ -385,9 +420,211 @@ def test_generation_failure_does_not_partially_save_campaign() -> None:
     decide_claims(workflow, created.campaign_id)
     ranked = workflow.get_campaign(created.campaign_id)
     workflow.select_prospect(created.campaign_id, ranked.prospects[0].prospect_id)
+    research_selected(workflow, created.campaign_id)
     before = repository.get(created.campaign_id)
 
     with pytest.raises(RuntimeError, match="fixture evaluation failed"):
         workflow.generate_draft(created.campaign_id)
 
     assert repository.get(created.campaign_id) == before
+
+
+def test_live_discovery_and_deep_research_authorize_positioning() -> None:
+    observed_at = datetime(2026, 8, 2, 10, 30, tzinfo=UTC)
+    structured = SourceObservation(
+        provider="wikidata",
+        publisher="Wikidata",
+        source_category=SourceCategory.STRUCTURED_PUBLIC,
+        title="Acme Logistics",
+        url="https://www.wikidata.org/wiki/Q123",
+        retrieval_url="https://www.wikidata.org/w/api.php?action=wbgetentities",
+        text="Acme Logistics is a logistics company.",
+        body_sha256="a" * 64,
+        policy_version="wikidata-v1",
+        license_basis="CC0 structured data; excerpt only",
+        fetched_at=observed_at,
+        observed_at=observed_at,
+        cache_hit=False,
+    )
+    official = SourceObservation(
+        provider="official_site",
+        publisher="Acme Logistics",
+        source_category=SourceCategory.OFFICIAL_WEBSITE,
+        title="Acme",
+        url="https://acme.example/",
+        text="Acme logistics operations address manual exception review.",
+        body_sha256="b" * 64,
+        policy_version="official-website-v1",
+        license_basis="public_excerpt",
+        fetched_at=observed_at,
+        observed_at=observed_at,
+        cache_hit=False,
+    )
+
+    class Provider:
+        name = "wikidata"
+
+        def discover(self, _icp, _seed_urls):
+            return (
+                CandidateSuggestion(
+                    company="Acme Logistics",
+                    industry="logistics",
+                    official_url="https://acme.example/",
+                    provider="wikidata",
+                    observations=(structured,),
+                    source_entity_id="Q123",
+                ),
+            )
+
+    class Expander:
+        def expand(self, suggestion):
+            return CandidateSuggestion(
+                company=suggestion.company,
+                industry=suggestion.industry,
+                official_url=suggestion.official_url,
+                provider="wikidata+official_site",
+                observations=suggestion.observations + (official,),
+                source_entity_id=suggestion.source_entity_id,
+            )
+
+    class Collector:
+        def collect(self, url, _policy):
+            return CollectedDocument(
+                requested_url=url,
+                canonical_url=url,
+                title="Acme public site",
+                text=(
+                    "Company products projects news documentation for logistics "
+                    "operations."
+                ),
+                links=(),
+                content_type="text/html",
+                body_sha256="c" * 64,
+                fetched_at=observed_at,
+                observed_at=observed_at,
+                cache_hit=False,
+            )
+
+    workflow, _ = build_workflow(
+        discovery_runner=DiscoveryService(
+            providers=(Provider(),),
+            expander=Expander(),
+        ),
+        prospect_research_runner=ProspectResearchService(Collector()),
+    )
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+    discovery = workflow.run_discovery(
+        created.campaign_id,
+        ResearchRequest(request_id="research-request-live0001"),
+    )
+    prospect = discovery.campaign.prospects[0]
+    assert prospect.research_run_id == discovery.run.run_id
+    workflow.select_prospect(created.campaign_id, prospect.prospect_id)
+    with pytest.raises(WorkflowConflictError, match="cannot generate a draft"):
+        workflow.generate_draft(created.campaign_id)
+
+    researched = workflow.research_prospect(
+        created.campaign_id,
+        prospect.prospect_id,
+        ProspectResearchRequest(request_id="research-request-live0002"),
+    )
+    assert researched.campaign.state is CampaignState.PROSPECT_RESEARCHED
+    completed = workflow.generate_draft(created.campaign_id)
+    assert completed.prospect_research is not None
+    assert completed.positioning is not None
+    assert set(completed.prospect_research.evidence_ids) <= set(
+        completed.positioning.evidence_ids
+    )
+
+
+def test_failed_discovery_is_persisted_with_stable_error_and_no_outputs() -> None:
+    class FailingDiscovery:
+        def run(self, **_kwargs):
+            raise ResearchCollectionError("source_unavailable")
+
+    workflow, repository = build_workflow(discovery_runner=FailingDiscovery())
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+
+    with pytest.raises(ResearchExecutionError) as raised:
+        workflow.run_discovery(
+            created.campaign_id,
+            ResearchRequest(request_id="research-request-failure1"),
+        )
+
+    failed = repository.get(created.campaign_id)
+    assert raised.value.code == "source_unavailable"
+    assert failed.state is CampaignState.AWAITING_PROSPECT_SELECTION
+    assert failed.research_runs[-1].failure_code == "source_unavailable"
+    assert failed.research_runs[-1].evidence_ids == ()
+    assert failed.trace[-1].event_type is TraceEventType.RESEARCH_FAILED
+
+
+def test_new_discovery_supersedes_candidates_and_retains_prior_evidence() -> None:
+    observed_at = datetime(2026, 8, 2, 10, 30, tzinfo=UTC)
+
+    class ChangingDiscovery:
+        calls = 0
+
+        def run(self, *, campaign_id, icp, run_id, new_id, **_kwargs):
+            self.calls += 1
+            company = f"Candidate {self.calls}"
+            observation = SourceObservation(
+                provider="market_seed",
+                publisher="Market directory",
+                source_category=SourceCategory.APPROVED_MARKET_SOURCE,
+                title=company,
+                url=f"https://directory.example/{self.calls}",
+                text=f"{company} is a logistics company.",
+                body_sha256="d" * 64,
+                policy_version="market-seed-v1",
+                license_basis="public_excerpt",
+                fetched_at=observed_at,
+                observed_at=observed_at,
+                cache_hit=False,
+            )
+            evidence, prospects = DiscoveryRanker().rank(
+                campaign_id=campaign_id,
+                icp=icp,
+                run_id=run_id,
+                suggestions=(
+                    CandidateSuggestion(
+                        company=company,
+                        industry="logistics",
+                        official_url=f"https://candidate{self.calls}.example/",
+                        provider="market_seed",
+                        observations=(observation,),
+                    ),
+                ),
+                new_id=new_id,
+                now=observed_at,
+            )
+            return DiscoveryResult(
+                evidence=evidence,
+                prospects=prospects,
+                attempts=attempts_from_evidence(evidence, run_id, new_id),
+                providers=("market_seed",),
+                warnings=(),
+            )
+
+    workflow, _ = build_workflow(discovery_runner=ChangingDiscovery())
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+    first = workflow.run_discovery(
+        created.campaign_id,
+        ResearchRequest(request_id="research-request-refresh1"),
+    )
+    second = workflow.run_discovery(
+        created.campaign_id,
+        ResearchRequest(request_id="research-request-refresh2"),
+    )
+
+    assert second.campaign.prospects[0].company == "Candidate 2"
+    assert len(second.campaign.research_runs) == 2
+    assert set(first.run.evidence_ids) <= {
+        item.evidence_id for item in second.campaign.evidence
+    }
+    assert first.run.prospect_ids[0] not in {
+        item.prospect_id for item in second.campaign.prospects
+    }

@@ -106,9 +106,7 @@ def test_profile_requires_same_run_supported_factors() -> None:
         ProspectResearchProfile(
             **profile.model_dump(exclude={"factors"}),
             factors=(
-                factor.model_copy(
-                    update={"research_run_id": "research-run-87654321"}
-                ),
+                factor.model_copy(update={"research_run_id": "research-run-87654321"}),
             ),
         )
 
@@ -138,6 +136,4 @@ def test_live_evidence_requires_run_urls_and_source_timestamps() -> None:
     assert evidence.research_run_id == "research-run-12345678"
 
     with pytest.raises(ValidationError, match="complete source provenance"):
-        EvidenceRecord.model_validate(
-            evidence.model_dump(exclude={"research_run_id"})
-        )
+        EvidenceRecord.model_validate(evidence.model_dump(exclude={"research_run_id"}))
