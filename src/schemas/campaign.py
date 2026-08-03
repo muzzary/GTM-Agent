@@ -12,6 +12,18 @@ from pydantic import (
 )
 
 from src.schemas.base import StrictModel
+from src.schemas.research import (
+    CollectionAttempt,
+    CollectionStatus,
+    EvidenceType,
+    ProspectResearchProfile,
+    RankingFactor,
+    ResearchRun,
+    ResearchStage,
+    ResearchStatus,
+    SourceCategory,
+    SupportedSignal,
+)
 
 Text120 = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
@@ -69,6 +81,8 @@ class ClaimWordingSource(StrEnum):
 class CampaignState(StrEnum):
     AWAITING_CLAIM_APPROVAL = "awaiting_claim_approval"
     AWAITING_PROSPECT_SELECTION = "awaiting_prospect_selection"
+    AWAITING_PROSPECT_RESEARCH = "awaiting_prospect_research"
+    PROSPECT_RESEARCHED = "prospect_researched"
     PROSPECT_SELECTED = "prospect_selected"
     DRAFT_READY = "draft_ready"
 
@@ -91,7 +105,10 @@ class TraceEventType(StrEnum):
     CLAIMS_PROPOSED = "claims_proposed"
     CLAIMS_DECIDED = "claims_decided"
     PROSPECTS_RANKED = "prospects_ranked"
+    LIVE_DISCOVERY_COMPLETED = "live_discovery_completed"
+    RESEARCH_FAILED = "research_failed"
     PROSPECT_SELECTED = "prospect_selected"
+    PROSPECT_RESEARCH_COMPLETED = "prospect_research_completed"
     POSITIONING_PRODUCED = "positioning_produced"
     DRAFT_GENERATED = "draft_generated"
     DRAFT_VALIDATED = "draft_validated"
@@ -150,11 +167,56 @@ class ICPProfile(StrictModel):
 class EvidenceRecord(StrictModel):
     evidence_id: str = Field(pattern=r"^evidence-[a-z0-9-]{4,64}$")
     campaign_id: str = Field(pattern=r"^campaign-[a-z0-9-]{4,64}$")
-    source_kind: str = Field(pattern=r"^fixture$")
+    source_kind: SourceCategory = Field(strict=False)
+    research_run_id: str | None = Field(
+        default=None, pattern=r"^research-run-[a-z0-9-]{8,64}$"
+    )
+    provider: str = Field(default="fixture", min_length=1, max_length=80)
+    publisher: str = Field(default="submitted_input", min_length=1, max_length=160)
+    canonical_url: HttpUrl | None = None
+    retrieval_url: HttpUrl | None = None
+    policy_version: str = Field(default="fixture-v1", min_length=1, max_length=80)
+    license_basis: str = Field(
+        default="user_submitted", min_length=1, max_length=200
+    )
     title: str = Field(min_length=1, max_length=200)
     excerpt: str = Field(min_length=1, max_length=1_000)
+    excerpt_start: int = Field(default=0, ge=0, le=10_000_000)
+    excerpt_end: int | None = Field(default=None, ge=1, le=10_000_000)
+    evidence_type: EvidenceType = Field(default=EvidenceType.FACT, strict=False)
     content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    collection_status: CollectionStatus = Field(
+        default=CollectionStatus.FIXTURE, strict=False
+    )
     collected_at: AwareDatetime
+    fetched_at: AwareDatetime | None = None
+    observed_at: AwareDatetime | None = None
+    source_updated_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def live_evidence_requires_complete_provenance(self) -> Self:
+        is_fixture = self.source_kind is SourceCategory.FIXTURE
+        if is_fixture:
+            if self.research_run_id is not None:
+                raise ValueError("fixture evidence cannot belong to a research run")
+            return self
+        if (
+            self.research_run_id is None
+            or self.canonical_url is None
+            or self.retrieval_url is None
+            or self.fetched_at is None
+            or self.observed_at is None
+        ):
+            raise ValueError("live evidence requires complete source provenance")
+        if self.collection_status not in {
+            CollectionStatus.FETCHED,
+            CollectionStatus.CACHE_HIT,
+        }:
+            raise ValueError("live evidence must come from a successful collection")
+        end = self.excerpt_end if self.excerpt_end is not None else len(self.excerpt)
+        if end <= self.excerpt_start:
+            raise ValueError("evidence excerpt offsets must be ordered")
+        return self
 
 
 class ProductClaim(StrictModel):
@@ -206,11 +268,26 @@ class ProspectCandidate(StrictModel):
     icp_id: str = Field(pattern=r"^icp-[a-z0-9-]{4,64}$")
     company: str = Field(min_length=1, max_length=160)
     industry: str = Field(min_length=1, max_length=120)
-    target_role: str = Field(min_length=1, max_length=120)
+    research_run_id: str | None = Field(
+        default=None, pattern=r"^research-run-[a-z0-9-]{8,64}$"
+    )
+    provider: str = Field(default="fixture", min_length=1, max_length=80)
+    source_entity_id: str | None = Field(default=None, max_length=80)
+    official_url: HttpUrl | None = None
+    target_role: str | None = Field(default=None, min_length=1, max_length=120)
     matched_icp_fields: tuple[str, ...] = Field(min_length=1, max_length=12)
-    public_signals: tuple[str, ...] = Field(min_length=1, max_length=12)
+    public_signals: tuple[str, ...] = Field(default_factory=tuple, max_length=12)
     evidence_ids: tuple[str, ...] = Field(min_length=1, max_length=12)
     score: float = Field(ge=0, le=1)
+    evidence_quality: float = Field(default=0, ge=0, le=1)
+    research_completeness: float = Field(default=0, ge=0, le=1)
+    ranking_factors: tuple[RankingFactor, ...] = Field(
+        default_factory=tuple, max_length=16
+    )
+    supported_signals: tuple[SupportedSignal, ...] = Field(
+        default_factory=tuple, max_length=24
+    )
+    unknown_icp_fields: tuple[str, ...] = Field(default_factory=tuple, max_length=12)
     uncertainty: Uncertainty
 
 
@@ -304,10 +381,15 @@ class Campaign(StrictModel):
         default_factory=tuple,
         max_length=24,
     )
+    research_runs: tuple[ResearchRun, ...] = Field(default_factory=tuple, max_length=6)
+    collection_attempts: tuple[CollectionAttempt, ...] = Field(
+        default_factory=tuple, max_length=64
+    )
     selected_prospect_id: str | None = Field(
         default=None,
         pattern=r"^prospect-[a-z0-9-]{4,64}$",
     )
+    prospect_research: ProspectResearchProfile | None = None
     positioning: PositioningBrief | None = None
     draft: OutreachDraft | None = None
     evaluation: EvaluationResult | None = None
@@ -326,11 +408,15 @@ class Campaign(StrictModel):
         claims = {item.claim_id: item for item in self.claims}
         approvals = {item.approval_id: item for item in self.approvals}
         prospects = {item.prospect_id: item for item in self.prospects}
+        research_runs = {item.run_id: item for item in self.research_runs}
+        attempts = {item.attempt_id: item for item in self.collection_attempts}
         for items, index, label in (
             (self.evidence, evidence, "evidence"),
             (self.claims, claims, "claim"),
             (self.approvals, approvals, "approval"),
             (self.prospects, prospects, "prospect"),
+            (self.research_runs, research_runs, "research run"),
+            (self.collection_attempts, attempts, "collection attempt"),
         ):
             if len(items) != len(index):
                 raise ValueError(f"campaign contains duplicate {label} IDs")
@@ -338,6 +424,10 @@ class Campaign(StrictModel):
         for item in self.evidence:
             if item.campaign_id != self.campaign_id:
                 raise ValueError("evidence must belong to the campaign")
+            if item.research_run_id is not None:
+                run = research_runs.get(item.research_run_id)
+                if run is None or item.evidence_id not in run.evidence_ids:
+                    raise ValueError("live evidence must resolve to its research run")
         for claim in self.claims:
             if (
                 claim.campaign_id != self.campaign_id
@@ -354,6 +444,49 @@ class Campaign(StrictModel):
                 raise ValueError("prospect must belong to the campaign ICP")
             if not set(prospect.evidence_ids) <= evidence.keys():
                 raise ValueError("prospect evidence must resolve in the campaign")
+            if prospect.research_run_id is not None:
+                run = research_runs.get(prospect.research_run_id)
+                if run is None or prospect.prospect_id not in run.prospect_ids:
+                    raise ValueError("live prospect must resolve to its research run")
+                if any(
+                    evidence[evidence_id].research_run_id != run.run_id
+                    for evidence_id in prospect.evidence_ids
+                ):
+                    raise ValueError("live prospect evidence must use the same run")
+
+        for run in self.research_runs:
+            if run.campaign_id != self.campaign_id or run.icp_id != self.icp.icp_id:
+                raise ValueError("research run must belong to the campaign ICP")
+            if not set(run.evidence_ids) <= evidence.keys():
+                raise ValueError("research run evidence must resolve in the campaign")
+            if not set(run.attempt_ids) <= attempts.keys():
+                raise ValueError("research run attempts must resolve in the campaign")
+            if run.stage is ResearchStage.DISCOVERY and not set(
+                run.prospect_ids
+            ) <= prospects.keys():
+                raise ValueError("discovery run prospects must resolve in the campaign")
+            if any(
+                attempts[attempt_id].research_run_id != run.run_id
+                for attempt_id in run.attempt_ids
+            ):
+                raise ValueError("collection attempts must use the same research run")
+
+        if self.prospect_research is not None:
+            profile = self.prospect_research
+            run = research_runs.get(profile.research_run_id)
+            if (
+                profile.campaign_id != self.campaign_id
+                or profile.prospect_id != self.selected_prospect_id
+                or run is None
+                or run.status is not ResearchStatus.COMPLETED
+                or run.stage is not ResearchStage.PROSPECT
+                or run.profile_id != profile.profile_id
+            ):
+                raise ValueError(
+                    "prospect research must resolve to the selected prospect"
+                )
+            if not set(profile.evidence_ids) <= evidence.keys():
+                raise ValueError("prospect research evidence must resolve")
 
         if self.approvals:
             approval_by_claim = {item.claim_id: item for item in self.approvals}

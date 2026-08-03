@@ -1,0 +1,12 @@
+{
+  "policy_version": "website-defaults-v1",
+  "source_category": "official_website",
+  "allowed_schemes": ["https"],
+  "allowed_content_types": ["text/html", "text/plain"],
+  "max_response_bytes": 1048576,
+  "max_redirects": 2,
+  "max_link_depth": 1,
+  "minimum_request_interval_seconds": 1.0,
+  "cache_ttl_seconds": 86400,
+  "robots_cache_ttl_seconds": 86400
+}

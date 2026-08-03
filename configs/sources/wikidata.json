@@ -1,0 +1,12 @@
+{
+  "policy_version": "wikidata-v1",
+  "provider": "wikidata",
+  "source_category": "structured_public",
+  "scheme": "https",
+  "host": "www.wikidata.org",
+  "path": "/w/api.php",
+  "actions": ["query", "wbgetentities", "wbsearchentities"],
+  "max_response_bytes": 1048576,
+  "minimum_request_interval_seconds": 1.0,
+  "cache_ttl_seconds": 86400
+}
