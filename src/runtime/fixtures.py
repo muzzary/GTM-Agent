@@ -3,6 +3,7 @@ from datetime import datetime
 from hashlib import sha256
 
 from src.schemas.campaign import (
+    ApprovalRecord,
     EvaluationCheck,
     EvaluationResult,
     EvidenceRecord,
@@ -128,20 +129,23 @@ class DeterministicFixturePipeline:
         campaign_id: str,
         product: ProductProfile,
         icp: ICPProfile,
-        approved_claims: Sequence[ProductClaim],
+        approved_approvals: Sequence[ApprovalRecord],
         prospect: ProspectCandidate,
         new_id: NewId,
     ) -> PositioningBrief:
         claim_evidence = tuple(
             evidence_id
-            for claim in approved_claims
-            for evidence_id in claim.evidence_ids
+            for approval in approved_approvals
+            for evidence_id in approval.evidence_ids
         )
         return PositioningBrief(
             positioning_id=new_id("positioning"),
             campaign_id=campaign_id,
             prospect_id=prospect.prospect_id,
-            approved_claim_ids=tuple(claim.claim_id for claim in approved_claims),
+            approved_claim_ids=tuple(
+                approval.claim_id for approval in approved_approvals
+            ),
+            approval_ids=tuple(approval.approval_id for approval in approved_approvals),
             evidence_ids=tuple(dict.fromkeys(claim_evidence + prospect.evidence_ids)),
             value_hypothesis=(
                 f"Position {product.name} for {icp.roles[0]} teams at "
@@ -157,10 +161,10 @@ class DeterministicFixturePipeline:
         icp: ICPProfile,
         prospect: ProspectCandidate,
         positioning: PositioningBrief,
-        approved_claims: Sequence[ProductClaim],
+        approved_approvals: Sequence[ApprovalRecord],
         new_id: NewId,
     ) -> OutreachDraft:
-        approved_text = approved_claims[0].text
+        approved_text = approved_approvals[0].reviewed_text
         return OutreachDraft(
             draft_id=new_id("draft"),
             campaign_id=campaign_id,
@@ -174,7 +178,8 @@ class DeterministicFixturePipeline:
                 f"That is why {product.name} may be relevant.\n\n"
                 "Would a brief comparison be useful?"
             ),
-            claim_ids=tuple(claim.claim_id for claim in approved_claims),
+            claim_ids=tuple(approval.claim_id for approval in approved_approvals),
+            approval_ids=tuple(approval.approval_id for approval in approved_approvals),
             evidence_ids=positioning.evidence_ids,
         )
 
@@ -183,13 +188,14 @@ class DeterministicFixturePipeline:
         *,
         campaign_id: str,
         draft: OutreachDraft,
-        approved_claims: Sequence[ProductClaim],
+        approved_approvals: Sequence[ApprovalRecord],
         evidence: Sequence[EvidenceRecord],
         selected_prospect: ProspectCandidate,
         new_id: NewId,
         evaluated_at: datetime,
     ) -> EvaluationResult:
-        approved_ids = {claim.claim_id for claim in approved_claims}
+        approved_ids = {approval.claim_id for approval in approved_approvals}
+        approval_ids = {approval.approval_id for approval in approved_approvals}
         evidence_ids = {item.evidence_id for item in evidence}
         checks = (
             EvaluationCheck(
@@ -199,7 +205,10 @@ class DeterministicFixturePipeline:
             ),
             EvaluationCheck(
                 name="approved_claims_only",
-                passed=set(draft.claim_ids) <= approved_ids,
+                passed=(
+                    set(draft.claim_ids) <= approved_ids
+                    and set(draft.approval_ids) <= approval_ids
+                ),
                 reason="Every referenced claim must have an approval record.",
             ),
             EvaluationCheck(

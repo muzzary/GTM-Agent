@@ -117,3 +117,73 @@ def test_campaign_api_maps_unknown_conflict_and_validation_errors() -> None:
     )
     unchanged = client.get(f"/campaigns/{campaign_id}").json()
     assert unchanged == created
+
+
+def test_campaign_api_accepts_attested_edits_and_rejects_cross_campaign_ids() -> None:
+    client = build_client()
+    first = client.post("/campaigns", json=valid_payload()).json()
+    second = client.post("/campaigns", json=valid_payload()).json()
+
+    cross_campaign = client.post(
+        f"/campaigns/{first['campaign_id']}/claim-decisions",
+        json={
+            "decisions": [
+                {"claim_id": claim["claim_id"], "decision": "approved"}
+                for claim in second["claims"]
+            ]
+        },
+    )
+    assert cross_campaign.status_code == 409
+
+    decisions = [
+        {
+            "claim_id": first["claims"][0]["claim_id"],
+            "decision": "approved",
+            "edited_text": "RouteSignal highlights reviewed delivery exceptions.",
+            "evidence_attested": True,
+        },
+        {
+            "claim_id": first["claims"][1]["claim_id"],
+            "decision": "rejected",
+        },
+    ]
+    reviewed = client.post(
+        f"/campaigns/{first['campaign_id']}/claim-decisions",
+        json={"decisions": decisions},
+    )
+
+    assert reviewed.status_code == 200
+    body = reviewed.json()
+    assert body["claims"][0]["text"] == first["claims"][0]["text"]
+    assert body["approvals"][0]["reviewed_text"] == decisions[0]["edited_text"]
+    assert body["approvals"][0]["wording_source"] == "user_edited"
+    assert (
+        client.post(
+            f"/campaigns/{first['campaign_id']}/claim-decisions",
+            json={"decisions": decisions},
+        ).json()
+        == body
+    )
+
+
+def test_campaign_api_rejects_blank_duplicate_and_unattested_input() -> None:
+    client = build_client()
+    duplicate = valid_payload()
+    duplicate["known_capabilities"] = ["reporting", " reporting "]
+    assert client.post("/campaigns", json=duplicate).status_code == 422
+
+    created = client.post("/campaigns", json=valid_payload()).json()
+    response = client.post(
+        f"/campaigns/{created['campaign_id']}/claim-decisions",
+        json={
+            "decisions": [
+                {
+                    "claim_id": claim["claim_id"],
+                    "decision": "approved",
+                    "edited_text": "New wording",
+                }
+                for claim in created["claims"]
+            ]
+        },
+    )
+    assert response.status_code == 422

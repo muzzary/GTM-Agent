@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pydantic import ValidationError
 
 from src.runtime.fixtures import DeterministicFixturePipeline
 from src.runtime.workflow import (
@@ -19,6 +20,7 @@ from src.schemas.campaign import (
     ClaimDecision,
     ClaimDecisionBatch,
     ClaimStatus,
+    ClaimWordingSource,
     TraceEventType,
 )
 
@@ -85,9 +87,7 @@ def decide_claims(workflow: CampaignWorkflow, campaign_id: str) -> None:
         ClaimDecision(
             claim_id=claim.claim_id,
             decision=(
-                ApprovalDecision.APPROVED
-                if index == 0
-                else ApprovalDecision.REJECTED
+                ApprovalDecision.APPROVED if index == 0 else ApprovalDecision.REJECTED
             ),
         )
         for index, claim in enumerate(campaign.claims)
@@ -234,7 +234,7 @@ def test_illegal_transitions_and_unknown_ids_do_not_mutate_campaign() -> None:
     assert repository.get(created.campaign_id) == before
 
 
-def test_unknown_prospect_and_repeated_commands_leave_state_unchanged() -> None:
+def test_identical_decision_retry_is_idempotent_and_other_replays_conflict() -> None:
     workflow, repository = build_workflow()
     created = workflow.create_campaign(campaign_input())
     decide_claims(workflow, created.campaign_id)
@@ -253,8 +253,27 @@ def test_unknown_prospect_and_repeated_commands_leave_state_unchanged() -> None:
             for claim in after_decisions.claims
         ]
     )
-    with pytest.raises(WorkflowConflictError, match="cannot decide claims"):
-        workflow.decide_claims(created.campaign_id, repeated_batch)
+    retried = workflow.decide_claims(created.campaign_id, repeated_batch)
+    assert retried == after_decisions
+
+    conflicting = repeated_batch.model_copy(
+        update={
+            "decisions": [
+                decision.model_copy(
+                    update={
+                        "decision": (
+                            ApprovalDecision.REJECTED
+                            if decision.decision is ApprovalDecision.APPROVED
+                            else ApprovalDecision.APPROVED
+                        )
+                    }
+                )
+                for decision in repeated_batch.decisions
+            ]
+        }
+    )
+    with pytest.raises(WorkflowConflictError, match="already locked"):
+        workflow.decide_claims(created.campaign_id, conflicting)
     with pytest.raises(WorkflowConflictError, match="ranked for this campaign"):
         workflow.select_prospect(created.campaign_id, "prospect-9999")
     assert repository.get(created.campaign_id) == after_decisions
@@ -274,6 +293,85 @@ def test_unknown_prospect_and_repeated_commands_leave_state_unchanged() -> None:
     with pytest.raises(WorkflowConflictError, match="cannot generate a draft"):
         workflow.generate_draft(created.campaign_id)
     assert repository.get(created.campaign_id) == completed
+
+
+def test_edited_approval_is_immutable_and_drives_downstream_wording() -> None:
+    workflow, _ = build_workflow()
+    created = workflow.create_campaign(campaign_input())
+    edited_text = "RouteSignal highlights reviewed delivery exceptions."
+    original_text = created.claims[0].text
+    batch = ClaimDecisionBatch(
+        decisions=[
+            ClaimDecision(
+                claim_id=created.claims[0].claim_id,
+                decision=ApprovalDecision.APPROVED,
+                edited_text=edited_text,
+                evidence_attested=True,
+            ),
+            ClaimDecision(
+                claim_id=created.claims[1].claim_id,
+                decision=ApprovalDecision.REJECTED,
+            ),
+        ]
+    )
+
+    reviewed = workflow.decide_claims(created.campaign_id, batch)
+    assert reviewed.claims[0].text == original_text
+    approval = reviewed.approvals[0]
+    assert approval.original_text == original_text
+    assert approval.reviewed_text == edited_text
+    assert approval.wording_source is ClaimWordingSource.USER_EDITED
+    assert approval.evidence_attested is True
+
+    selected = workflow.select_prospect(
+        reviewed.campaign_id, reviewed.prospects[0].prospect_id
+    )
+    completed = workflow.generate_draft(selected.campaign_id)
+
+    assert completed.positioning is not None
+    assert completed.draft is not None
+    assert completed.positioning.approval_ids == (approval.approval_id,)
+    assert completed.draft.approval_ids == (approval.approval_id,)
+    assert edited_text in completed.draft.body
+    assert original_text not in completed.draft.body
+
+
+def test_edit_must_meaningly_change_the_proposed_wording() -> None:
+    workflow, repository = build_workflow()
+    created = workflow.create_campaign(campaign_input())
+    before = repository.get(created.campaign_id)
+    batch = ClaimDecisionBatch(
+        decisions=[
+            ClaimDecision(
+                claim_id=created.claims[0].claim_id,
+                decision=ApprovalDecision.APPROVED,
+                edited_text=f"  {created.claims[0].text}  ",
+                evidence_attested=True,
+            ),
+            ClaimDecision(
+                claim_id=created.claims[1].claim_id,
+                decision=ApprovalDecision.REJECTED,
+            ),
+        ]
+    )
+
+    with pytest.raises(WorkflowConflictError, match="must change"):
+        workflow.decide_claims(created.campaign_id, batch)
+
+    assert repository.get(created.campaign_id) == before
+
+
+def test_campaign_contract_rejects_tampered_approval_provenance() -> None:
+    workflow, _ = build_workflow()
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+    reviewed = workflow.get_campaign(created.campaign_id)
+    payload = reviewed.model_dump()
+    payload["approvals"][0]["original_text"] = "Tampered wording"
+    payload["approvals"][0]["reviewed_text"] = "Tampered wording"
+
+    with pytest.raises(ValidationError, match="original wording must match"):
+        Campaign.model_validate(payload)
 
 
 class FailingEvaluationPipeline(DeterministicFixturePipeline):

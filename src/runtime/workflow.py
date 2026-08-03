@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
+from threading import RLock
 from uuid import uuid4
 
 from src.runtime.fixtures import DeterministicFixturePipeline
@@ -11,6 +12,7 @@ from src.schemas.campaign import (
     CampaignState,
     ClaimDecisionBatch,
     ClaimStatus,
+    ClaimWordingSource,
     ICPProfile,
     ProductProfile,
     TraceEvent,
@@ -34,7 +36,8 @@ class InMemoryCampaignRepository:
         self._campaigns: dict[str, Campaign] = {}
 
     def save(self, campaign: Campaign) -> None:
-        self._campaigns[campaign.campaign_id] = campaign.model_copy(deep=True)
+        validated = Campaign.model_validate(campaign.model_dump())
+        self._campaigns[campaign.campaign_id] = validated.model_copy(deep=True)
 
     def get(self, campaign_id: str) -> Campaign:
         campaign = self._campaigns.get(campaign_id)
@@ -56,8 +59,13 @@ class CampaignWorkflow:
         self._pipeline = pipeline
         self._new_id = new_id or _random_id
         self._clock = clock or _utc_now
+        self._mutation_lock = RLock()
 
     def create_campaign(self, campaign_input: CampaignInput) -> Campaign:
+        with self._mutation_lock:
+            return self._create_campaign(campaign_input)
+
+    def _create_campaign(self, campaign_input: CampaignInput) -> Campaign:
         campaign_id = self._new_id("campaign")
         product = ProductProfile(
             product_id=self._new_id("product"),
@@ -128,7 +136,19 @@ class CampaignWorkflow:
         campaign_id: str,
         batch: ClaimDecisionBatch,
     ) -> Campaign:
+        with self._mutation_lock:
+            return self._decide_claims(campaign_id, batch)
+
+    def _decide_claims(
+        self,
+        campaign_id: str,
+        batch: ClaimDecisionBatch,
+    ) -> Campaign:
         campaign = self.get_campaign(campaign_id)
+        if campaign.state is not CampaignState.AWAITING_CLAIM_APPROVAL:
+            if self._matches_locked_decisions(campaign, batch):
+                return campaign
+            raise WorkflowConflictError("claim decisions are already locked")
         self._require_state(
             campaign,
             CampaignState.AWAITING_CLAIM_APPROVAL,
@@ -146,15 +166,28 @@ class CampaignWorkflow:
         ):
             raise WorkflowConflictError("at least one claim must be approved")
 
-        decisions = {
-            decision.claim_id: decision.decision for decision in batch.decisions
-        }
+        decisions = {decision.claim_id: decision for decision in batch.decisions}
+        for claim in campaign.claims:
+            decision = decisions[claim.claim_id]
+            if decision.edited_text == claim.text:
+                raise WorkflowConflictError(
+                    f"edited wording must change proposed claim {claim.claim_id}"
+                )
         approvals = tuple(
             ApprovalRecord(
                 approval_id=self._new_id("approval"),
                 campaign_id=campaign_id,
                 claim_id=claim.claim_id,
-                decision=decisions[claim.claim_id],
+                decision=decisions[claim.claim_id].decision,
+                original_text=claim.text,
+                reviewed_text=decisions[claim.claim_id].edited_text or claim.text,
+                evidence_ids=claim.evidence_ids,
+                wording_source=(
+                    ClaimWordingSource.USER_EDITED
+                    if decisions[claim.claim_id].edited_text is not None
+                    else ClaimWordingSource.PROPOSED
+                ),
+                evidence_attested=decisions[claim.claim_id].evidence_attested,
                 decided_at=self._clock(),
             )
             for claim in campaign.claims
@@ -164,7 +197,8 @@ class CampaignWorkflow:
                 update={
                     "status": (
                         ClaimStatus.APPROVED
-                        if decisions[claim.claim_id] is ApprovalDecision.APPROVED
+                        if decisions[claim.claim_id].decision
+                        is ApprovalDecision.APPROVED
                         else ClaimStatus.REJECTED
                     )
                 }
@@ -219,6 +253,10 @@ class CampaignWorkflow:
         return updated.model_copy(deep=True)
 
     def select_prospect(self, campaign_id: str, prospect_id: str) -> Campaign:
+        with self._mutation_lock:
+            return self._select_prospect(campaign_id, prospect_id)
+
+    def _select_prospect(self, campaign_id: str, prospect_id: str) -> Campaign:
         campaign = self.get_campaign(campaign_id)
         self._require_state(
             campaign,
@@ -250,6 +288,10 @@ class CampaignWorkflow:
         return updated.model_copy(deep=True)
 
     def generate_draft(self, campaign_id: str) -> Campaign:
+        with self._mutation_lock:
+            return self._generate_draft(campaign_id)
+
+    def _generate_draft(self, campaign_id: str) -> Campaign:
         campaign = self.get_campaign(campaign_id)
         self._require_state(
             campaign,
@@ -261,14 +303,16 @@ class CampaignWorkflow:
             for prospect in campaign.prospects
             if prospect.prospect_id == campaign.selected_prospect_id
         )
-        approved_claims = tuple(
-            claim for claim in campaign.claims if claim.status is ClaimStatus.APPROVED
+        approved_approvals = tuple(
+            approval
+            for approval in campaign.approvals
+            if approval.decision is ApprovalDecision.APPROVED
         )
         positioning = self._pipeline.position(
             campaign_id=campaign_id,
             product=campaign.product,
             icp=campaign.icp,
-            approved_claims=approved_claims,
+            approved_approvals=approved_approvals,
             prospect=selected,
             new_id=self._new_id,
         )
@@ -278,19 +322,20 @@ class CampaignWorkflow:
             icp=campaign.icp,
             prospect=selected,
             positioning=positioning,
-            approved_claims=approved_claims,
+            approved_approvals=approved_approvals,
             new_id=self._new_id,
         )
         self._validate_draft(
             campaign,
             draft.claim_ids,
+            draft.approval_ids,
             draft.evidence_ids,
             selected.prospect_id,
         )
         evaluation = self._pipeline.evaluate(
             campaign_id=campaign_id,
             draft=draft,
-            approved_claims=approved_claims,
+            approved_approvals=approved_approvals,
             evidence=campaign.evidence,
             selected_prospect=selected,
             new_id=self._new_id,
@@ -306,12 +351,11 @@ class CampaignWorkflow:
                 TraceEventType.POSITIONING_PRODUCED,
                 input_ids=(
                     selected.prospect_id,
-                    *(claim.claim_id for claim in approved_claims),
+                    *(approval.claim_id for approval in approved_approvals),
+                    *(approval.approval_id for approval in approved_approvals),
                 ),
                 output_ids=(positioning.positioning_id,),
-                summary=(
-                    "Positioning used approved claims and the selected prospect."
-                ),
+                summary=("Positioning used approved claims and the selected prospect."),
             ),
             self._trace_event(
                 campaign_id,
@@ -399,21 +443,51 @@ class CampaignWorkflow:
     def _validate_draft(
         campaign: Campaign,
         claim_ids: tuple[str, ...],
+        approval_ids: tuple[str, ...],
         evidence_ids: tuple[str, ...],
         prospect_id: str,
     ) -> None:
-        approved_ids = {
-            claim.claim_id
-            for claim in campaign.claims
-            if claim.status is ClaimStatus.APPROVED
+        approved_records = {
+            approval.approval_id: approval
+            for approval in campaign.approvals
+            if approval.decision is ApprovalDecision.APPROVED
         }
-        if not claim_ids or not set(claim_ids) <= approved_ids:
+        if len(claim_ids) != len(approval_ids) or not claim_ids:
+            raise WorkflowConflictError("draft claim approvals are incomplete")
+        if any(
+            approval_id not in approved_records
+            or approved_records[approval_id].claim_id != claim_id
+            for claim_id, approval_id in zip(claim_ids, approval_ids, strict=True)
+        ):
             raise WorkflowConflictError("draft contains an unapproved product claim")
         available_evidence = {item.evidence_id for item in campaign.evidence}
         if not evidence_ids or not set(evidence_ids) <= available_evidence:
             raise WorkflowConflictError("draft contains unresolved evidence")
         if prospect_id != campaign.selected_prospect_id:
             raise WorkflowConflictError("draft does not target the selected prospect")
+
+    @staticmethod
+    def _matches_locked_decisions(
+        campaign: Campaign,
+        batch: ClaimDecisionBatch,
+    ) -> bool:
+        existing = {approval.claim_id: approval for approval in campaign.approvals}
+        if {decision.claim_id for decision in batch.decisions} != set(existing):
+            return False
+        for decision in batch.decisions:
+            approval = existing[decision.claim_id]
+            expected_edit = (
+                approval.reviewed_text
+                if approval.wording_source is ClaimWordingSource.USER_EDITED
+                else None
+            )
+            if (
+                decision.decision is not approval.decision
+                or decision.edited_text != expected_edit
+                or decision.evidence_attested is not approval.evidence_attested
+            ):
+                return False
+        return True
 
 
 def _random_id(prefix: str) -> str:
