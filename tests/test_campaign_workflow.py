@@ -493,7 +493,7 @@ def test_live_discovery_and_deep_research_authorize_positioning() -> None:
             )
 
     class Collector:
-        def collect(self, url, _policy):
+        def collect(self, url, _policy, **_kwargs):
             return CollectedDocument(
                 requested_url=url,
                 canonical_url=url,

@@ -55,6 +55,7 @@ introduced.
 | `docs/PHASE4_SPEC.md` | Approved multi-source research architecture, source controls, ranking semantics, and acceptance tests. |
 | `docs/PHASE4_RUNBOOK.md` | Browser walkthrough for live discovery, selection, deep research, and the positioning gate. |
 | `docs/PHASE4_FOLLOWUP_SPEC.md` | Regional targeting, broader company coverage, plain-English findings, and translation contracts. |
+| `docs/PHASE4_1_SEARCH_SPEC.md` | Fast multi-source discovery, redirect recovery, extraction, safety, and performance contracts. |
 
 ## Data and deliverables
 

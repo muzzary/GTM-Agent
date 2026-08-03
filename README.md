@@ -21,7 +21,9 @@ plan, dependency candidates, and required resources.
 Phase 4 adds bounded multi-source prospect discovery and selected-company
 research. Wikidata resolves submitted industries into structured company
 queries, optional user-approved market pages contribute candidate domains, and
-validated official sites provide shallow ranking and deep research evidence.
+an optional Brave Search key broadens candidate hints. Validated official sites
+provide shallow ranking and deep research evidence; search snippets alone never
+become evidence.
 Scores, quality, completeness, uncertainty, citations, failed collections, and
 unknowns remain separate and visible. Optional ICP regions are hard discovery
 eligibility constraints, and deep research now presents short English findings
@@ -32,6 +34,12 @@ The collector is not an unrestricted web crawler: exact source admission,
 public-IP checks, robots rules, rate limits, response bounds, privacy filtering,
 and a local ignored SQLite cache apply. Real model generation begins in Phase
 5.
+
+Phase 4.1 runs independent discovery sources and bounded official-site
+expansions concurrently. Its Wikidata query limits candidates before label
+resolution, selected-company research can use a same-host sitemap when normal
+navigation is sparse, and permanent company-domain migrations can be recovered
+only from structured official-site records with public-DNS and identity checks.
 
 ## Requirements
 
@@ -58,6 +66,16 @@ $env:GTM_RESEARCH_CONTACT = "research-contact@example.com"
 
 This value is used only in the collector User-Agent. Credentials remain in
 ignored local environment variables or Colab secret storage.
+
+To optionally broaden discovery through Brave Search:
+
+```powershell
+$env:GTM_BRAVE_SEARCH_API_KEY = "your-brave-search-api-key"
+```
+
+Only submitted industry and region terms are sent. Product details, claims,
+roles, pain hypotheses, and collected evidence are not sent to Brave. Without a
+key, Wikidata and approved market seeds continue to work normally.
 
 To translate non-English research with the Colab model, configure both values:
 

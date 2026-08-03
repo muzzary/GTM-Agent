@@ -15,6 +15,16 @@ $env:GTM_RESEARCH_CONTACT = "research-contact@example.com"
 uv run uvicorn src.runtime.api:app --reload --host 127.0.0.1 --port 8001
 ```
 
+Optionally broaden candidate discovery with a local Brave Search API key:
+
+```powershell
+$env:GTM_BRAVE_SEARCH_API_KEY = "your-brave-search-api-key"
+```
+
+Only industry and region terms are included in that search query. Search
+results remain untrusted candidate hints until official-site evidence is
+successfully collected.
+
 For English summaries of non-English pages, also set both optional Colab values
 before starting the backend:
 
@@ -53,8 +63,9 @@ Optionally enter up to ten public HTTPS market pages, one per line. Useful
 sources include public industry associations, directories, registries, and
 market lists whose access rules permit automated retrieval.
 
-Select **Run live market discovery**. The run may take time because requests
-are serialized and rate limited. It uses the machine's internet connection and
+Select **Run live market discovery**. Independent sources and unique candidate
+sites run concurrently within a bounded deadline; each host still keeps its
+own rate and robots limits. It uses the machine's internet connection and
 therefore consumes its Wi-Fi/mobile data.
 
 Confirm:
@@ -73,12 +84,12 @@ relevant permitted market seed rather than treating missing evidence as a
 match.
 
 An official website may redirect to a different company domain because of a
-rebrand, merger, regional site, or traffic-management service. Phase 4 does not
-automatically trust that new host: every redirect must remain within the
-original host's admitted `www` alias and resolve only to public IP addresses.
-When a cross-host redirect is denied, discovery keeps the structured candidate
-and reports `official_site:<host>:source_policy_denied`; only that site's
-optional expansion is skipped.
+rebrand or merger. A cross-domain destination is admitted only for a permanent
+301/308 redirect from an existing structured official-site record, with public
+DNS, HTTPS, bounded hops, and company/domain identity checks. Search hints and
+temporary redirects cannot open this path. A denied redirect keeps the
+candidate when it already has structured evidence and reports an explicit
+warning.
 
 ## 5. Select and research one prospect
 
@@ -92,8 +103,10 @@ optional expansion is skipped.
    its source language and translation status. If Colab is offline, confirm the
    UI says translation is unavailable instead of displaying invented content.
 
-The deep run reads at most twelve pages on admitted official hosts, including
-relevant second-level links discovered during the run. It targets company,
+The deep run reads at most twelve evidence pages on admitted official hosts,
+including relevant second-level links. When the homepage exposes no useful
+links, one bounded `/sitemap.xml` index request supplies same-host candidates.
+Focused extraction removes common navigation noise. The run targets company,
 offerings, projects, newsroom, and technical material. PDF links are recorded
 as a limitation but are not extracted in this phase.
 

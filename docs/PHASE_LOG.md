@@ -400,3 +400,34 @@
 - Frontend suite: 19 tests passed across six files.
 - Backend Ruff, frontend typecheck, and frontend Oxlint: clean.
 - No new dependency was added.
+
+## Phase 4.1: Fast and recoverable public research
+
+**Status:** Automated verification complete; manual verification pending
+
+**Changed:**
+
+- Replaced broad Wikidata entity and company matching with exact submitted-term
+  resolution and a bounded subquery that limits candidates before English label
+  resolution.
+- Preserved `source_timeout`, `source_failure`, and `no_candidates` as distinct
+  outcomes instead of collapsing failed sources into an empty-market result.
+- Ran independent discovery providers and up to ten unique official-site
+  expansions concurrently within a shared fifteen-second deadline.
+- Added optional Brave Search discovery using only submitted industry and region
+  terms. Search results remain hints until official-site evidence is retained.
+- Added permanent cross-domain recovery for structured official-site records,
+  while retaining HTTPS, public-DNS, robots, hop, content, and identity gates.
+- Added focused HTML extraction and selected-company sitemap fallback when the
+  homepage contains no useful research navigation.
+- Added and locked Trafilatura 2.2.0, RapidFuzz 3.14.5, and tldextract 5.3.1.
+  Public-suffix updates are disabled at runtime in favor of the packaged
+  snapshot.
+
+**Automated verification:**
+
+- Full Python suite: 115 tests passed.
+- Frontend suite: 19 tests passed across six files.
+- Backend Ruff, frontend Oxlint, frontend typecheck, and production build:
+  successful.
+- `uv lock --check`: clean with 47 resolved packages.
