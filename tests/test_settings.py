@@ -24,6 +24,15 @@ def test_research_settings_are_optional_until_live_research_is_used() -> None:
     assert str(settings.research_cache_path).replace("\\", "/") == (
         "data/research-cache.sqlite3"
     )
+    assert settings.brave_search_api_key is None
+
+
+def test_brave_search_key_is_loaded_as_a_secret() -> None:
+    settings = Settings.from_mapping({"GTM_BRAVE_SEARCH_API_KEY": "brave-secret"})
+
+    assert settings.brave_search_api_key is not None
+    assert settings.brave_search_api_key.get_secret_value() == "brave-secret"
+    assert "brave-secret" not in repr(settings)
 
 
 def test_research_contact_rejects_header_injection() -> None:

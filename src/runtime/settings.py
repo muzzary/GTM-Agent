@@ -21,6 +21,7 @@ class Settings(BaseModel):
     api_port: int = Field(default=8000, ge=1, le=65535)
     research_contact: str | None = Field(default=None, min_length=3, max_length=200)
     research_cache_path: Path = Path("data/research-cache.sqlite3")
+    brave_search_api_key: SecretStr | None = None
     translation_endpoint: str | None = None
     translation_api_key: SecretStr | None = None
 
@@ -71,6 +72,7 @@ class Settings(BaseModel):
             research_cache_path=values.get(
                 "GTM_RESEARCH_CACHE_PATH", "data/research-cache.sqlite3"
             ),
+            brave_search_api_key=values.get("GTM_BRAVE_SEARCH_API_KEY") or None,
             translation_endpoint=values.get("GTM_TRANSLATION_ENDPOINT") or None,
             translation_api_key=values.get("GTM_TRANSLATION_API_KEY") or None,
         )

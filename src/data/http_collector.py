@@ -59,7 +59,7 @@ class HttpxTransport:
         self._client = httpx2.Client(
             headers={"User-Agent": user_agent, "Accept-Encoding": "gzip"},
             timeout=httpx2.Timeout(10.0, connect=5.0),
-            limits=httpx2.Limits(max_connections=1, max_keepalive_connections=1),
+            limits=httpx2.Limits(max_connections=8, max_keepalive_connections=8),
             follow_redirects=False,
             trust_env=False,
         )

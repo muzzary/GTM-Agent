@@ -4,7 +4,11 @@ from collections.abc import Sequence
 from dataclasses import replace
 from urllib.parse import urlencode, urlsplit
 
-from src.data.http_collector import ControlledHttpCollector, ResearchCollectionError
+from src.data.http_collector import (
+    ControlledHttpCollector,
+    HttpTransport,
+    ResearchCollectionError,
+)
 from src.data.source_policy import SourcePolicy, SourcePolicyError
 from src.research.discovery import CandidateSuggestion, SourceObservation
 from src.schemas.campaign import ICPProfile
@@ -29,6 +33,88 @@ _PAGE_CATEGORIES = (
     ("news", 3),
     ("press", 3),
 )
+
+
+class BraveSearchDiscoveryProvider:
+    name = "brave_search"
+    _base_url = "https://api.search.brave.com/res/v1/web/search"
+
+    def __init__(self, transport: HttpTransport, api_key: str) -> None:
+        if not api_key.strip():
+            raise ValueError("Brave Search API key cannot be empty")
+        self._transport = transport
+        self._api_key = api_key
+
+    @classmethod
+    def search_url(cls, icp: ICPProfile) -> str:
+        terms = [*(f'"{item}"' for item in icp.industries[:3]), "companies"]
+        terms.extend(f'"{item}"' for item in icp.regions[:3])
+        terms.extend(("official", "website"))
+        query = urlencode(
+            {
+                "q": " ".join(terms),
+                "count": "20",
+                "search_lang": "en",
+                "safesearch": "moderate",
+            }
+        )
+        return f"{cls._base_url}?{query}"
+
+    def discover(
+        self,
+        icp: ICPProfile,
+        _seed_urls: Sequence[str],
+    ) -> tuple[CandidateSuggestion, ...]:
+        response = self._transport.get(
+            self.search_url(icp),
+            headers={
+                "Accept": "application/json",
+                "X-Subscription-Token": self._api_key,
+            },
+            max_bytes=1_048_576,
+        )
+        if response.status_code in {401, 403}:
+            raise ResearchCollectionError("provider_auth_failed")
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ResearchCollectionError("source_http_error")
+        payload = _json_object(response.body.decode("utf-8"))
+        web = payload.get("web", {})
+        results = web.get("results", []) if isinstance(web, dict) else []
+        suggestions: list[CandidateSuggestion] = []
+        seen_hosts: set[str] = set()
+        for item in results if isinstance(results, list) else ():
+            if not isinstance(item, dict) or not isinstance(item.get("url"), str):
+                continue
+            official_url = item["url"]
+            try:
+                parsed = urlsplit(official_url)
+                host = _host(official_url)
+                port = parsed.port
+            except ValueError:
+                continue
+            if (
+                parsed.scheme != "https"
+                or parsed.username is not None
+                or parsed.password is not None
+                or port not in {None, 443}
+                or not host
+                or _without_www(host) in _EXCLUDED_CANDIDATE_HOSTS
+                or host in seen_hosts
+            ):
+                continue
+            seen_hosts.add(host)
+            suggestions.append(
+                CandidateSuggestion(
+                    company=_company_from_host(host),
+                    industry=icp.industries[0],
+                    official_url=official_url,
+                    provider=self.name,
+                    observations=(),
+                )
+            )
+            if len(suggestions) == 20:
+                break
+        return tuple(suggestions)
 
 
 class MarketSeedDiscoveryProvider:

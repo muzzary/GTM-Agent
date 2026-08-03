@@ -2,10 +2,11 @@ import json
 from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlsplit
 
-from src.data.http_collector import CollectedDocument
+from src.data.http_collector import CollectedDocument, HttpResponse
 from src.data.source_policy import SourcePolicyError
 from src.research.discovery import CandidateSuggestion
 from src.research.providers import (
+    BraveSearchDiscoveryProvider,
     MarketSeedDiscoveryProvider,
     WebsiteCandidateExpander,
     WikidataDiscoveryProvider,
@@ -82,6 +83,59 @@ def test_market_seed_discovers_bounded_external_https_domains() -> None:
         "https://beta.example/",
     ]
     assert all(item.observations[0].url == seed for item in suggestions)
+
+
+def test_brave_search_uses_only_public_market_icp_terms() -> None:
+    class FakeTransport:
+        def __init__(self) -> None:
+            self.url = ""
+            self.headers: dict[str, str] = {}
+
+        def get(self, url, *, headers, max_bytes):
+            self.url = url
+            self.headers = dict(headers)
+            assert max_bytes == 1_048_576
+            return HttpResponse(
+                status_code=200,
+                headers={"content-type": "application/json"},
+                body=json.dumps(
+                    {
+                        "web": {
+                            "results": [
+                                {
+                                    "url": "https://acme.example/solutions",
+                                    "title": "Acme Logistics",
+                                },
+                                {
+                                    "url": "https://linkedin.com/company/acme",
+                                    "title": "Acme on LinkedIn",
+                                },
+                                {
+                                    "url": "https://bad.example:not-a-port/",
+                                    "title": "Malformed result",
+                                },
+                            ]
+                        }
+                    }
+                ).encode(),
+            )
+
+    transport = FakeTransport()
+    icp = _icp().model_copy(update={"regions": ("United States",)})
+
+    suggestions = BraveSearchDiscoveryProvider(transport, "secret-key").discover(
+        icp, ()
+    )
+
+    query = parse_qs(urlsplit(transport.url).query)["q"][0]
+    assert query == '"logistics" companies "United States" official website'
+    assert "operations" not in query
+    assert "manual tracking" not in query
+    assert transport.headers["X-Subscription-Token"] == "secret-key"
+    assert [item.official_url for item in suggestions] == [
+        "https://acme.example/solutions"
+    ]
+    assert suggestions[0].observations == ()
 
 
 def test_website_expander_fetches_home_and_two_priority_pages_only() -> None:

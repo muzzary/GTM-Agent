@@ -1,8 +1,11 @@
 import json
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, replace
 from datetime import datetime
 from hashlib import sha256
+from time import monotonic
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -110,10 +113,12 @@ class DiscoveryService:
         providers: Sequence[DiscoveryProvider],
         expander: CandidateExpander,
         ranker: "DiscoveryRanker | None" = None,
+        timeout_seconds: float = 15.0,
     ) -> None:
         self._providers = tuple(providers)
         self._expander = expander
         self._ranker = ranker or DiscoveryRanker()
+        self._timeout_seconds = timeout_seconds
 
     def run(
         self,
@@ -130,31 +135,70 @@ class DiscoveryService:
         warnings: list[str] = []
         completed_providers = 0
         failure_codes: list[str] = []
-        for provider in self._providers:
-            try:
-                discovered = provider.discover(icp, seed_urls)
-            except (ResearchCollectionError, SourcePolicyError) as error:
-                code = _safe_collection_code(error)
-                failure_codes.append(code)
-                warnings.append(f"{provider.name}:{code}")
-                continue
-            completed_providers += 1
-            if discovered:
-                suggestions.extend(discovered)
-                used_providers.append(provider.name)
+        executor = ThreadPoolExecutor(max_workers=max(1, len(self._providers)))
+        deadline = monotonic() + self._timeout_seconds
+        futures = [
+            (provider, executor.submit(provider.discover, icp, seed_urls))
+            for provider in self._providers
+        ]
+        try:
+            for provider, future in futures:
+                try:
+                    discovered = future.result(
+                        timeout=max(0.0, deadline - monotonic())
+                    )
+                except FutureTimeoutError:
+                    failure_codes.append("source_timeout")
+                    warnings.append(f"{provider.name}:source_timeout")
+                    future.cancel()
+                    continue
+                except (ResearchCollectionError, SourcePolicyError) as error:
+                    code = _safe_collection_code(error)
+                    failure_codes.append(code)
+                    warnings.append(f"{provider.name}:{code}")
+                    continue
+                completed_providers += 1
+                if discovered:
+                    suggestions.extend(discovered)
+                    used_providers.append(provider.name)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
         if not suggestions:
             if completed_providers == 0 and failure_codes:
                 if all(code == "source_timeout" for code in failure_codes):
                     raise ResearchCollectionError("source_timeout")
                 raise ResearchCollectionError("source_failure")
             raise ResearchCollectionError("no_candidates")
+        selected = deduplicate_suggestions(suggestions)[:10]
+        expansion_executor = ThreadPoolExecutor(max_workers=max(1, len(selected)))
+        expansion_futures = [
+            (suggestion, expansion_executor.submit(self._expander.expand, suggestion))
+            for suggestion in selected
+        ]
         expanded: list[CandidateSuggestion] = []
-        for suggestion in deduplicate_suggestions(suggestions)[:10]:
-            expanded_item = self._expander.expand(suggestion)
-            expanded.append(expanded_item)
-            warnings.extend(expanded_item.warnings)
-            if len(expanded_item.observations) > len(suggestion.observations):
-                used_providers.append("official_site")
+        try:
+            for suggestion, future in expansion_futures:
+                try:
+                    expanded_item = future.result(
+                        timeout=max(0.0, deadline - monotonic())
+                    )
+                except FutureTimeoutError:
+                    future.cancel()
+                    expanded_item = replace(
+                        suggestion,
+                        warnings=suggestion.warnings
+                        + (
+                            "official_site:"
+                            f"{urlsplit(suggestion.official_url).hostname}:"
+                            "source_timeout",
+                        ),
+                    )
+                expanded.append(expanded_item)
+                warnings.extend(expanded_item.warnings)
+                if len(expanded_item.observations) > len(suggestion.observations):
+                    used_providers.append("official_site")
+        finally:
+            expansion_executor.shutdown(wait=False, cancel_futures=True)
         evidence, prospects = self._ranker.rank(
             campaign_id=campaign_id,
             icp=icp,
@@ -204,6 +248,8 @@ class DiscoveryRanker:
         all_evidence: list[EvidenceRecord] = []
         prospects: list[ProspectCandidate] = []
         for suggestion in merged:
+            if not suggestion.observations:
+                continue
             evidence = tuple(
                 observation_to_evidence(campaign_id, run_id, item, new_id)
                 for item in suggestion.observations

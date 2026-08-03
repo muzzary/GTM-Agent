@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from threading import Barrier
 
 import pytest
 
@@ -257,6 +258,123 @@ def test_discovery_service_combines_providers_and_shallow_expands() -> None:
     assert result.providers == ("wikidata", "official_site")
     assert result.warnings == ("official_site:acme.example:source_http_error",)
     assert result.prospects[0].score == 0.8
+
+
+def test_discovery_service_runs_independent_providers_concurrently() -> None:
+    started = Barrier(2)
+    source = _observation(
+        provider="wikidata",
+        category=SourceCategory.STRUCTURED_PUBLIC,
+        url="https://www.wikidata.org/wiki/Q123",
+        text="Acme is a logistics company.",
+    )
+
+    class Provider:
+        def __init__(self, name: str, host: str) -> None:
+            self.name = name
+            self.host = host
+
+        def discover(self, _icp, _seed_urls):
+            started.wait(timeout=1)
+            return (
+                CandidateSuggestion(
+                    company=self.name,
+                    industry="logistics",
+                    official_url=f"https://{self.host}/",
+                    provider=self.name,
+                    observations=(source,),
+                ),
+            )
+
+    class IdentityExpander:
+        def expand(self, suggestion):
+            return suggestion
+
+    result = DiscoveryService(
+        providers=(
+            Provider("wikidata", "acme.example"),
+            Provider("market_seed", "beta.example"),
+        ),
+        expander=IdentityExpander(),
+    ).run(
+        campaign_id="campaign-example1",
+        icp=_icp(),
+        run_id="research-run-example1",
+        seed_urls=(),
+        new_id=lambda prefix: f"{prefix}-example1",
+        now=NOW,
+    )
+
+    assert {item.company for item in result.prospects} == {"wikidata", "market_seed"}
+
+
+def test_discovery_service_shallow_expands_unique_sites_concurrently() -> None:
+    started = Barrier(2)
+    source = _observation(
+        provider="wikidata",
+        category=SourceCategory.STRUCTURED_PUBLIC,
+        url="https://www.wikidata.org/wiki/Q123",
+        text="A logistics company.",
+    )
+
+    class Provider:
+        name = "wikidata"
+
+        def discover(self, _icp, _seed_urls):
+            return tuple(
+                CandidateSuggestion(
+                    company=company,
+                    industry="logistics",
+                    official_url=url,
+                    provider="wikidata",
+                    observations=(source,),
+                )
+                for company, url in (
+                    ("Acme", "https://acme.example/"),
+                    ("Beta", "https://beta.example/"),
+                )
+            )
+
+    class CoordinatedExpander:
+        def expand(self, suggestion):
+            started.wait(timeout=1)
+            return suggestion
+
+    result = DiscoveryService(
+        providers=(Provider(),),
+        expander=CoordinatedExpander(),
+    ).run(
+        campaign_id="campaign-example1",
+        icp=_icp(),
+        run_id="research-run-example1",
+        seed_urls=(),
+        new_id=lambda prefix: f"{prefix}-example1",
+        now=NOW,
+    )
+
+    assert len(result.prospects) == 2
+
+
+def test_ranker_drops_unverified_search_hint_without_evidence() -> None:
+    evidence, prospects = DiscoveryRanker().rank(
+        campaign_id="campaign-example1",
+        icp=_icp(),
+        run_id="research-run-example1",
+        suggestions=(
+            CandidateSuggestion(
+                company="Unverified",
+                industry="logistics",
+                official_url="https://unverified.example/",
+                provider="brave_search",
+                observations=(),
+            ),
+        ),
+        new_id=lambda prefix: f"{prefix}-example1",
+        now=NOW,
+    )
+
+    assert evidence == ()
+    assert prospects == ()
 
 
 def test_discovery_service_preserves_total_provider_failure() -> None:

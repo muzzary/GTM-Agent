@@ -9,6 +9,7 @@ from src.data.source_policy import system_resolver
 from src.research.discovery import DiscoveryService
 from src.research.prospect import ProspectResearchService
 from src.research.providers import (
+    BraveSearchDiscoveryProvider,
     MarketSeedDiscoveryProvider,
     WebsiteCandidateExpander,
     WikidataDiscoveryProvider,
@@ -199,18 +200,27 @@ def _default_workflow(app_settings: Settings) -> CampaignWorkflow:
     if app_settings.research_contact is None:
         return CampaignWorkflow(**common)
     user_agent = f"GTM-Agent/0.4 ({app_settings.research_contact})"
+    transport = HttpxTransport(user_agent)
     collector = ControlledHttpCollector(
-        transport=HttpxTransport(user_agent),
+        transport=transport,
         resolver=system_resolver,
         research_contact=app_settings.research_contact,
         cache=ResearchCache(app_settings.research_cache_path),
     )
     expander = WebsiteCandidateExpander(collector)
+    providers = [
+        WikidataDiscoveryProvider(collector),
+        MarketSeedDiscoveryProvider(collector),
+    ]
+    if app_settings.brave_search_api_key is not None:
+        providers.append(
+            BraveSearchDiscoveryProvider(
+                transport,
+                app_settings.brave_search_api_key.get_secret_value(),
+            )
+        )
     discovery = DiscoveryService(
-        providers=(
-            WikidataDiscoveryProvider(collector),
-            MarketSeedDiscoveryProvider(collector),
-        ),
+        providers=tuple(providers),
         expander=expander,
     )
     translator = None
