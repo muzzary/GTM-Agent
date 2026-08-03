@@ -78,4 +78,34 @@ describe('ResearchWorkspace', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('public HTTPS URLs')
   })
+
+  it('shows plain English findings and translation status', () => {
+    const campaign = researchCampaign()
+    campaign.state = 'prospect_researched'
+    campaign.selected_prospect_id = 'prospect-0001'
+    campaign.prospect_research = {
+      profile_id: 'research-profile-0001',
+      prospect_id: 'prospect-0001',
+      research_run_id: 'research-run-0001',
+      evidence_ids: ['evidence-0001'],
+      findings: [{
+        section: 'company',
+        heading: 'Company',
+        summary: 'The company provides route planning software.',
+        source_language: 'es',
+        summary_language: 'en',
+        translation_status: 'translated',
+        evidence_ids: ['evidence-0001'],
+      }],
+      covered_sections: ['company'],
+      unknown_sections: ['offerings'],
+      evidence_quality: 1,
+      research_completeness: 0.2,
+    }
+
+    render(<ResearchWorkspace campaign={campaign} onChange={vi.fn()} />)
+
+    expect(screen.getByText('The company provides route planning software.')).toBeInTheDocument()
+    expect(screen.getByText('Translated from es to English')).toBeInTheDocument()
+  })
 })

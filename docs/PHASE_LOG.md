@@ -374,3 +374,29 @@
 - Fixed large live runs exceeding the bounded trace-event output list. Trace
   events now reference the authoritative research run, which retains every
   prospect and evidence ID with campaign-level ownership validation.
+
+## Phase 4 follow-up: Regional targeting and readable research
+
+**Status:** Automated verification complete; manual verification pending
+
+**Changed:**
+
+- Added optional multi-region ICP input throughout the form, API, fixture, and
+  campaign contracts.
+- Added region-aware Wikidata queries and a hard ranking eligibility gate.
+  Region-scoped discovery excludes candidates without explicit matching public
+  evidence and never infers geography from names or domains.
+- Extended selected-company research to follow relevant second-level links
+  while retaining the twelve-page cap, source policy, and failure records.
+- Added five short, human-readable finding sections with separated unknowns,
+  citations, source language, summary language, and translation status.
+- Added an optional authenticated Colab translation client. It uses existing
+  HTTP tooling, reads its secret from the environment, rejects insecure endpoint
+  configuration, and reports model downtime as unavailable translation.
+
+**Automated verification:**
+
+- Full Python suite: 99 tests passed.
+- Frontend suite: 19 tests passed across six files.
+- Backend Ruff, frontend typecheck, and frontend Oxlint: clean.
+- No new dependency was added.

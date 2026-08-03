@@ -9,7 +9,8 @@ The local React/TypeScript and Python/FastAPI application orchestrates research,
 evidence, approvals, evaluation, and workflow state. Model benchmarking,
 fine-tuning, evaluation, and real inference run in Google Colab for the MVP.
 Colab exports versioned result bundles that the local application validates and
-imports; the MVP does not expose a public Colab inference endpoint.
+imports. A temporary authenticated Colab endpoint is optional for translating
+public research summaries; the core workflow does not depend on its uptime.
 
 Read [PROJECT_SCOPE.md](PROJECT_SCOPE.md) for the product boundary and
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the phased build
@@ -22,7 +23,9 @@ research. Wikidata resolves submitted industries into structured company
 queries, optional user-approved market pages contribute candidate domains, and
 validated official sites provide shallow ranking and deep research evidence.
 Scores, quality, completeness, uncertainty, citations, failed collections, and
-unknowns remain separate and visible.
+unknowns remain separate and visible. Optional ICP regions are hard discovery
+eligibility constraints, and deep research now presents short English findings
+while preserving the original source excerpts and translation status.
 
 Campaign state remains process-local and is cleared when the backend restarts.
 The collector is not an unrestricted web crawler: exact source admission,
@@ -55,6 +58,18 @@ $env:GTM_RESEARCH_CONTACT = "research-contact@example.com"
 
 This value is used only in the collector User-Agent. Credentials remain in
 ignored local environment variables or Colab secret storage.
+
+To translate non-English research with the Colab model, configure both values:
+
+```powershell
+$env:GTM_TRANSLATION_ENDPOINT = "https://your-colab-tunnel.example/translate"
+$env:GTM_TRANSLATION_API_KEY = "your-long-random-secret"
+```
+
+The endpoint accepts `task`, `target_language`, and `text`, and returns
+`translated_text` plus an ISO `source_language`. The application makes the
+short summary locally. If Colab is absent or offline, research still completes
+and marks the English translation unavailable.
 
 ## Run
 

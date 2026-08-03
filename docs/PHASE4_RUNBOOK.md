@@ -15,6 +15,14 @@ $env:GTM_RESEARCH_CONTACT = "research-contact@example.com"
 uv run uvicorn src.runtime.api:app --reload --host 127.0.0.1 --port 8001
 ```
 
+For English summaries of non-English pages, also set both optional Colab values
+before starting the backend:
+
+```powershell
+$env:GTM_TRANSLATION_ENDPOINT = "https://your-colab-tunnel.example/translate"
+$env:GTM_TRANSLATION_API_KEY = "your-long-random-secret"
+```
+
 The ignored response cache is created at `data/research-cache.sqlite3`. If port
 8001 is unavailable, choose another local port.
 
@@ -32,7 +40,8 @@ Open the local URL printed by Vite.
 
 ## 3. Configure and approve a campaign
 
-1. Submit a product and ICP with no more than three industries.
+1. Submit a product and ICP with no more than three industries and, when
+   targeting a specific market, one or more regions.
 2. Review every proposed product claim.
 3. Approve at least one claim and reject or approve the rest.
 4. Confirm the research workspace initially labels fixture prospects as
@@ -54,6 +63,8 @@ Confirm:
 - each candidate displays priority, evidence quality, coverage, uncertainty,
   factor states, and citations;
 - unsupported size, role, or pain factors remain `unknown` and add no score;
+- when regions are supplied, every eligible candidate has cited matching region
+  evidence; unsupported and out-of-region candidates are excluded;
 - source failures or robots denials produce an explicit error or warning;
 - citations open only validated HTTPS public pages.
 
@@ -75,11 +86,16 @@ optional expansion is skipped.
 2. Confirm the campaign moves to `awaiting_prospect_research`; selection alone
    has not authorized positioning.
 3. Select **Research selected company**.
-4. Inspect covered and unknown sections plus official-site citations.
+4. Inspect the short company, offerings, projects, news, and technical findings;
+   confirm unknown sections remain explicit and every finding retains citations.
+5. For a non-English source, confirm the summary is English and is labeled with
+   its source language and translation status. If Colab is offline, confirm the
+   UI says translation is unavailable instead of displaying invented content.
 
-The deep run reads at most twelve pages on admitted official hosts. It targets
-company, offerings, projects, newsroom, and technical material. PDF links are
-recorded as a limitation but are not extracted in this phase.
+The deep run reads at most twelve pages on admitted official hosts, including
+relevant second-level links discovered during the run. It targets company,
+offerings, projects, newsroom, and technical material. PDF links are recorded
+as a limitation but are not extracted in this phase.
 
 ## 6. Acceptance gate
 

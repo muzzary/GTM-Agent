@@ -37,3 +37,34 @@ def test_research_contact_rejects_header_injection() -> None:
 def test_research_cache_path_stays_in_ignored_data_directory(path: str) -> None:
     with pytest.raises(ValidationError):
         Settings.from_mapping({"GTM_RESEARCH_CACHE_PATH": path})
+
+
+def test_translation_endpoint_and_secret_are_optional_and_paired() -> None:
+    settings = Settings.from_mapping(
+        {
+            "GTM_TRANSLATION_ENDPOINT": "https://colab-tunnel.example/translate",
+            "GTM_TRANSLATION_API_KEY": "test-secret",
+        }
+    )
+
+    assert settings.translation_endpoint.endswith("/translate")
+    assert settings.translation_api_key is not None
+    assert settings.translation_api_key.get_secret_value() == "test-secret"
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"GTM_TRANSLATION_ENDPOINT": "https://colab-tunnel.example/translate"},
+        {"GTM_TRANSLATION_API_KEY": "test-secret"},
+        {
+            "GTM_TRANSLATION_ENDPOINT": "http://colab-tunnel.example/translate",
+            "GTM_TRANSLATION_API_KEY": "test-secret",
+        },
+    ],
+)
+def test_translation_configuration_rejects_partial_or_insecure_values(
+    values: dict[str, str],
+) -> None:
+    with pytest.raises(ValidationError):
+        Settings.from_mapping(values)

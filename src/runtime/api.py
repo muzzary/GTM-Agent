@@ -13,6 +13,7 @@ from src.research.providers import (
     WebsiteCandidateExpander,
     WikidataDiscoveryProvider,
 )
+from src.research.translation import ColabResearchTranslator
 from src.runtime.fixtures import DeterministicFixturePipeline
 from src.runtime.settings import Settings
 from src.runtime.workflow import (
@@ -212,10 +213,19 @@ def _default_workflow(app_settings: Settings) -> CampaignWorkflow:
         ),
         expander=expander,
     )
+    translator = None
+    if (
+        app_settings.translation_endpoint is not None
+        and app_settings.translation_api_key is not None
+    ):
+        translator = ColabResearchTranslator(
+            app_settings.translation_endpoint,
+            app_settings.translation_api_key.get_secret_value(),
+        )
     return CampaignWorkflow(
         **common,
         discovery_runner=discovery,
-        prospect_research_runner=ProspectResearchService(collector),
+        prospect_research_runner=ProspectResearchService(collector, translator),
     )
 
 

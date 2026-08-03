@@ -166,8 +166,10 @@ deep-research profile, and confirm positioning remains gated until completion.
 
 ### Required Phase 4 follow-up before Phase 5
 
-Phase 4 is accepted as a bounded research workflow, with three usability and
-targeting requirements carried forward before outreach baselining:
+**Implementation status:** Automated checks complete; manual gate pending.
+
+Phase 4 is accepted as a bounded research workflow, with these usability and
+targeting requirements implemented before outreach baselining:
 
 - Add one or more intended regions to the ICP form and contracts. Discovery
   must treat selected regions as prospect-eligibility constraints, cite the
@@ -181,6 +183,10 @@ targeting requirements carried forward before outreach baselining:
   findings, and clearly separated unknowns and limitations. Keep the complete
   technical provenance, citations, and collection warnings available as an
   expandable audit layer instead of making them the primary human report.
+- Translate and summarize non-English source material through an optional
+  authenticated Colab model endpoint. Preserve original excerpts and expose
+  source language, summary language, and translation status; model downtime
+  must never be presented as a successful translation.
 
 **Follow-up acceptance:** A region-scoped campaign excludes unsupported or
 out-of-region candidates from the eligible result set; a reviewed company

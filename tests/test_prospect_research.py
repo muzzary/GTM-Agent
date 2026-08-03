@@ -3,7 +3,9 @@ from datetime import UTC, datetime
 
 from src.data.http_collector import CollectedDocument, ResearchCollectionError
 from src.research.prospect import ProspectResearchService
+from src.research.translation import TranslationResult
 from src.schemas.campaign import ProspectCandidate, Uncertainty
+from src.schemas.research import TranslationStatus
 
 NOW = datetime(2026, 8, 3, tzinfo=UTC)
 
@@ -28,6 +30,18 @@ class FakeCollector:
         if value is None:
             raise ResearchCollectionError("source_unavailable")
         return value
+
+
+class SpanishTranslator:
+    def translate_to_english(self, _text: str) -> TranslationResult:
+        return TranslationResult(
+            english_text=(
+                "Acme provides route planning software for logistics teams. "
+                "The product helps teams review delivery exceptions."
+            ),
+            source_language="es",
+            status=TranslationStatus.TRANSLATED,
+        )
 
 
 def _document(
@@ -133,3 +147,65 @@ def test_failed_secondary_page_becomes_warning_without_losing_homepage() -> None
     assert len(result.evidence) == 1
     assert result.profile.covered_sections == ("company",)
     assert "page_failed:source_unavailable" in result.warnings
+
+
+def test_non_english_sources_produce_plain_english_findings_with_provenance() -> None:
+    home = "https://acme.example/"
+    collector = FakeCollector(
+        {
+            home: _document(
+                home,
+                "Acme ofrece software para planificar rutas y revisar entregas.",
+            )
+        }
+    )
+
+    result = ProspectResearchService(
+        collector,
+        translator=SpanishTranslator(),
+    ).research(
+        campaign_id="campaign-example1",
+        prospect=_prospect(),
+        run_id="research-run-example1",
+        new_id=SequentialIds(),
+        now=NOW,
+    )
+
+    finding = result.profile.findings[0]
+    assert finding.section == "company"
+    assert finding.source_language == "es"
+    assert finding.summary_language == "en"
+    assert finding.translation_status is TranslationStatus.TRANSLATED
+    assert "route planning software" in finding.summary
+    assert finding.evidence_ids == result.profile.evidence_ids
+
+
+def test_deep_research_follows_relevant_second_level_company_links() -> None:
+    home = "https://acme.example/"
+    about = "https://acme.example/about"
+    case_study = "https://acme.example/customers/route-team"
+    collector = FakeCollector(
+        {
+            home: _document(home, "Acme logistics company", (about,)),
+            about: _document(
+                about,
+                "Our company and team.",
+                (case_study,),
+            ),
+            case_study: _document(
+                case_study,
+                "Customer project reduced manual delivery review.",
+            ),
+        }
+    )
+
+    result = ProspectResearchService(collector).research(
+        campaign_id="campaign-example1",
+        prospect=_prospect(),
+        run_id="research-run-example1",
+        new_id=SequentialIds(),
+        now=NOW,
+    )
+
+    assert collector.calls == [home, about, case_study]
+    assert "projects" in result.profile.covered_sections

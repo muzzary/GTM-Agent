@@ -16,7 +16,7 @@ from src.schemas.campaign import (
     ProspectResearchProfile,
     Uncertainty,
 )
-from src.schemas.research import SupportedSignal
+from src.schemas.research import ResearchFinding, SupportedSignal, TranslationStatus
 
 NewId = Callable[[str], str]
 
@@ -210,6 +210,16 @@ class DeterministicFixturePipeline:
             research_run_id=run_id,
             evidence_ids=(evidence.evidence_id,),
             signals=(signal,),
+            findings=(
+                ResearchFinding(
+                    section="company",
+                    heading="Company",
+                    summary=excerpt,
+                    source_language="en",
+                    translation_status=TranslationStatus.NOT_NEEDED,
+                    evidence_ids=(evidence.evidence_id,),
+                ),
+            ),
             covered_sections=("company", "offerings", "projects", "news"),
             evidence_quality=0.4,
             research_completeness=1.0,

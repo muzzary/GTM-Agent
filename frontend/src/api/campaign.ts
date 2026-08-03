@@ -78,10 +78,21 @@ export interface ProspectResearchProfile {
   prospect_id: string
   research_run_id: string
   evidence_ids: string[]
+  findings: ResearchFinding[]
   covered_sections: string[]
   unknown_sections: string[]
   evidence_quality: number
   research_completeness: number
+}
+
+export interface ResearchFinding {
+  section: string
+  heading: string
+  summary: string
+  source_language: string
+  summary_language: 'en'
+  translation_status: 'not_needed' | 'translated' | 'unavailable'
+  evidence_ids: string[]
 }
 
 export interface ResearchRun {
@@ -400,6 +411,18 @@ function validateCampaign(value: unknown): asserts value is Campaign {
     if (profileEvidence.some((id) => !evidenceIds.has(id))) throw new Error()
     texts(value.prospect_research.covered_sections, 12, 200)
     texts(value.prospect_research.unknown_sections, 12, 200)
+    if (!Array.isArray(value.prospect_research.findings)) throw new Error()
+    for (const finding of value.prospect_research.findings) {
+      assertRecord(finding)
+      text(finding.section, 200)
+      text(finding.heading, 200)
+      text(finding.summary, 1_000)
+      text(finding.source_language, 3)
+      if (finding.summary_language !== 'en') throw new Error()
+      if (!['not_needed', 'translated', 'unavailable'].includes(String(finding.translation_status))) throw new Error()
+      const findingEvidence = texts(finding.evidence_ids, 12, 80)
+      if (findingEvidence.some((id) => !profileEvidence.includes(id))) throw new Error()
+    }
     ratio(value.prospect_research.evidence_quality)
     ratio(value.prospect_research.research_completeness)
   }

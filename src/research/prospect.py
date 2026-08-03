@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,13 +11,19 @@ from src.research.discovery import (
     observation_to_evidence,
 )
 from src.research.providers import website_policy
+from src.research.translation import (
+    ConservativeEnglishTranslator,
+    ResearchTranslator,
+)
 from src.schemas.campaign import EvidenceRecord, ProspectCandidate
 from src.schemas.research import (
     CollectionAttempt,
     CollectionStatus,
     ProspectResearchProfile,
+    ResearchFinding,
     SourceCategory,
     SupportedSignal,
+    TranslationStatus,
 )
 
 NewId = Callable[[str], str]
@@ -42,8 +49,13 @@ class ProspectResearchResult:
 
 
 class ProspectResearchService:
-    def __init__(self, collector: ControlledHttpCollector) -> None:
+    def __init__(
+        self,
+        collector: ControlledHttpCollector,
+        translator: ResearchTranslator | None = None,
+    ) -> None:
         self._collector = collector
+        self._translator = translator or ConservativeEnglishTranslator()
 
     def research(
         self,
@@ -69,9 +81,12 @@ class ProspectResearchService:
         links, pdf_seen = self._select_links(homepage.links, policy.allowed_hosts)
         if pdf_seen:
             warnings.append("pdf_not_extracted")
-        for link in links[:11]:
+        queue = list(links)
+        queued = set(queue)
+        while queue and len(documents) < 12:
+            link = queue.pop(0)
             try:
-                documents.append(self._collector.collect(link, policy))
+                document = self._collector.collect(link, policy)
             except ResearchCollectionError as error:
                 warnings.append(f"page_failed:{error}")
                 code = str(error)
@@ -90,6 +105,18 @@ class ProspectResearchService:
                         completed_at=now,
                     )
                 )
+                continue
+            documents.append(document)
+            nested_links, nested_pdf_seen = self._select_links(
+                document.links,
+                policy.allowed_hosts,
+            )
+            if nested_pdf_seen:
+                warnings.append("pdf_not_extracted")
+            for nested_link in nested_links:
+                if nested_link not in queued and nested_link != official_url:
+                    queue.append(nested_link)
+                    queued.add(nested_link)
 
         observations = tuple(
             SourceObservation.from_document(
@@ -128,6 +155,12 @@ class ProspectResearchService:
             )
             for section in covered
         )
+        findings = self._findings(documents, evidence, section_evidence)
+        if any(
+            finding.translation_status is TranslationStatus.UNAVAILABLE
+            for finding in findings
+        ):
+            warnings.append("english_translation_unavailable")
         completeness = round(len(covered) / len(_REQUIRED_SECTIONS), 4)
         profile = ProspectResearchProfile(
             profile_id=new_id("research-profile"),
@@ -136,6 +169,7 @@ class ProspectResearchService:
             research_run_id=run_id,
             evidence_ids=tuple(item.evidence_id for item in evidence),
             signals=signals,
+            findings=findings,
             covered_sections=covered,
             unknown_sections=unknown,
             evidence_quality=1.0,
@@ -153,6 +187,52 @@ class ProspectResearchService:
             policy_versions=(policy.policy_version,),
             warnings=tuple(dict.fromkeys(warnings)),
         )
+
+    def _findings(
+        self,
+        documents: Sequence,
+        evidence: Sequence[EvidenceRecord],
+        section_evidence: dict[str, tuple[str, ...]],
+    ) -> tuple[ResearchFinding, ...]:
+        documents_by_evidence = {
+            record.evidence_id: document
+            for document, record in zip(documents, evidence, strict=True)
+        }
+        findings: list[ResearchFinding] = []
+        for section in _REQUIRED_SECTIONS:
+            evidence_ids = section_evidence[section]
+            if not evidence_ids:
+                continue
+            document = documents_by_evidence[evidence_ids[0]]
+            translation = self._translator.translate_to_english(document.text)
+            summary = (
+                self._plain_summary(translation.english_text)
+                if translation.status is not TranslationStatus.UNAVAILABLE
+                else (
+                    "An English summary is unavailable. "
+                    "Review the linked source evidence."
+                )
+            )
+            findings.append(
+                ResearchFinding(
+                    section=section,
+                    heading=section.replace("_", " ").title(),
+                    summary=summary,
+                    source_language=translation.source_language,
+                    translation_status=translation.status,
+                    evidence_ids=evidence_ids[:12],
+                )
+            )
+        return tuple(findings)
+
+    @staticmethod
+    def _plain_summary(text: str) -> str:
+        compact = " ".join(text.split())
+        sentences = re.split(r"(?<=[.!?])\s+", compact)
+        summary = " ".join(sentences[:2]).strip()
+        if len(summary) > 360:
+            summary = summary[:357].rstrip() + "..."
+        return summary or "The source page does not contain readable summary text."
 
     @staticmethod
     def _select_links(

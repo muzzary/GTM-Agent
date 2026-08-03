@@ -43,6 +43,12 @@ class CollectionStatus(StrEnum):
     FAILED = "failed"
 
 
+class TranslationStatus(StrEnum):
+    NOT_NEEDED = "not_needed"
+    TRANSLATED = "translated"
+    UNAVAILABLE = "unavailable"
+
+
 class ResearchStage(StrEnum):
     DISCOVERY = "discovery"
     PROSPECT = "prospect"
@@ -184,6 +190,30 @@ class ResearchRun(StrictModel):
         return self
 
 
+class ResearchFinding(StrictModel):
+    section: ShortText
+    heading: ShortText
+    summary: LongText
+    source_language: str = Field(pattern=r"^[a-z]{2,3}$|^und$")
+    summary_language: str = Field(default="en", pattern=r"^en$")
+    translation_status: TranslationStatus
+    evidence_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=12)
+
+    @model_validator(mode="after")
+    def translation_metadata_must_be_consistent(self) -> Self:
+        if (
+            self.translation_status is TranslationStatus.TRANSLATED
+            and self.source_language == "en"
+        ):
+            raise ValueError("translated findings require a non-English source")
+        if (
+            self.translation_status is TranslationStatus.NOT_NEEDED
+            and self.source_language != "en"
+        ):
+            raise ValueError("untranslated findings must identify an English source")
+        return self
+
+
 class ProspectResearchProfile(StrictModel):
     profile_id: str = Field(pattern=r"^research-profile-[a-z0-9-]{8,64}$")
     campaign_id: str = Field(pattern=r"^campaign-[a-z0-9-]{4,64}$")
@@ -192,6 +222,7 @@ class ProspectResearchProfile(StrictModel):
     evidence_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=36)
     factors: tuple[RankingFactor, ...] = Field(default_factory=tuple, max_length=16)
     signals: tuple[SupportedSignal, ...] = Field(default_factory=tuple, max_length=24)
+    findings: tuple[ResearchFinding, ...] = Field(default_factory=tuple, max_length=12)
     covered_sections: tuple[ShortText, ...] = Field(min_length=1, max_length=12)
     unknown_sections: tuple[ShortText, ...] = Field(
         default_factory=tuple, max_length=12
@@ -224,11 +255,21 @@ class ProspectResearchProfile(StrictModel):
                 for evidence_id in signal.evidence_ids
             }
             | set(self.conflict_evidence_ids)
+            | {
+                evidence_id
+                for finding in self.findings
+                for evidence_id in finding.evidence_ids
+            }
         )
         if not references <= evidence:
             raise ValueError("profile references must resolve to profile evidence")
         if set(self.covered_sections) & set(self.unknown_sections):
             raise ValueError("research sections cannot be both covered and unknown")
+        finding_sections = [finding.section for finding in self.findings]
+        if len(finding_sections) != len(set(finding_sections)):
+            raise ValueError("research finding sections must be unique")
+        if not set(finding_sections) <= set(self.covered_sections):
+            raise ValueError("research findings must belong to covered sections")
         return self
 
 

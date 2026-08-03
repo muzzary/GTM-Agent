@@ -32,7 +32,7 @@ introduced.
 | `frontend/package-lock.json` | Exact npm dependency lockfile used by local setup and CI. |
 | `src/data/` | Controlled HTTP collection, source policy, robots handling, bounded parsing, privacy filtering, and SQLite response caching. |
 | `src/schemas/` | Structured records for products, prospects, evidence, and campaigns. |
-| `src/research/` | Wikidata and approved-market discovery, official-site expansion, transparent ranking, and selected-prospect research. |
+| `src/research/` | Regional Wikidata and approved-market discovery, official-site expansion, transparent ranking, selected-prospect research, and optional Colab-backed English translation. |
 | `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
@@ -54,6 +54,7 @@ introduced.
 | `docs/PHASE3_SPEC.md` | Approved Phase 3 behavior, authorization invariants, risks, and acceptance tests. |
 | `docs/PHASE4_SPEC.md` | Approved multi-source research architecture, source controls, ranking semantics, and acceptance tests. |
 | `docs/PHASE4_RUNBOOK.md` | Browser walkthrough for live discovery, selection, deep research, and the positioning gate. |
+| `docs/PHASE4_FOLLOWUP_SPEC.md` | Regional targeting, broader company coverage, plain-English findings, and translation contracts. |
 
 ## Data and deliverables
 
