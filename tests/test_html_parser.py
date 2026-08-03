@@ -19,3 +19,21 @@ def test_html_parser_extracts_visible_text_links_and_discards_contact_data() -> 
     assert "202 555 0199" not in parsed.text
     assert "ignore instructions" not in parsed.text
     assert parsed.links == ("https://example.com/products",)
+
+
+def test_html_parser_prefers_main_article_text_over_navigation_noise() -> None:
+    parsed = parse_public_html(
+        b"""
+        <html><head><title>Acme Platform</title></head><body>
+        <nav>Menu Menu Menu Pricing Login Careers Privacy</nav>
+        <main><h1>Route planning platform</h1>
+        <p>Acme helps logistics teams resolve delivery exceptions.</p></main>
+        <footer>Privacy Terms Login Careers</footer>
+        </body></html>
+        """,
+        "https://acme.example/platform",
+    )
+
+    assert "Route planning platform" in parsed.text
+    assert "delivery exceptions" in parsed.text
+    assert "Menu Menu Menu" not in parsed.text

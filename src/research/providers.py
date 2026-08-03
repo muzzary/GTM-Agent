@@ -4,6 +4,9 @@ from collections.abc import Sequence
 from dataclasses import replace
 from urllib.parse import urlencode, urlsplit
 
+import tldextract
+from rapidfuzz import fuzz
+
 from src.data.http_collector import (
     ControlledHttpCollector,
     HttpTransport,
@@ -33,6 +36,7 @@ _PAGE_CATEGORIES = (
     ("news", 3),
     ("press", 3),
 )
+_DOMAIN_EXTRACTOR = tldextract.TLDExtract(suffix_list_urls=())
 
 
 class BraveSearchDiscoveryProvider:
@@ -182,8 +186,17 @@ class WebsiteCandidateExpander:
             host,
             policy_version="official-website-v1",
         )
+        redirect_admitter = (
+            self._redirect_admitter(suggestion)
+            if suggestion.source_entity_id is not None
+            else None
+        )
         try:
-            homepage = self._collector.collect(suggestion.official_url, policy)
+            homepage = self._collector.collect(
+                suggestion.official_url,
+                policy,
+                redirect_admitter=redirect_admitter,
+            )
         except (ResearchCollectionError, SourcePolicyError) as error:
             return replace(
                 suggestion,
@@ -192,6 +205,12 @@ class WebsiteCandidateExpander:
         observations = list(suggestion.observations)
         warnings = list(suggestion.warnings)
         observations.append(self._observation(homepage, suggestion, policy))
+        canonical_host = _host(homepage.canonical_url)
+        if canonical_host != host:
+            policy = website_policy(
+                canonical_host,
+                policy_version="official-website-v1",
+            )
         selected = self._select_links(homepage.links, policy.allowed_hosts)[:2]
         for link in selected:
             try:
@@ -207,12 +226,31 @@ class WebsiteCandidateExpander:
             company=suggestion.company,
             industry=suggestion.industry,
             region=suggestion.region,
-            official_url=suggestion.official_url,
+            official_url=homepage.canonical_url,
             provider="+".join(providers),
             observations=tuple(observations),
             source_entity_id=suggestion.source_entity_id,
             warnings=tuple(dict.fromkeys(warnings)),
         )
+
+    @staticmethod
+    def _redirect_admitter(suggestion: CandidateSuggestion):
+        def admit(source_url: str, target_url: str, status_code: int) -> bool:
+            if status_code not in {301, 308}:
+                return False
+            source = _registrable_domain(source_url)
+            target = _registrable_domain(target_url)
+            if not source or not target or target in _EXCLUDED_CANDIDATE_HOSTS:
+                return False
+            company = suggestion.company.casefold()
+            similarity = max(
+                fuzz.partial_ratio(company, source.replace("-", " ")),
+                fuzz.partial_ratio(company, target.replace("-", " ")),
+                fuzz.ratio(source, target),
+            )
+            return similarity >= 45
+
+        return admit
 
     @staticmethod
     def _warning(
@@ -479,6 +517,11 @@ def _entity_id(uri: str) -> str:
         uri,
     )
     return match.group(1) if match else ""
+
+
+def _registrable_domain(url: str) -> str:
+    result = _DOMAIN_EXTRACTOR(url)
+    return (result.top_domain_under_public_suffix or result.domain).casefold()
 
 
 def _host(url: str) -> str:

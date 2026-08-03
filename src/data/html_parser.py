@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
 
+from trafilatura import extract
+
 _EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 _PHONE = re.compile(r"(?<!\w)\+?\d[\d ()-]{7,}\d(?!\w)")
 _SPACE = re.compile(r"\s+")
@@ -54,11 +56,24 @@ class _PublicHtmlParser(HTMLParser):
 
 def parse_public_html(body: bytes, base_url: str) -> ParsedHtml:
     parser = _PublicHtmlParser()
-    parser.feed(body.decode("utf-8", errors="replace"))
+    html = body.decode("utf-8", errors="replace")
+    parser.feed(html)
     title = (
         _clean(" ".join(parser.title_parts))[:200] or urlsplit(base_url).hostname or ""
     )
-    text = strip_contact_data(_clean(" ".join(parser.text_parts)))
+    focused = None
+    if len(html) >= 200:
+        focused = extract(
+            html,
+            url=base_url,
+            include_comments=False,
+            include_tables=False,
+            favor_precision=True,
+            output_format="txt",
+        )
+    text = strip_contact_data(
+        _clean(focused or " ".join(parser.text_parts))
+    )
     links: list[str] = []
     for href in parser.hrefs:
         resolved = urljoin(base_url, href)

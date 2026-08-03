@@ -96,6 +96,73 @@ def test_collector_obeys_robots_and_revalidates_redirects() -> None:
     assert transport.requested[-1] == "https://www.example.com/about"
 
 
+def test_collector_admits_verified_permanent_cross_domain_redirect() -> None:
+    transport = FakeTransport(
+        {
+            "https://example.com/robots.txt": response(404, b""),
+            "https://example.com/": HttpResponse(
+                status_code=301,
+                headers={"location": "https://new-example.com/"},
+                body=b"",
+            ),
+            "https://new-example.com/robots.txt": response(404, b""),
+            "https://new-example.com/": response(
+                200, b"<title>Example</title><p>Example logistics company.</p>"
+            ),
+        }
+    )
+    collector = ControlledHttpCollector(
+        transport=transport,
+        resolver=lambda _host: ("93.184.216.34",),
+        research_contact="owner@example.com",
+        now=lambda: NOW,
+        monotonic=lambda: 0.0,
+        sleep=lambda _seconds: None,
+    )
+    admitted: list[tuple[str, str, int]] = []
+
+    document = collector.collect(
+        "https://example.com/",
+        policy(),
+        redirect_admitter=lambda source, target, status: (
+            admitted.append((source, target, status)) or True
+        ),
+    )
+
+    assert document.canonical_url == "https://new-example.com/"
+    assert admitted == [
+        ("https://example.com/", "https://new-example.com/", 301)
+    ]
+
+
+def test_collector_rejects_cross_domain_redirect_without_identity_approval() -> None:
+    transport = FakeTransport(
+        {
+            "https://example.com/robots.txt": response(404, b""),
+            "https://example.com/": HttpResponse(
+                status_code=302,
+                headers={"location": "https://unrelated.example/"},
+                body=b"",
+            ),
+        }
+    )
+    collector = ControlledHttpCollector(
+        transport=transport,
+        resolver=lambda _host: ("93.184.216.34",),
+        research_contact="owner@example.com",
+        now=lambda: NOW,
+        monotonic=lambda: 0.0,
+        sleep=lambda _seconds: None,
+    )
+
+    with pytest.raises(SourcePolicyError, match="not admitted"):
+        collector.collect(
+            "https://example.com/",
+            policy(),
+            redirect_admitter=lambda _source, _target, _status: True,
+        )
+
+
 def test_collector_fails_closed_on_robots_server_failure() -> None:
     transport = FakeTransport(
         {"https://example.com/robots.txt": response(503, b"unavailable")}

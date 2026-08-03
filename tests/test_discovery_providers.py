@@ -21,7 +21,7 @@ class FakeCollector:
         self.documents = documents
         self.calls: list[str] = []
 
-    def collect(self, url: str, _policy: object) -> CollectedDocument:
+    def collect(self, url: str, _policy: object, **_kwargs) -> CollectedDocument:
         self.calls.append(url)
         return self.documents[url]
 
@@ -168,7 +168,7 @@ def test_website_expander_fetches_home_and_two_priority_pages_only() -> None:
 
 def test_website_expander_preserves_candidate_when_source_policy_denies_site() -> None:
     class DeniedCollector:
-        def collect(self, _url: str, _policy: object) -> CollectedDocument:
+        def collect(self, _url: str, _policy: object, **_kwargs) -> CollectedDocument:
             raise SourcePolicyError("source host is not admitted by policy")
 
     suggestion = CandidateSuggestion(
@@ -188,6 +188,55 @@ def test_website_expander_preserves_candidate_when_source_policy_denies_site() -
     assert expanded.warnings == (
         "official_site:cpr.ca:source_policy_denied",
     )
+
+
+def test_website_expander_recovers_structured_permanent_domain_migration() -> None:
+    old = "https://old-acme.example/"
+    new = "https://acme.example/"
+
+    class RedirectingCollector:
+        def collect(self, url, _policy, *, redirect_admitter=None):
+            assert url == old
+            assert redirect_admitter is not None
+            assert redirect_admitter(old, new, 301) is True
+            return _document(new, text="Acme Logistics official company website")
+
+    suggestion = CandidateSuggestion(
+        company="Acme Logistics",
+        industry="logistics",
+        official_url=old,
+        provider="wikidata",
+        observations=(),
+        source_entity_id="Q123",
+    )
+
+    expanded = WebsiteCandidateExpander(RedirectingCollector()).expand(suggestion)
+
+    assert expanded.official_url == new
+    assert expanded.observations[0].url == new
+
+
+def test_website_expander_does_not_recover_untrusted_search_redirect() -> None:
+    old = "https://old-acme.example/"
+
+    class RedirectingCollector:
+        def collect(self, url, _policy, *, redirect_admitter=None):
+            assert url == old
+            assert redirect_admitter is None
+            raise SourcePolicyError("source host is not admitted by policy")
+
+    suggestion = CandidateSuggestion(
+        company="Acme Logistics",
+        industry="logistics",
+        official_url=old,
+        provider="brave_search",
+        observations=(),
+    )
+
+    expanded = WebsiteCandidateExpander(RedirectingCollector()).expand(suggestion)
+
+    assert expanded.official_url == old
+    assert expanded.observations == ()
 
 
 def test_wikidata_resolves_industry_then_queries_companies() -> None:

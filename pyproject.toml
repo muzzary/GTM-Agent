@@ -8,6 +8,9 @@ dependencies = [
     "fastapi>=0.141.1",
     "httpx2>=2.9.1",
     "pydantic>=2.13.4",
+    "rapidfuzz==3.14.5",
+    "tldextract==5.3.1",
+    "trafilatura==2.2.0",
     "uvicorn>=0.52.0",
 ]
 

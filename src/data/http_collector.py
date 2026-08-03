@@ -1,7 +1,7 @@
 import sqlite3
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from hashlib import sha256
@@ -13,11 +13,20 @@ import httpx2
 
 from src.data.html_parser import ParsedHtml, parse_public_html, strip_contact_data
 from src.data.research_cache import CacheEntry, ResearchCache
-from src.data.source_policy import Resolver, SourcePolicy, validate_url
+from src.data.source_policy import (
+    Resolver,
+    SourcePolicy,
+    SourcePolicyError,
+    ValidatedUrl,
+    validate_url,
+)
 
 
 class ResearchCollectionError(RuntimeError):
     pass
+
+
+RedirectAdmitter = Callable[[str, str, int], bool]
 
 
 @dataclass(frozen=True)
@@ -112,23 +121,32 @@ class ControlledHttpCollector:
         self._host_delay: dict[str, float] = {}
         self._robots: dict[str, _RobotsDecision] = {}
 
-    def collect(self, raw_url: str, policy: SourcePolicy) -> CollectedDocument:
+    def collect(
+        self,
+        raw_url: str,
+        policy: SourcePolicy,
+        *,
+        redirect_admitter: RedirectAdmitter | None = None,
+    ) -> CollectedDocument:
         observed_at = self._now()
         requested = validate_url(raw_url, policy, self._resolver)
+        active_policy = policy
         if policy.robots_required:
             self._require_robots_permission(requested.url, policy, observed_at)
         cache_key = f"{policy.policy_version}:{requested.url}"
         cached = self._cache_get(cache_key, policy, observed_at)
         if cached is not None:
-            cached_canonical = validate_url(
+            cached_canonical, active_policy = self._redirect_target(
+                requested.url,
                 cached.canonical_url,
-                policy,
-                self._resolver,
+                308,
+                active_policy,
+                redirect_admitter,
             )
-            if policy.robots_required and cached_canonical.url != requested.url:
+            if active_policy.robots_required and cached_canonical.url != requested.url:
                 self._require_robots_permission(
                     cached_canonical.url,
-                    policy,
+                    active_policy,
                     observed_at,
                 )
             return self._document_from_body(
@@ -143,16 +161,22 @@ class ControlledHttpCollector:
 
         current = requested
         for redirect_count in range(policy.max_redirects + 1):
-            response = self._request(current.url, current.host, policy)
+            response = self._request(current.url, current.host, active_policy)
             if 300 <= response.status_code < 400:
                 location = response.headers.get("location")
                 if not location or redirect_count >= policy.max_redirects:
                     raise ResearchCollectionError("redirect_not_allowed")
-                current = validate_url(
-                    urljoin(current.url, location), policy, self._resolver
+                current, active_policy = self._redirect_target(
+                    current.url,
+                    urljoin(current.url, location),
+                    response.status_code,
+                    active_policy,
+                    redirect_admitter,
                 )
-                if policy.robots_required:
-                    self._require_robots_permission(current.url, policy, self._now())
+                if active_policy.robots_required:
+                    self._require_robots_permission(
+                        current.url, active_policy, self._now()
+                    )
                 continue
             if response.status_code < 200 or response.status_code >= 300:
                 raise ResearchCollectionError("source_http_error")
@@ -183,6 +207,39 @@ class ControlledHttpCollector:
                 cache_hit=False,
             )
         raise ResearchCollectionError("redirect_not_allowed")
+
+    def _redirect_target(
+        self,
+        source_url: str,
+        target_url: str,
+        status_code: int,
+        policy: SourcePolicy,
+        redirect_admitter: RedirectAdmitter | None,
+    ) -> tuple[ValidatedUrl, SourcePolicy]:
+        try:
+            return validate_url(target_url, policy, self._resolver), policy
+        except SourcePolicyError as original_error:
+            if status_code not in {301, 308}:
+                raise original_error from None
+            try:
+                parsed = urlsplit(target_url)
+                target_host = (parsed.hostname or "").rstrip(".").lower()
+                expanded_policy = replace(
+                    policy,
+                    allowed_hosts=policy.allowed_hosts | frozenset({target_host}),
+                )
+                validated = validate_url(
+                    target_url,
+                    expanded_policy,
+                    self._resolver,
+                )
+            except (UnicodeError, ValueError, SourcePolicyError):
+                raise original_error from None
+            if redirect_admitter is None or not redirect_admitter(
+                source_url, validated.url, status_code
+            ):
+                raise original_error
+            return validated, expanded_policy
 
     def _request(self, url: str, host: str, policy: SourcePolicy) -> HttpResponse:
         for attempt in range(2):
