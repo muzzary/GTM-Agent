@@ -377,7 +377,7 @@
 
 ## Phase 4 follow-up: Regional targeting and readable research
 
-**Status:** Automated verification complete; manual verification pending
+**Status:** Accepted after manual verification
 
 **Changed:**
 
@@ -401,9 +401,17 @@
 - Backend Ruff, frontend typecheck, and frontend Oxlint: clean.
 - No new dependency was added.
 
+**Manual verification completed:**
+
+- User confirmed region-aware discovery and selected-prospect research complete
+  successfully through the browser workflow.
+- User accepted the follow-up behavior while carrying concise research
+  presentation and campaign navigation into the deferred UX work documented in
+  `docs/IMPLEMENTATION_PLAN.md`.
+
 ## Phase 4.1: Fast and recoverable public research
 
-**Status:** Automated verification complete; manual verification pending
+**Status:** Accepted after manual verification
 
 **Changed:**
 
@@ -434,3 +442,13 @@
 - Live Wikidata timing sample for logistics in the United States: 10 bindings
   in 1.43 seconds using the production label-free SPARQL shape. Public endpoint
   timing remains variable and is not asserted in CI.
+
+**Manual verification completed:**
+
+- Live discovery returned 10 ranked prospects from 24 retained evidence items
+  in 11.05 seconds using Wikidata and official-site sources.
+- Selected-prospect research completed in 15.25 seconds with full evidence
+  quality, four concise findings, and explicit coverage and unknown fields.
+- Three inaccessible optional company sources were reported as warnings and
+  degraded gracefully without failing the campaign.
+- User accepted Phase 4.1 and Phase 4 as complete for the current milestone.

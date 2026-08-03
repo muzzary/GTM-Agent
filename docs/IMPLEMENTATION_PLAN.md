@@ -166,7 +166,7 @@ deep-research profile, and confirm positioning remains gated until completion.
 
 ### Required Phase 4 follow-up before Phase 5
 
-**Implementation status:** Automated checks complete; manual gate pending.
+**Implementation status:** Implemented and accepted after manual verification.
 
 Phase 4 is accepted as a bounded research workflow, with these usability and
 targeting requirements implemented before outreach baselining:
@@ -192,6 +192,18 @@ targeting requirements implemented before outreach baselining:
 out-of-region candidates from the eligible result set; a reviewed company
 profile distinguishes found facts from unknown fields; and a non-technical
 reviewer can explain the report's main findings without reading raw evidence.
+
+### Deferred research-workspace UX refinements
+
+These refinements do not block the Phase 4 research proof and should be handled
+with the next user-interface pass:
+
+- Add campaign-aware navigation from the researched-prospect view back to the
+  campaign's prospect list without losing the active campaign or research run.
+- Limit each primary research section to three to five outreach-relevant points
+  covering fit, likely need, useful trigger, and supported personalization.
+- Keep full excerpts, citations, provenance, collection warnings, and technical
+  details available in an expandable evidence view rather than discarding them.
 
 ## Phase 5 - Baseline outreach, traces, and evaluation harness
 
