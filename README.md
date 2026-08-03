@@ -41,6 +41,10 @@ resolution, selected-company research can use a same-host sitemap when normal
 navigation is sparse, and permanent company-domain migrations can be recovered
 only from structured official-site records with public-DNS and identity checks.
 
+CRM-1 adds the first local CRM foundation: tenant-scoped companies, contacts,
+pipelines, stages, deals, activities, custom fields, and idempotent SQLite
+persistence. The CRM API, UI, and agent tools are planned in later CRM phases.
+
 ## Requirements
 
 - Python 3.12

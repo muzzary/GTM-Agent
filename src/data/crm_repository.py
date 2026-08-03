@@ -1,0 +1,366 @@
+import sqlite3
+from hashlib import sha256
+from pathlib import Path
+from typing import TypeVar
+
+from src.schemas.crm import Company, Contact, Deal, Pipeline
+
+
+class CrmNotFoundError(LookupError):
+    pass
+
+
+class CrmConflictError(ValueError):
+    pass
+
+
+Record = TypeVar("Record", Company, Contact, Deal, Pipeline)
+
+
+class CrmRepository:
+    """Small SQLite CRM repository with tenant checks at every boundary."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as connection:
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS crm_companies (
+                    company_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS crm_contacts (
+                    contact_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    company_id TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS crm_pipelines (
+                    pipeline_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS crm_pipeline_stages (
+                    stage_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    pipeline_id TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS crm_deals (
+                    deal_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    company_id TEXT NOT NULL,
+                    contact_id TEXT,
+                    pipeline_id TEXT NOT NULL,
+                    stage_id TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS crm_idempotency (
+                    tenant_id TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    idempotency_key TEXT NOT NULL,
+                    resource_id TEXT NOT NULL,
+                    fingerprint TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, operation, idempotency_key)
+                );
+                CREATE INDEX IF NOT EXISTS idx_crm_companies_tenant
+                    ON crm_companies (tenant_id);
+                CREATE INDEX IF NOT EXISTS idx_crm_deals_tenant
+                    ON crm_deals (tenant_id);
+                """
+            )
+
+    def save_company(self, company: Company) -> Company:
+        with self._connect() as connection:
+            self._assert_existing_tenant(
+                connection,
+                "crm_companies",
+                "company_id",
+                company.company_id,
+                company.tenant_id,
+            )
+            connection.execute(
+                """
+                INSERT INTO crm_companies (company_id, tenant_id, payload)
+                VALUES (?, ?, ?)
+                ON CONFLICT(company_id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    payload = excluded.payload
+                """,
+                (company.company_id, company.tenant_id, company.model_dump_json()),
+            )
+        return company
+
+    def get_company(self, tenant_id: str, company_id: str) -> Company:
+        row = self._get_row("crm_companies", "company_id", tenant_id, company_id)
+        return Company.model_validate_json(row[0])
+
+    def list_companies(self, tenant_id: str) -> tuple[Company, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload FROM crm_companies
+                WHERE tenant_id = ? ORDER BY company_id
+                """,
+                (tenant_id,),
+            ).fetchall()
+        return tuple(Company.model_validate_json(row[0]) for row in rows)
+
+    def save_contact(self, contact: Contact) -> Contact:
+        with self._connect() as connection:
+            self._assert_related_tenant(
+                connection,
+                "crm_companies",
+                "company_id",
+                contact.company_id,
+                contact.tenant_id,
+                "company",
+            )
+            self._assert_existing_tenant(
+                connection,
+                "crm_contacts",
+                "contact_id",
+                contact.contact_id,
+                contact.tenant_id,
+            )
+            connection.execute(
+                """
+                INSERT INTO crm_contacts (contact_id, tenant_id, company_id, payload)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(contact_id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    company_id = excluded.company_id,
+                    payload = excluded.payload
+                """,
+                (
+                    contact.contact_id,
+                    contact.tenant_id,
+                    contact.company_id,
+                    contact.model_dump_json(),
+                ),
+            )
+        return contact
+
+    def get_contact(self, tenant_id: str, contact_id: str) -> Contact:
+        row = self._get_row("crm_contacts", "contact_id", tenant_id, contact_id)
+        return Contact.model_validate_json(row[0])
+
+    def save_pipeline(self, pipeline: Pipeline) -> Pipeline:
+        with self._connect() as connection:
+            self._assert_existing_tenant(
+                connection,
+                "crm_pipelines",
+                "pipeline_id",
+                pipeline.pipeline_id,
+                pipeline.tenant_id,
+            )
+            connection.execute(
+                """
+                INSERT INTO crm_pipelines (pipeline_id, tenant_id, payload)
+                VALUES (?, ?, ?)
+                ON CONFLICT(pipeline_id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    payload = excluded.payload
+                """,
+                (pipeline.pipeline_id, pipeline.tenant_id, pipeline.model_dump_json()),
+            )
+            for stage in pipeline.stages:
+                self._assert_existing_tenant(
+                    connection,
+                    "crm_pipeline_stages",
+                    "stage_id",
+                    stage.stage_id,
+                    pipeline.tenant_id,
+                )
+                connection.execute(
+                    """
+                    INSERT INTO crm_pipeline_stages (
+                        stage_id, tenant_id, pipeline_id, payload
+                    ) VALUES (?, ?, ?, ?)
+                    ON CONFLICT(stage_id) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
+                        pipeline_id = excluded.pipeline_id,
+                        payload = excluded.payload
+                    """,
+                    (
+                        stage.stage_id,
+                        stage.tenant_id,
+                        stage.pipeline_id,
+                        stage.model_dump_json(),
+                    ),
+                )
+        return pipeline
+
+    def get_pipeline(self, tenant_id: str, pipeline_id: str) -> Pipeline:
+        row = self._get_row("crm_pipelines", "pipeline_id", tenant_id, pipeline_id)
+        return Pipeline.model_validate_json(row[0])
+
+    def save_deal(self, deal: Deal, *, idempotency_key: str) -> Deal:
+        if not idempotency_key.strip() or len(idempotency_key) > 128:
+            raise CrmConflictError("idempotency key is required and bounded")
+        with self._connect() as connection:
+            self._assert_related_tenant(
+                connection,
+                "crm_companies",
+                "company_id",
+                deal.company_id,
+                deal.tenant_id,
+                "company",
+            )
+            if deal.contact_id is not None:
+                self._assert_related_tenant(
+                    connection,
+                    "crm_contacts",
+                    "contact_id",
+                    deal.contact_id,
+                    deal.tenant_id,
+                    "contact",
+                )
+            self._assert_related_tenant(
+                connection,
+                "crm_pipelines",
+                "pipeline_id",
+                deal.pipeline_id,
+                deal.tenant_id,
+                "pipeline",
+            )
+            stage = connection.execute(
+                """
+                SELECT tenant_id, pipeline_id FROM crm_pipeline_stages
+                WHERE stage_id = ?
+                """,
+                (deal.stage_id,),
+            ).fetchone()
+            if stage is None:
+                raise CrmConflictError("deal stage does not exist")
+            if stage[0] != deal.tenant_id or stage[1] != deal.pipeline_id:
+                raise CrmConflictError(
+                    "deal stage must belong to the same tenant and pipeline"
+                )
+
+            fingerprint = sha256(deal.model_dump_json().encode()).hexdigest()
+            prior = connection.execute(
+                """
+                SELECT resource_id, fingerprint FROM crm_idempotency
+                WHERE tenant_id = ? AND operation = ? AND idempotency_key = ?
+                """,
+                (deal.tenant_id, "create_deal", idempotency_key),
+            ).fetchone()
+            if prior is not None:
+                if prior[1] != fingerprint:
+                    raise CrmConflictError(
+                        "idempotency key was reused with different data"
+                    )
+                return self._get_deal_from_connection(
+                    connection, deal.tenant_id, prior[0]
+                )
+
+            self._assert_existing_tenant(
+                connection, "crm_deals", "deal_id", deal.deal_id, deal.tenant_id
+            )
+            connection.execute(
+                """
+                INSERT INTO crm_deals (
+                    deal_id, tenant_id, company_id, contact_id, pipeline_id,
+                    stage_id, payload
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(deal_id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    company_id = excluded.company_id,
+                    contact_id = excluded.contact_id,
+                    pipeline_id = excluded.pipeline_id,
+                    stage_id = excluded.stage_id,
+                    payload = excluded.payload
+                """,
+                (
+                    deal.deal_id,
+                    deal.tenant_id,
+                    deal.company_id,
+                    deal.contact_id,
+                    deal.pipeline_id,
+                    deal.stage_id,
+                    deal.model_dump_json(),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO crm_idempotency (
+                    tenant_id, operation, idempotency_key, resource_id, fingerprint
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    deal.tenant_id,
+                    "create_deal",
+                    idempotency_key,
+                    deal.deal_id,
+                    fingerprint,
+                ),
+            )
+        return deal
+
+    def get_deal(self, tenant_id: str, deal_id: str) -> Deal:
+        row = self._get_row("crm_deals", "deal_id", tenant_id, deal_id)
+        return Deal.model_validate_json(row[0])
+
+    def _get_deal_from_connection(
+        self, connection: sqlite3.Connection, tenant_id: str, deal_id: str
+    ) -> Deal:
+        row = connection.execute(
+            "SELECT payload FROM crm_deals WHERE deal_id = ? AND tenant_id = ?",
+            (deal_id, tenant_id),
+        ).fetchone()
+        if row is None:
+            raise CrmConflictError("idempotency record points to a missing deal")
+        return Deal.model_validate_json(row[0])
+
+    def _get_row(
+        self, table: str, id_column: str, tenant_id: str, record_id: str
+    ) -> tuple[str]:
+        with self._connect() as connection:
+            row = connection.execute(
+                f"SELECT payload FROM {table} WHERE {id_column} = ? AND tenant_id = ?",
+                (record_id, tenant_id),
+            ).fetchone()
+        if row is None:
+            raise CrmNotFoundError(f"CRM record not found: {record_id}")
+        return row
+
+    @staticmethod
+    def _assert_existing_tenant(
+        connection: sqlite3.Connection,
+        table: str,
+        id_column: str,
+        record_id: str,
+        tenant_id: str,
+    ) -> None:
+        row = connection.execute(
+            f"SELECT tenant_id FROM {table} WHERE {id_column} = ?",
+            (record_id,),
+        ).fetchone()
+        if row is not None and row[0] != tenant_id:
+            raise CrmConflictError("CRM record belongs to a different tenant")
+
+    @staticmethod
+    def _assert_related_tenant(
+        connection: sqlite3.Connection,
+        table: str,
+        id_column: str,
+        record_id: str,
+        tenant_id: str,
+        label: str,
+    ) -> None:
+        row = connection.execute(
+            f"SELECT tenant_id FROM {table} WHERE {id_column} = ?",
+            (record_id,),
+        ).fetchone()
+        if row is None:
+            raise CrmConflictError(f"{label} does not exist")
+        if row[0] != tenant_id:
+            raise CrmConflictError(f"{label} must belong to the same tenant")
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self.path)
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection

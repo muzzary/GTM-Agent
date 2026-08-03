@@ -452,3 +452,34 @@
 - Three inaccessible optional company sources were reported as warnings and
   degraded gracefully without failing the campaign.
 - User accepted Phase 4.1 and Phase 4 as complete for the current milestone.
+
+## CRM-1: CRM domain and persistence
+
+**Status:** Accepted after manual verification
+
+**Changed:**
+
+- Added strict CRM contracts for companies, contacts, pipelines, stages, deals,
+  activities, and custom-field definitions.
+- Added a local SQLite repository with tenant-scoped reads, relationship
+  ownership checks, pipeline-stage validation, and idempotent deal creation.
+- Added the first CRM MVP plan and linked it from the implementation roadmap and
+  directory map.
+
+**Automated verification:**
+
+- Full Python regression suite: 124 tests passed.
+- New CRM schema and repository tests: 8 passed.
+- Full Ruff check and diff check: clean.
+
+**Manual gate:**
+
+- Confirm CRM records can be created and retrieved in a local SQLite database.
+- Confirm a cross-tenant relationship is rejected, an invalid stage is rejected,
+  and replaying the same deal idempotency key returns the original deal.
+
+**Manual verification completed:**
+
+- User confirmed CRM record round trips, tenant isolation, invalid-stage
+  rejection, and idempotent deal replay behavior.
+- User accepted CRM-1 and approved starting CRM-2.
