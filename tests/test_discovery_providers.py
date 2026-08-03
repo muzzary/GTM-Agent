@@ -178,3 +178,51 @@ def test_wikidata_resolves_industry_then_queries_companies() -> None:
     assert suggestions[0].company == "Acme Logistics"
     assert suggestions[0].source_entity_id == "Q1"
     assert suggestions[0].official_url == "https://acme.example/"
+
+
+def test_wikidata_resolves_and_retains_region_evidence() -> None:
+    region_url = WikidataDiscoveryProvider.search_url("United States")
+    industry_url = WikidataDiscoveryProvider.search_url("logistics")
+    query_url = WikidataDiscoveryProvider.company_query_url(("Q100",), ("Q30",))
+    collector = FakeCollector(
+        {
+            region_url: _document(
+                region_url,
+                text=json.dumps({"search": [{"id": "Q30"}]}),
+                content_type="application/json",
+            ),
+            industry_url: _document(
+                industry_url,
+                text=json.dumps({"search": [{"id": "Q100"}]}),
+                content_type="application/json",
+            ),
+            query_url: _document(
+                query_url,
+                text=json.dumps(
+                    {
+                        "results": {
+                            "bindings": [
+                                {
+                                    "company": {
+                                        "value": "http://www.wikidata.org/entity/Q1"
+                                    },
+                                    "companyLabel": {"value": "Acme Logistics"},
+                                    "website": {"value": "https://acme.example/"},
+                                    "industryLabel": {"value": "logistics"},
+                                    "regionLabel": {"value": "United States"},
+                                }
+                            ]
+                        }
+                    }
+                ),
+                content_type="application/sparql-results+json",
+            ),
+        }
+    )
+    icp = _icp().model_copy(update={"regions": ("United States",)})
+
+    suggestions = WikidataDiscoveryProvider(collector).discover(icp, ())
+
+    assert collector.calls == [region_url, industry_url, query_url]
+    assert suggestions[0].region == "United States"
+    assert "Region: United States" in suggestions[0].observations[0].text

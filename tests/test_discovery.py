@@ -255,3 +255,56 @@ def test_discovery_service_combines_providers_and_shallow_expands() -> None:
     assert result.providers == ("wikidata", "official_site")
     assert result.warnings == ("official_site:acme.example:source_http_error",)
     assert result.prospects[0].score == 0.8
+
+
+def test_ranker_excludes_candidates_without_matching_region_evidence() -> None:
+    united_states = _observation(
+        provider="wikidata",
+        category=SourceCategory.STRUCTURED_PUBLIC,
+        url="https://www.wikidata.org/wiki/Q1",
+        text="Acme Logistics. Industry: logistics. Region: United States.",
+    )
+    canada = _observation(
+        provider="wikidata",
+        category=SourceCategory.STRUCTURED_PUBLIC,
+        url="https://www.wikidata.org/wiki/Q2",
+        text="North Freight. Industry: logistics. Region: Canada.",
+    )
+    icp = _icp().model_copy(update={"regions": ("United States",)})
+
+    evidence, prospects = DiscoveryRanker().rank(
+        campaign_id="campaign-example1",
+        icp=icp,
+        run_id="research-run-example1",
+        suggestions=(
+            CandidateSuggestion(
+                company="Acme Logistics",
+                industry="logistics",
+                region="United States",
+                official_url="https://acme.example/",
+                provider="wikidata",
+                observations=(united_states,),
+            ),
+            CandidateSuggestion(
+                company="North Freight",
+                industry="logistics",
+                region="Canada",
+                official_url="https://north.example/",
+                provider="wikidata",
+                observations=(canada,),
+            ),
+        ),
+        new_id=lambda prefix: f"{prefix}-example1",
+        now=NOW,
+    )
+
+    assert len(evidence) == 1
+    assert [prospect.company for prospect in prospects] == ["Acme Logistics"]
+    assert prospects[0].region == "United States"
+    region_factor = next(
+        factor
+        for factor in prospects[0].ranking_factors
+        if factor.icp_field == "region"
+    )
+    assert region_factor.match is FactorMatch.MATCHED
+    assert region_factor.weight == 0

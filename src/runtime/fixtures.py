@@ -119,6 +119,7 @@ class DeterministicFixturePipeline:
                     icp_id=icp.icp_id,
                     company=company,
                     industry=industry,
+                    region=icp.regions[0] if icp.regions else None,
                     target_role=role,
                     matched_icp_fields=(
                         "industry",

@@ -40,6 +40,7 @@ function researchCampaign(): Campaign {
       campaign_id: 'campaign-0001',
       company: 'Logistics Fixture One',
       industry: 'logistics',
+      region: null,
       research_run_id: null,
       provider: 'fixture',
       official_url: null,

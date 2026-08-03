@@ -59,6 +59,7 @@ export interface ProspectCandidate {
   campaign_id: string
   company: string
   industry: string
+  region: string | null
   research_run_id: string | null
   provider: string
   official_url: string | null
@@ -410,6 +411,7 @@ function validateProspect(value: unknown, campaignId: string, evidenceIds: Set<s
   text(value.prospect_id, 80)
   text(value.company, 160)
   text(value.industry, 120)
+  nullableText(value.region, 120)
   nullableText(value.research_run_id, 80)
   text(value.provider, 80)
   nullableHttpsUrl(value.official_url)

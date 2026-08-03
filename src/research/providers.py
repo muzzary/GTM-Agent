@@ -120,6 +120,7 @@ class WebsiteCandidateExpander:
         return CandidateSuggestion(
             company=suggestion.company,
             industry=suggestion.industry,
+            region=suggestion.region,
             official_url=suggestion.official_url,
             provider="+".join(providers),
             observations=tuple(observations),
@@ -217,14 +218,29 @@ class WikidataDiscoveryProvider:
         return f"{cls._base_url}?{query}"
 
     @classmethod
-    def company_query_url(cls, industry_ids: Sequence[str]) -> str:
+    def company_query_url(
+        cls,
+        industry_ids: Sequence[str],
+        region_ids: Sequence[str] = (),
+    ) -> str:
         values = " ".join(f"wd:{item}" for item in industry_ids)
+        if region_ids:
+            region_values = " ".join(f"wd:{item}" for item in region_ids)
+            region_clause = f"""
+  VALUES ?region {{ {region_values} }}
+  {{ ?company wdt:P17 ?region. }}
+  UNION {{ ?company wdt:P159/wdt:P17 ?region. }}
+  UNION {{ ?company wdt:P159/wdt:P131* ?region. }}
+""".rstrip()
+        else:
+            region_clause = "  OPTIONAL { ?company wdt:P17 ?region. }"
         sparql = f"""
-SELECT ?company ?companyLabel ?website ?industryLabel WHERE {{
+SELECT ?company ?companyLabel ?website ?industryLabel ?regionLabel WHERE {{
   VALUES ?industry {{ {values} }}
   ?company wdt:P452 ?industry;
            wdt:P856 ?website;
            wdt:P31/wdt:P279* wd:Q4830453.
+{region_clause}
   FILTER(STRSTARTS(STR(?website), "https://"))
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }}
@@ -239,23 +255,15 @@ LIMIT 20
     ) -> tuple[CandidateSuggestion, ...]:
         suggestions: list[CandidateSuggestion] = []
         seen_entities: set[str] = set()
+        region_ids = self._resolve_entity_ids(icp.regions, limit=3)
+        if icp.regions and not region_ids:
+            return ()
         for industry in icp.industries[:3]:
-            search_document = self._collector.collect(
-                self.search_url(industry), self._search_policy
-            )
-            search_payload = _json_object(search_document.text)
-            entity_ids = tuple(
-                item["id"]
-                for item in search_payload.get("search", [])
-                if isinstance(item, dict)
-                and isinstance(item.get("id"), str)
-                and item["id"].startswith("Q")
-                and item["id"] not in seen_entities
-            )[:3]
+            entity_ids = self._resolve_entity_ids((industry,), limit=3)
             if not entity_ids:
                 continue
             query_document = self._collector.collect(
-                self.company_query_url(entity_ids), self._query_policy
+                self.company_query_url(entity_ids, region_ids), self._query_policy
             )
             results = _json_object(query_document.text).get("results", {})
             bindings = results.get("bindings", []) if isinstance(results, dict) else []
@@ -268,6 +276,7 @@ LIMIT 20
                 company = _binding_value(binding, "companyLabel")
                 official_url = _binding_value(binding, "website")
                 industry_label = _binding_value(binding, "industryLabel")
+                region_label = _binding_value(binding, "regionLabel")
                 match = re.fullmatch(
                     r"https?://www\.wikidata\.org/entity/(Q[1-9][0-9]*)",
                     entity_uri,
@@ -290,7 +299,10 @@ LIMIT 20
                     title=f"Wikidata entity {entity_id}: {company}",
                     url=citation_url,
                     retrieval_url=query_document.canonical_url,
-                    text=f"{company}. Industry: {industry_label}.",
+                    text=(
+                        f"{company}. Industry: {industry_label}."
+                        + (f" Region: {region_label}." if region_label else "")
+                    ),
                     body_sha256=query_document.body_sha256,
                     policy_version=self._query_policy.policy_version,
                     license_basis="CC0 structured data; excerpt only",
@@ -302,6 +314,7 @@ LIMIT 20
                     CandidateSuggestion(
                         company=company,
                         industry=industry,
+                        region=region_label or None,
                         official_url=official_url,
                         provider="wikidata",
                         observations=(observation,),
@@ -311,6 +324,30 @@ LIMIT 20
                 if len(suggestions) == 20:
                     return tuple(suggestions)
         return tuple(suggestions)
+
+    def _resolve_entity_ids(
+        self,
+        terms: Sequence[str],
+        *,
+        limit: int,
+    ) -> tuple[str, ...]:
+        resolved: list[str] = []
+        for term in terms:
+            document = self._collector.collect(
+                self.search_url(term), self._search_policy
+            )
+            payload = _json_object(document.text)
+            for item in payload.get("search", []):
+                if (
+                    isinstance(item, dict)
+                    and isinstance(item.get("id"), str)
+                    and item["id"].startswith("Q")
+                    and item["id"] not in resolved
+                ):
+                    resolved.append(item["id"])
+                    if len(resolved) == limit:
+                        return tuple(resolved)
+        return tuple(resolved)
 
 
 def website_policy(

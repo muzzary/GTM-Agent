@@ -116,7 +116,7 @@ function ResearchWorkspace({ campaign, onChange }: Props) {
 function CandidateList({ prospects, evidence, busy, onChoose }: { prospects: ProspectCandidate[]; evidence: Map<string, EvidenceRecord>; busy: boolean; onChoose: (id: string) => void }) {
   if (prospects.length === 0) return <p className="empty-state" role="status">No candidates yet. Add relevant market pages or run structured discovery.</p>
   return <div className="prospect-list">{prospects.map((prospect) => <article className="prospect-card" key={prospect.prospect_id}>
-    <div className="prospect-title"><div><p className="card-label">{prospect.provider.replaceAll('_', ' ')}</p><h3>{prospect.company}</h3><p>{prospect.industry}</p></div><strong>{Math.round(prospect.score * 100)}<small>/100 priority</small></strong></div>
+    <div className="prospect-title"><div><p className="card-label">{prospect.provider.replaceAll('_', ' ')}</p><h3>{prospect.company}</h3><p>{prospect.industry}{prospect.region ? ` · ${prospect.region}` : ''}</p></div><strong>{Math.round(prospect.score * 100)}<small>/100 priority</small></strong></div>
     <dl className="score-strip"><div><dt>Evidence</dt><dd>{percent(prospect.evidence_quality)}</dd></div><div><dt>Coverage</dt><dd>{percent(prospect.research_completeness)}</dd></div><div><dt>Uncertainty</dt><dd>{prospect.uncertainty}</dd></div></dl>
     {prospect.ranking_factors.length > 0 && <ul className="factor-list">{prospect.ranking_factors.map((factor) => <li key={factor.factor_id}><span>{factor.icp_field.replaceAll('_', ' ')}</span><strong>{factor.match.replaceAll('_', ' ')}</strong></li>)}</ul>}
     <EvidenceLinks ids={prospect.evidence_ids} evidence={evidence} />

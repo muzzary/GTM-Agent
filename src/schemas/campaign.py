@@ -267,6 +267,7 @@ class ProspectCandidate(StrictModel):
     icp_id: str = Field(pattern=r"^icp-[a-z0-9-]{4,64}$")
     company: str = Field(min_length=1, max_length=160)
     industry: str = Field(min_length=1, max_length=120)
+    region: str | None = Field(default=None, min_length=1, max_length=120)
     research_run_id: str | None = Field(
         default=None, pattern=r"^research-run-[a-z0-9-]{8,64}$"
     )

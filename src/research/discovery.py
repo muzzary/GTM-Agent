@@ -89,6 +89,7 @@ class CandidateSuggestion:
     official_url: str
     provider: str
     observations: tuple[SourceObservation, ...]
+    region: str | None = None
     source_entity_id: str | None = None
     warnings: tuple[str, ...] = ()
 
@@ -177,6 +178,7 @@ class DiscoveryRanker:
         "role_relevance": 0.15,
         "pain_relevance": 0.20,
         "source_diversity": 0.10,
+        "region": 0.0,
     }
 
     def rank(
@@ -197,7 +199,6 @@ class DiscoveryRanker:
                 observation_to_evidence(campaign_id, run_id, item, new_id)
                 for item in suggestion.observations
             )
-            all_evidence.extend(evidence)
             prospect = self._prospect(
                 campaign_id=campaign_id,
                 icp=icp,
@@ -207,6 +208,19 @@ class DiscoveryRanker:
                 new_id=new_id,
                 now=now,
             )
+            region_factor = next(
+                (
+                    item
+                    for item in prospect.ranking_factors
+                    if item.icp_field == "region"
+                ),
+                None,
+            )
+            if icp.regions and (
+                region_factor is None or region_factor.match is not FactorMatch.MATCHED
+            ):
+                continue
+            all_evidence.extend(evidence)
             prospects.append(prospect)
         prospects.sort(
             key=lambda item: (
@@ -234,7 +248,7 @@ class DiscoveryRanker:
             (item.text.casefold(), record.evidence_id)
             for item, record in zip(suggestion.observations, evidence, strict=True)
         )
-        factors = (
+        base_factors = (
             self._term_factor("industry", icp.industries, searchable, run_id, new_id),
             self._term_factor(
                 "company_size", (icp.company_size,), searchable, run_id, new_id
@@ -249,6 +263,10 @@ class DiscoveryRanker:
             ),
             self._diversity_factor(suggestion, run_id, new_id, evidence),
         )
+        region_factors = (
+            self._term_factor("region", icp.regions, searchable, run_id, new_id),
+        ) if icp.regions else ()
+        factors = base_factors + region_factors
         matched = tuple(
             factor.icp_field
             for factor in factors
@@ -314,6 +332,7 @@ class DiscoveryRanker:
             icp_id=icp.icp_id,
             company=suggestion.company,
             industry=suggestion.industry,
+            region=suggestion.region,
             research_run_id=run_id,
             provider=suggestion.provider,
             source_entity_id=suggestion.source_entity_id,
@@ -469,6 +488,7 @@ def deduplicate_suggestions(
             existing,
             provider="+".join(providers),
             observations=tuple(observations.values()),
+            region=existing.region or item.region,
             source_entity_id=existing.source_entity_id or item.source_entity_id,
         )
     return list(merged.values())
