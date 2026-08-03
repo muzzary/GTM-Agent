@@ -31,3 +31,9 @@ def test_research_contact_rejects_header_injection() -> None:
         Settings.from_mapping(
             {"GTM_RESEARCH_CONTACT": "owner@example.com\r\nX-Test: 1"}
         )
+
+
+@pytest.mark.parametrize("path", ["../cache.sqlite3", "C:/Windows/cache.sqlite3"])
+def test_research_cache_path_stays_in_ignored_data_directory(path: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings.from_mapping({"GTM_RESEARCH_CACHE_PATH": path})

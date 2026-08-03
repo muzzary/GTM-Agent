@@ -24,6 +24,15 @@ class Settings(BaseModel):
             raise ValueError("research contact cannot contain line breaks")
         return value
 
+    @field_validator("research_cache_path")
+    @classmethod
+    def cache_must_stay_in_local_data(cls, value: Path) -> Path:
+        if value.is_absolute() or not value.parts or value.parts[0] != "data":
+            raise ValueError("research cache path must be relative and under data/")
+        if ".." in value.parts:
+            raise ValueError("research cache path cannot traverse directories")
+        return value
+
     @classmethod
     def from_mapping(cls, values: Mapping[str, str]) -> Self:
         return cls(
