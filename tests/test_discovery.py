@@ -236,6 +236,7 @@ def test_discovery_service_combines_providers_and_shallow_expands() -> None:
                 official_url=suggestion.official_url,
                 provider="wikidata+official_site",
                 observations=suggestion.observations + (official,),
+                warnings=("official_site:acme.example:source_http_error",),
             )
 
     sequence = iter(range(100))
@@ -252,5 +253,5 @@ def test_discovery_service_combines_providers_and_shallow_expands() -> None:
     )
 
     assert result.providers == ("wikidata", "official_site")
-    assert result.warnings == ()
+    assert result.warnings == ("official_site:acme.example:source_http_error",)
     assert result.prospects[0].score == 0.8

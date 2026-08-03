@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.data.http_collector import CollectedDocument, ResearchCollectionError
+from src.data.source_policy import SourcePolicyError
 from src.research.discovery import (
     CandidateSuggestion,
     DiscoveryRanker,
@@ -530,6 +531,10 @@ def test_live_discovery_and_deep_research_authorize_positioning() -> None:
         ProspectResearchRequest(request_id="research-request-live0002"),
     )
     assert researched.campaign.state is CampaignState.PROSPECT_RESEARCHED
+    assert researched.campaign.trace[-1].output_ids == (
+        researched.run.run_id,
+        researched.campaign.prospect_research.profile_id,
+    )
     completed = workflow.generate_draft(created.campaign_id)
     assert completed.prospect_research is not None
     assert completed.positioning is not None
@@ -559,6 +564,91 @@ def test_failed_discovery_is_persisted_with_stable_error_and_no_outputs() -> Non
     assert failed.research_runs[-1].failure_code == "source_unavailable"
     assert failed.research_runs[-1].evidence_ids == ()
     assert failed.trace[-1].event_type is TraceEventType.RESEARCH_FAILED
+
+
+def test_failed_discovery_sanitizes_source_policy_error() -> None:
+    class FailingDiscovery:
+        def run(self, **_kwargs):
+            raise SourcePolicyError("source host is not admitted by policy")
+
+    workflow, repository = build_workflow(discovery_runner=FailingDiscovery())
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+
+    with pytest.raises(ResearchExecutionError) as raised:
+        workflow.run_discovery(
+            created.campaign_id,
+            ResearchRequest(request_id="research-request-policy01"),
+        )
+
+    failed = repository.get(created.campaign_id)
+    assert raised.value.code == "source_policy_denied"
+    assert failed.research_runs[-1].failure_code == "source_policy_denied"
+
+
+def test_large_discovery_uses_research_run_as_trace_output() -> None:
+    observed_at = datetime(2026, 8, 2, 10, 30, tzinfo=UTC)
+
+    class LargeDiscovery:
+        def run(self, *, campaign_id, icp, run_id, new_id, **_kwargs):
+            suggestions = tuple(
+                CandidateSuggestion(
+                    company=f"Candidate {candidate_index}",
+                    industry="logistics",
+                    official_url=f"https://candidate{candidate_index}.example/",
+                    provider="wikidata+official_site",
+                    observations=tuple(
+                        SourceObservation(
+                            provider="official_site",
+                            publisher=f"Candidate {candidate_index}",
+                            source_category=SourceCategory.OFFICIAL_WEBSITE,
+                            title=f"Candidate {candidate_index} page {page_index}",
+                            url=(
+                                f"https://candidate{candidate_index}.example/"
+                                f"page-{page_index}"
+                            ),
+                            text="Logistics company public information.",
+                            body_sha256=f"{candidate_index}{page_index}".ljust(64, "0"),
+                            policy_version="official-website-v1",
+                            license_basis="public_excerpt",
+                            fetched_at=observed_at,
+                            observed_at=observed_at,
+                            cache_hit=False,
+                        )
+                        for page_index in range(3)
+                    ),
+                )
+                for candidate_index in range(10)
+            )
+            evidence, prospects = DiscoveryRanker().rank(
+                campaign_id=campaign_id,
+                icp=icp,
+                run_id=run_id,
+                suggestions=suggestions,
+                new_id=new_id,
+                now=observed_at,
+            )
+            return DiscoveryResult(
+                evidence=evidence,
+                prospects=prospects,
+                attempts=(),
+                providers=("wikidata", "official_site"),
+                warnings=(),
+            )
+
+    workflow, _ = build_workflow(discovery_runner=LargeDiscovery())
+    created = workflow.create_campaign(campaign_input())
+    decide_claims(workflow, created.campaign_id)
+
+    outcome = workflow.run_discovery(
+        created.campaign_id,
+        ResearchRequest(request_id="research-request-large001"),
+    )
+
+    assert 1 + len(outcome.run.prospect_ids) + len(outcome.run.evidence_ids) > 32
+    assert outcome.campaign.trace[-1].output_ids == (outcome.run.run_id,)
+    assert len(outcome.run.prospect_ids) == 10
+    assert len(outcome.run.evidence_ids) == 30
 
 
 def test_new_discovery_supersedes_candidates_and_retains_prior_evidence() -> None:

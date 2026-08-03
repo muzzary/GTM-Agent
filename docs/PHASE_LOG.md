@@ -312,7 +312,7 @@
 
 ## Phase 4: Multi-source prospect discovery and research
 
-**Status:** Ready for manual verification
+**Status:** Accepted after manual verification
 
 **Changed:**
 
@@ -339,7 +339,7 @@
 
 **Automated verification:**
 
-- Full Python regression suite: 84 tests passed.
+- Full Python regression suite: 87 tests passed.
 - Backend Ruff lint and uv lockfile checks: clean.
 - Frontend suite: 18 tests passed across six files.
 - Frontend typecheck, Oxlint, and production build: successful.
@@ -352,8 +352,25 @@
   narrow Wikidata-only draft was replaced by staged discovery, shallow official
   expansion, and selected-prospect deep research.
 
-**Manual verification needed:**
+**Manual verification completed:**
 
-- Complete `docs/PHASE4_RUNBOOK.md` with a real permitted market and ICP.
-- Confirm live source behavior, ranking transparency, the selection/research
-  gate, citations, unknowns, and the absence of outreach generation.
+- User completed a live market-discovery run successfully.
+- User completed fixture deep research for a selected company successfully.
+- User accepted Phase 4 while explicitly carrying regional targeting, company-
+  feature coverage, and plain-language report usability into the required
+  follow-up gate documented in `docs/IMPLEMENTATION_PLAN.md`.
+
+**Manual-verification fix:**
+
+- Reproduced a live discovery failure caused by `https://cpr.ca/` redirecting
+  outside its admitted host set.
+- Preserved the SSRF-safe redirect boundary while changing optional official-
+  site policy denials into candidate warnings instead of campaign failures.
+- Added sanitized `source_policy_denied` reporting and regression coverage for
+  candidate preservation and warning propagation.
+- Re-ran the exact three-industry logistics ICP against live public sources:
+  discovery completed with 10 prospects, 27 evidence records, and explicit
+  per-site warnings for inaccessible optional expansions.
+- Fixed large live runs exceeding the bounded trace-event output list. Trace
+  events now reference the authoritative research run, which retains every
+  prospect and evidence ID with campaign-level ownership validation.

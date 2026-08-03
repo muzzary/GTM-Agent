@@ -407,7 +407,7 @@ class CampaignWorkflow:
                     len(current.trace) + 1,
                     TraceEventType.LIVE_DISCOVERY_COMPLETED,
                     input_ids=(current.icp.icp_id, request.request_id),
-                    output_ids=(run.run_id, *run.prospect_ids, *run.evidence_ids),
+                    output_ids=(run.run_id,),
                     summary=(
                         "Bounded public-source discovery produced evidence-backed "
                         "prospect priorities."
@@ -592,7 +592,6 @@ class CampaignWorkflow:
                     output_ids=(
                         run.run_id,
                         result.profile.profile_id,
-                        *run.evidence_ids,
                     ),
                     summary=(
                         "Evidence-backed prospect research completed the Phase 4 "
@@ -781,6 +780,8 @@ class CampaignWorkflow:
     def _safe_failure_code(
         error: ResearchCollectionError | SourcePolicyError,
     ) -> str:
+        if isinstance(error, SourcePolicyError):
+            return "source_policy_denied"
         candidate = str(error)
         if re.fullmatch(r"[a-z][a-z0-9_]{2,63}", candidate):
             return candidate

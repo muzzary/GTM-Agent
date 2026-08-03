@@ -2,6 +2,8 @@ import json
 from datetime import UTC, datetime
 
 from src.data.http_collector import CollectedDocument
+from src.data.source_policy import SourcePolicyError
+from src.research.discovery import CandidateSuggestion
 from src.research.providers import (
     MarketSeedDiscoveryProvider,
     WebsiteCandidateExpander,
@@ -107,6 +109,30 @@ def test_website_expander_fetches_home_and_two_priority_pages_only() -> None:
     assert collector.calls == [home, about, products]
     assert len(expanded.observations) == 4
     assert expanded.provider == "market_seed+official_site"
+
+
+def test_website_expander_preserves_candidate_when_source_policy_denies_site() -> None:
+    class DeniedCollector:
+        def collect(self, _url: str, _policy: object) -> CollectedDocument:
+            raise SourcePolicyError("source host is not admitted by policy")
+
+    suggestion = CandidateSuggestion(
+        company="Canadian Pacific Railway",
+        industry="logistics",
+        official_url="https://cpr.ca/",
+        provider="wikidata",
+        observations=(),
+        source_entity_id="Q466222",
+    )
+
+    expanded = WebsiteCandidateExpander(DeniedCollector()).expand(suggestion)
+
+    assert expanded.company == suggestion.company
+    assert expanded.provider == "wikidata"
+    assert expanded.observations == ()
+    assert expanded.warnings == (
+        "official_site:cpr.ca:source_policy_denied",
+    )
 
 
 def test_wikidata_resolves_industry_then_queries_companies() -> None:

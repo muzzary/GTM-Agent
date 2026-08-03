@@ -61,6 +61,14 @@ Discovery can legitimately return no candidates for a sparse industry. Add a
 relevant permitted market seed rather than treating missing evidence as a
 match.
 
+An official website may redirect to a different company domain because of a
+rebrand, merger, regional site, or traffic-management service. Phase 4 does not
+automatically trust that new host: every redirect must remain within the
+original host's admitted `www` alias and resolve only to public IP addresses.
+When a cross-host redirect is denied, discovery keeps the structured candidate
+and reports `official_site:<host>:source_policy_denied`; only that site's
+optional expansion is skipped.
+
 ## 5. Select and research one prospect
 
 1. Select one candidate.

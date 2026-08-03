@@ -1,10 +1,11 @@
 import json
 import re
 from collections.abc import Sequence
+from dataclasses import replace
 from urllib.parse import urlencode, urlsplit
 
 from src.data.http_collector import ControlledHttpCollector, ResearchCollectionError
-from src.data.source_policy import SourcePolicy
+from src.data.source_policy import SourcePolicy, SourcePolicyError
 from src.research.discovery import CandidateSuggestion, SourceObservation
 from src.schemas.campaign import ICPProfile
 from src.schemas.research import SourceCategory
@@ -97,15 +98,20 @@ class WebsiteCandidateExpander:
         )
         try:
             homepage = self._collector.collect(suggestion.official_url, policy)
-        except ResearchCollectionError:
-            return suggestion
+        except (ResearchCollectionError, SourcePolicyError) as error:
+            return replace(
+                suggestion,
+                warnings=suggestion.warnings + (self._warning(suggestion, error),),
+            )
         observations = list(suggestion.observations)
+        warnings = list(suggestion.warnings)
         observations.append(self._observation(homepage, suggestion, policy))
         selected = self._select_links(homepage.links, policy.allowed_hosts)[:2]
         for link in selected:
             try:
                 document = self._collector.collect(link, policy)
-            except ResearchCollectionError:
+            except (ResearchCollectionError, SourcePolicyError) as error:
+                warnings.append(self._warning(suggestion, error))
                 continue
             observations.append(self._observation(document, suggestion, policy))
         providers = tuple(
@@ -118,7 +124,20 @@ class WebsiteCandidateExpander:
             provider="+".join(providers),
             observations=tuple(observations),
             source_entity_id=suggestion.source_entity_id,
+            warnings=tuple(dict.fromkeys(warnings)),
         )
+
+    @staticmethod
+    def _warning(
+        suggestion: CandidateSuggestion,
+        error: ResearchCollectionError | SourcePolicyError,
+    ) -> str:
+        code = (
+            "source_policy_denied"
+            if isinstance(error, SourcePolicyError)
+            else str(error)
+        )
+        return f"official_site:{_host(suggestion.official_url)}:{code}"
 
     @staticmethod
     def _select_links(

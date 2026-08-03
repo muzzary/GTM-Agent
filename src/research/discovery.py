@@ -7,6 +7,7 @@ from typing import Protocol
 from urllib.parse import urlsplit
 
 from src.data.http_collector import CollectedDocument, ResearchCollectionError
+from src.data.source_policy import SourcePolicyError
 from src.schemas.campaign import (
     EvidenceRecord,
     ICPProfile,
@@ -89,6 +90,7 @@ class CandidateSuggestion:
     provider: str
     observations: tuple[SourceObservation, ...]
     source_entity_id: str | None = None
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -128,8 +130,8 @@ class DiscoveryService:
         for provider in self._providers:
             try:
                 discovered = provider.discover(icp, seed_urls)
-            except ResearchCollectionError as error:
-                warnings.append(f"{provider.name}:{error}")
+            except (ResearchCollectionError, SourcePolicyError) as error:
+                warnings.append(f"{provider.name}:{_safe_collection_code(error)}")
                 continue
             if discovered:
                 suggestions.extend(discovered)
@@ -140,6 +142,7 @@ class DiscoveryService:
         for suggestion in deduplicate_suggestions(suggestions)[:10]:
             expanded_item = self._expander.expand(suggestion)
             expanded.append(expanded_item)
+            warnings.extend(expanded_item.warnings)
             if len(expanded_item.observations) > len(suggestion.observations):
                 used_providers.append("official_site")
         evidence, prospects = self._ranker.rank(
@@ -155,8 +158,14 @@ class DiscoveryService:
             prospects=prospects,
             attempts=attempts_from_evidence(evidence, run_id, new_id),
             providers=tuple(dict.fromkeys(used_providers)),
-            warnings=tuple(warnings),
+            warnings=tuple(dict.fromkeys(warnings)),
         )
+
+
+def _safe_collection_code(error: ResearchCollectionError | SourcePolicyError) -> str:
+    if isinstance(error, SourcePolicyError):
+        return "source_policy_denied"
+    return str(error)
 
 
 class DiscoveryRanker:

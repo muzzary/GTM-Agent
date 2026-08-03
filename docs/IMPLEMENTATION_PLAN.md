@@ -164,6 +164,29 @@ prompt-injection fixture, and unsupported-claim tests.
 **Manual gate:** Review live source behavior, select a prospect, inspect its
 deep-research profile, and confirm positioning remains gated until completion.
 
+### Required Phase 4 follow-up before Phase 5
+
+Phase 4 is accepted as a bounded research workflow, with three usability and
+targeting requirements carried forward before outreach baselining:
+
+- Add one or more intended regions to the ICP form and contracts. Discovery
+  must treat selected regions as prospect-eligibility constraints, cite the
+  evidence used to establish location, and keep unsupported geography explicit
+  rather than inferring it from a company name or website domain.
+- Improve selected-company feature coverage through broader permitted page
+  discovery and source types. Missing capabilities, offerings, projects, or
+  market signals must remain `unknown`; absence of collected evidence must not
+  be presented as evidence of absence.
+- Add a plain-language research presentation with familiar labels, short
+  findings, and clearly separated unknowns and limitations. Keep the complete
+  technical provenance, citations, and collection warnings available as an
+  expandable audit layer instead of making them the primary human report.
+
+**Follow-up acceptance:** A region-scoped campaign excludes unsupported or
+out-of-region candidates from the eligible result set; a reviewed company
+profile distinguishes found facts from unknown fields; and a non-technical
+reviewer can explain the report's main findings without reading raw evidence.
+
 ## Phase 5 - Baseline outreach, traces, and evaluation harness
 
 **Proves:** The prompt-only model produces measurable outputs before training,
