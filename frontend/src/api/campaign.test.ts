@@ -93,6 +93,9 @@ describe('campaign API', () => {
     ['unresolved claim evidence', (body: ReturnType<typeof campaignResponse>) => {
       body.claims[0].evidence_ids = ['evidence-9999']
     }],
+    ['unsafe citation URL', (body: ReturnType<typeof campaignResponse>) => {
+      body.evidence[0].canonical_url = 'javascript:alert(1)'
+    }],
   ])('rejects %s', async (_label, mutate) => {
     const body = campaignResponse()
     mutate(body)

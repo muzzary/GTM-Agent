@@ -98,9 +98,29 @@ $campaign = Invoke-RestMethod `
 $campaign.state
 ```
 
-The state should be `prospect_selected`.
+The state should be `awaiting_prospect_research`.
 
-## 5. Generate and inspect the validated draft
+## 5. Complete the synthetic prospect-research gate
+
+```powershell
+$researchRequest = @{
+    request_id = "research-request-fixture1"
+} | ConvertTo-Json
+
+$research = Invoke-RestMethod `
+    -Method Post `
+    -Uri "$baseUrl/campaigns/$($campaign.campaign_id)/prospects/$($selected.prospect_id)/research-runs" `
+    -ContentType "application/json" `
+    -Body $researchRequest
+
+$campaign = $research.campaign
+$campaign.state
+```
+
+The state should be `prospect_researched`. This remains synthetic fixture
+research; the Phase 4 runbook covers live public research.
+
+## 6. Generate and inspect the validated draft
 
 ```powershell
 $campaign = Invoke-RestMethod `
@@ -116,7 +136,7 @@ The state should be `draft_ready`, and every evaluation check should pass.
 The draft is fixture output only and must not be represented as live research
 or model inference.
 
-## 6. Inspect the ordered trace
+## 7. Inspect the ordered trace
 
 ```powershell
 $trace = Invoke-RestMethod `
@@ -125,5 +145,5 @@ $trace = Invoke-RestMethod `
 $trace | Select-Object sequence, event_type, summary
 ```
 
-The trace should contain ten ordered events, from `campaign_created` through
+The trace should contain eleven ordered events, from `campaign_created` through
 `draft_evaluated`.

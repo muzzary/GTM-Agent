@@ -113,7 +113,7 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   box-shadow: 0 28px 70px rgb(49 51 41 / 11%);
 }
 
-.campaign-form, .review-workspace, .completion {
+.campaign-form, .review-workspace, .completion, .research-workspace {
   padding: clamp(28px, 6vw, 64px);
 }
 
@@ -237,6 +237,43 @@ input:focus, textarea:focus { border-color: #37694c; box-shadow: 0 0 0 3px rgb(5
 .ledger-approved { color: #2d6b42; }
 .ledger-rejected { color: #98453b; }
 
+.seed-panel, .research-gate, .research-profile {
+  margin-bottom: 28px;
+  padding: 24px;
+  border: 1px solid #d7d7ce;
+  border-radius: 14px;
+  background: #f6f5ef;
+}
+.seed-panel h3, .research-gate h3, .research-profile h3 { margin: 0 0 8px; font-family: Georgia, serif; font-size: 1.6rem; font-weight: 500; }
+.seed-panel p, .research-gate p, .research-profile p { color: #626b64; line-height: 1.55; }
+.seed-panel label { display: block; margin: 18px 0 7px; font-weight: 720; }
+.seed-panel .primary-action, .research-gate .primary-action { margin-top: 14px; }
+.prospect-list { display: grid; gap: 16px; }
+.prospect-card { padding: 24px; border: 1px solid #d4d6cd; border-radius: 15px; background: #fffefa; }
+.prospect-title { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.prospect-title h3 { margin: 0; font-family: Georgia, serif; font-size: 1.55rem; font-weight: 500; }
+.prospect-title p:not(.card-label) { margin: 7px 0 0; color: #69726b; }
+.prospect-title > strong { color: #244b34; font-family: Georgia, serif; font-size: 2rem; text-align: right; }
+.prospect-title strong small { display: block; color: #737b75; font-family: Inter, sans-serif; font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.score-strip { display: grid; grid-template-columns: repeat(3, 1fr); margin: 22px 0; border-block: 1px solid #e0e0d8; }
+.score-strip div { padding: 13px 10px; border-right: 1px solid #e0e0d8; }
+.score-strip div:last-child { border-right: 0; }
+.score-strip dt { color: #757e77; font-size: 0.72rem; font-weight: 750; text-transform: uppercase; }
+.score-strip dd { margin: 4px 0 0; font-weight: 780; text-transform: capitalize; }
+.factor-list, .citation-list { margin: 0 0 20px; padding: 0; list-style: none; }
+.factor-list li { display: flex; justify-content: space-between; gap: 14px; padding: 8px 0; border-bottom: 1px solid #ecebe4; text-transform: capitalize; }
+.factor-list strong { color: #54635a; font-size: 0.78rem; }
+.citation-list { display: grid; gap: 8px; }
+.citation-list li { padding-left: 12px; border-left: 2px solid #b8c9bc; }
+.citation-list a, .citation-list span { color: #285d3a; font-weight: 720; }
+.citation-list small { display: block; margin-top: 3px; color: #707971; line-height: 1.45; }
+.section-ledger { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+.section-ledger > div { padding: 16px; border: 1px solid #deddd5; border-radius: 10px; background: #fffefa; }
+.section-ledger h4 { margin: 0 0 7px; }
+.section-ledger p { margin: 0; }
+.phase-stop { padding: 12px 14px; border-left: 3px solid #37694c; background: #edf4ee; }
+.empty-state { padding: 32px; color: #69726b; border: 1px dashed #c6cbc5; text-align: center; }
+
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 700px) {
@@ -244,11 +281,15 @@ input:focus, textarea:focus { border-color: #37694c; box-shadow: 0 0 0 3px rgb(5
   .hero { margin-top: 52px; }
   .hero h1 { font-size: clamp(2.7rem, 13vw, 4rem); }
   .hero-summary { font-size: 1rem; }
-  .campaign-form, .review-workspace, .completion { padding: 30px; }
+  .campaign-form, .review-workspace, .completion, .research-workspace { padding: 30px; }
   .profile-grid { grid-template-columns: 1fr; }
   .claim-card { padding: 18px; }
   .approval-ledger article { grid-template-columns: 1fr; }
   .approval-ledger small { grid-column: 1; }
+  .prospect-title { display: block; }
+  .prospect-title > strong { display: block; margin-top: 14px; text-align: left; }
+  .score-strip, .section-ledger { grid-template-columns: 1fr; }
+  .score-strip div { border-right: 0; border-bottom: 1px solid #e0e0d8; }
 }
 
 @media (prefers-reduced-motion: reduce) {

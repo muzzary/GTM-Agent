@@ -309,3 +309,51 @@
 - Confirmed the pending and all-rejected barriers, edited-wording attestation,
   completion ledger, and clean second-campaign reset.
 - User approved Phase 3 after manual verification.
+
+## Phase 4: Multi-source prospect discovery and research
+
+**Status:** Ready for manual verification
+
+**Changed:**
+
+- Added strict research-run, collection-attempt, ranking-factor, signal,
+  evidence-provenance, and selected-prospect profile contracts.
+- Moved the already locked `httpx2` package into runtime dependencies.
+- Added exact-host HTTPS admission, public-only DNS validation, redirect
+  revalidation, robots enforcement, per-host limits, bounded retries/content,
+  contact-data stripping, response hashing, and an ignored SQLite cache.
+- Added structured Wikidata industry resolution plus bounded company queries,
+  optional approved market-seed discovery, official-site admission, and
+  three-page candidate expansion.
+- Added deterministic evidence-supported ranking with separate priority,
+  quality, completeness, uncertainty, and unknown factors.
+- Added bounded twelve-page selected-company research with section coverage,
+  citations, warnings, and failed collection records.
+- Changed selection to `awaiting_prospect_research` and required a completed,
+  same-run profile before positioning or draft generation.
+- Added request idempotency, one-active-run guards, stale-apply checks, retained
+  failed runs, and RFC-style 502/503 research problems.
+- Added the research workspace for live seeds, candidate evidence, selection,
+  deep research, covered/unknown sections, and an explicit Phase 4 stop.
+- Added the Phase 4 specification, source policies, and manual runbook.
+
+**Automated verification:**
+
+- Full Python regression suite: 84 tests passed.
+- Backend Ruff lint and uv lockfile checks: clean.
+- Frontend suite: 18 tests passed across six files.
+- Frontend typecheck, Oxlint, and production build: successful.
+- No new package was added; the pre-existing locked HTTP client moved from the
+  development group to runtime.
+
+**External review:**
+
+- Codex CLI approved the revised multi-source plan with no blockers after the
+  narrow Wikidata-only draft was replaced by staged discovery, shallow official
+  expansion, and selected-prospect deep research.
+
+**Manual verification needed:**
+
+- Complete `docs/PHASE4_RUNBOOK.md` with a real permitted market and ICP.
+- Confirm live source behavior, ranking transparency, the selection/research
+  gate, citations, unknowns, and the absence of outreach generation.

@@ -17,15 +17,18 @@ plan, dependency candidates, and required resources.
 
 ## Current status
 
-Phase 3 provides the interactive product-onboarding and claim-review workflow.
-Users can submit reusable product and ICP details, inspect the deterministic
-fixture profile and evidence, then approve, reject, or edit every proposed
-claim. Edited wording requires explicit evidence attestation, and the backend
-records the exact authorized wording without changing the original proposal.
+Phase 4 adds bounded multi-source prospect discovery and selected-company
+research. Wikidata resolves submitted industries into structured company
+queries, optional user-approved market pages contribute candidate domains, and
+validated official sites provide shallow ranking and deep research evidence.
+Scores, quality, completeness, uncertainty, citations, failed collections, and
+unknowns remain separate and visible.
 
-The workflow intentionally uses process-local in-memory state and fixture
-services. Live research begins in Phase 4 and real model generation begins in
-Phase 5.
+Campaign state remains process-local and is cleared when the backend restarts.
+The collector is not an unrestricted web crawler: exact source admission,
+public-IP checks, robots rules, rate limits, response bounds, privacy filtering,
+and a local ignored SQLite cache apply. Real model generation begins in Phase
+5.
 
 ## Requirements
 
@@ -43,8 +46,15 @@ npm.cmd ci
 Set-Location ..
 ```
 
-No credential is required in Phase 0. Future credentials remain in ignored
-local environment variables or Colab secret storage and never in notebooks.
+Live research requires a non-secret contact identifier in the local process so
+public services can identify the client:
+
+```powershell
+$env:GTM_RESEARCH_CONTACT = "research-contact@example.com"
+```
+
+This value is used only in the collector User-Agent. Credentials remain in
+ignored local environment variables or Colab secret storage.
 
 ## Run
 
@@ -73,25 +83,27 @@ Open the URL printed by Vite. By default, the API health check is available at
 `http://127.0.0.1:8000/health`; the Phase 2 runbook explains how to use another
 local port when 8000 is occupied.
 
-Follow [`docs/PHASE3_RUNBOOK.md`](docs/PHASE3_RUNBOOK.md) for the complete
-browser walkthrough and the required two-product manual gate.
+Follow [`docs/PHASE4_RUNBOOK.md`](docs/PHASE4_RUNBOOK.md) for the live discovery,
+selection, and deep-research manual gate.
 
-## Phase 2 campaign API
+## Campaign and research API
 
 The local fixture workflow exposes these endpoints:
 
 - `POST /campaigns`
 - `GET /campaigns/{campaign_id}`
 - `POST /campaigns/{campaign_id}/claim-decisions`
+- `POST /campaigns/{campaign_id}/discovery-runs`
 - `GET /campaigns/{campaign_id}/prospects`
 - `POST /campaigns/{campaign_id}/prospects/{prospect_id}/select`
+- `POST /campaigns/{campaign_id}/prospects/{prospect_id}/research-runs`
+- `GET /campaigns/{campaign_id}/research-runs/{run_id}`
 - `POST /campaigns/{campaign_id}/draft`
 - `GET /campaigns/{campaign_id}/trace`
 
-Campaign state is intentionally process-local and is cleared when the backend
-restarts. Follow
-[`docs/PHASE2_API_RUNBOOK.md`](docs/PHASE2_API_RUNBOOK.md) for a complete
-PowerShell walkthrough.
+The draft endpoint remains for fixture regression testing, but Phase 4's UI
+stops at `prospect_researched`. Positioning is rejected until a valid selected-
+prospect research profile exists.
 
 ## Verify
 

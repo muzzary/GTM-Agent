@@ -25,22 +25,22 @@ introduced.
 | Path | Responsibility |
 | --- | --- |
 | `frontend/src/api/` | Typed campaign requests, API error normalization, and defensive response validation. |
-| `frontend/src/components/` | Accessible product/ICP form and evidence-backed claim-review components. |
+| `frontend/src/components/` | Accessible onboarding, claim review, prospect ranking, citation, selection, and deep-research components. |
 | `frontend/src/forms/` | Pure form normalization and validation rules shared by the onboarding UI. |
 | `frontend/src/` | React application shell, responsive styles, test setup, and component tests. |
 | `frontend/package.json` | Frontend commands and dependency declarations. |
 | `frontend/package-lock.json` | Exact npm dependency lockfile used by local setup and CI. |
-| `src/data/` | Collection, normalization, caching, and provenance handling. |
+| `src/data/` | Controlled HTTP collection, source policy, robots handling, bounded parsing, privacy filtering, and SQLite response caching. |
 | `src/schemas/` | Structured records for products, prospects, evidence, and campaigns. |
-| `src/research/` | Retrieval, evidence selection, and positioning workflows. |
+| `src/research/` | Wikidata and approved-market discovery, official-site expansion, transparent ranking, and selected-prospect research. |
 | `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
 | `src/schemas/base.py` | Shared strict, immutable Pydantic model configuration. |
 | `src/schemas/campaign.py` | Campaign inputs, immutable claims, authorized reviewed wording, provenance, outreach, evaluation, and trace contracts. |
-| `src/runtime/api.py` | FastAPI health and deterministic campaign workflow endpoints. |
-| `src/runtime/fixtures.py` | Deterministic fixture research, ranking, positioning, generation, and evaluation stages. |
-| `src/runtime/workflow.py` | Campaign state machine, approval enforcement, trace creation, and in-memory repository. |
+| `src/runtime/api.py` | FastAPI campaign/research endpoints, live collector composition, and typed problem responses. |
+| `src/runtime/fixtures.py` | Deterministic fixture research, ranking, prospect-research gate, positioning, generation, and evaluation stages. |
+| `src/runtime/workflow.py` | Campaign state machine, active-run/idempotency controls, research application, approval gates, trace creation, and in-memory repository. |
 | `src/runtime/settings.py` | Validated environment configuration. |
 
 ## Verification and experiments
@@ -52,6 +52,8 @@ introduced.
 | `docs/PHASE2_API_RUNBOOK.md` | Manual PowerShell walkthrough for the deterministic campaign API. |
 | `docs/PHASE3_RUNBOOK.md` | Browser walkthrough and two-product manual acceptance gate for onboarding and claim review. |
 | `docs/PHASE3_SPEC.md` | Approved Phase 3 behavior, authorization invariants, risks, and acceptance tests. |
+| `docs/PHASE4_SPEC.md` | Approved multi-source research architecture, source controls, ranking semantics, and acceptance tests. |
+| `docs/PHASE4_RUNBOOK.md` | Browser walkthrough for live discovery, selection, deep research, and the positioning gate. |
 
 ## Data and deliverables
 
