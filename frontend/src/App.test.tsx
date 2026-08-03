@@ -4,14 +4,17 @@ import { describe, expect, it } from 'vitest'
 import App from './App'
 
 describe('App', () => {
-  it('introduces the product and ICP setup workflow', () => {
+  it('starts with the product and ICP configuration workflow', () => {
     render(<App />)
 
     expect(
-      screen.getByRole('heading', { name: 'Configure your GTM campaign' }),
+      screen.getByRole('heading', { name: 'Build a campaign you can defend.' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Product and ICP setup starts in Phase 3.'),
+      screen.getByRole('heading', { name: 'Describe the product and buyer' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Research product profile' }),
+    ).toBeEnabled()
   })
 })
