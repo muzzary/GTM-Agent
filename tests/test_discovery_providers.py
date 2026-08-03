@@ -191,8 +191,8 @@ def test_website_expander_preserves_candidate_when_source_policy_denies_site() -
 
 
 def test_website_expander_recovers_structured_permanent_domain_migration() -> None:
-    old = "https://old-acme.example/"
-    new = "https://acme.example/"
+    old = "https://old-acme.com/"
+    new = "https://acme.com/"
 
     class RedirectingCollector:
         def collect(self, url, _policy, *, redirect_admitter=None):
@@ -237,6 +237,34 @@ def test_website_expander_does_not_recover_untrusted_search_redirect() -> None:
 
     assert expanded.official_url == old
     assert expanded.observations == ()
+
+
+def test_website_expander_rejects_unknown_suffix_identity_match() -> None:
+    old = "https://old.vendor-internal/"
+    new = "https://new.vendor-internal/"
+
+    class RedirectingCollector:
+        def collect(self, url, _policy, *, redirect_admitter=None):
+            assert url == old
+            assert redirect_admitter is not None
+            assert redirect_admitter(old, new, 301) is False
+            raise SourcePolicyError("source host is not admitted by policy")
+
+    suggestion = CandidateSuggestion(
+        company="Vendor Internal",
+        industry="logistics",
+        official_url=old,
+        provider="wikidata",
+        observations=(),
+        source_entity_id="Q123",
+    )
+
+    expanded = WebsiteCandidateExpander(RedirectingCollector()).expand(suggestion)
+
+    assert expanded.observations == ()
+    assert expanded.warnings == (
+        "official_site:old.vendor-internal:source_policy_denied",
+    )
 
 
 def test_wikidata_resolves_industry_then_queries_companies() -> None:

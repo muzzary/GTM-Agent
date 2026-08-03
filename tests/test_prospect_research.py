@@ -249,9 +249,9 @@ def test_deep_research_uses_sitemap_when_homepage_has_no_useful_links() -> None:
 
 
 def test_deep_research_recovers_structured_company_domain_migration() -> None:
-    old = "https://old-acme.example/"
-    new = "https://acme.example/"
-    products = "https://acme.example/products"
+    old = "https://old-acme.com/"
+    new = "https://acme.com/"
+    products = "https://acme.com/products"
 
     class RedirectingCollector:
         def __init__(self) -> None:

@@ -528,7 +528,7 @@ def _entity_id(uri: str) -> str:
 
 def _registrable_domain(url: str) -> str:
     result = _DOMAIN_EXTRACTOR(url)
-    return (result.top_domain_under_public_suffix or result.domain).casefold()
+    return result.top_domain_under_public_suffix.casefold()
 
 
 def _host(url: str) -> str:
