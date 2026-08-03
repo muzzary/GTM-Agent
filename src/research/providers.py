@@ -1,6 +1,6 @@
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from urllib.parse import urlencode, urlsplit
 
@@ -186,10 +186,9 @@ class WebsiteCandidateExpander:
             host,
             policy_version="official-website-v1",
         )
-        redirect_admitter = (
-            self._redirect_admitter(suggestion)
-            if suggestion.source_entity_id is not None
-            else None
+        redirect_admitter = structured_redirect_admitter(
+            suggestion.company,
+            suggestion.source_entity_id,
         )
         try:
             homepage = self._collector.collect(
@@ -232,25 +231,6 @@ class WebsiteCandidateExpander:
             source_entity_id=suggestion.source_entity_id,
             warnings=tuple(dict.fromkeys(warnings)),
         )
-
-    @staticmethod
-    def _redirect_admitter(suggestion: CandidateSuggestion):
-        def admit(source_url: str, target_url: str, status_code: int) -> bool:
-            if status_code not in {301, 308}:
-                return False
-            source = _registrable_domain(source_url)
-            target = _registrable_domain(target_url)
-            if not source or not target or target in _EXCLUDED_CANDIDATE_HOSTS:
-                return False
-            company = suggestion.company.casefold()
-            similarity = max(
-                fuzz.partial_ratio(company, source.replace("-", " ")),
-                fuzz.partial_ratio(company, target.replace("-", " ")),
-                fuzz.ratio(source, target),
-            )
-            return similarity >= 45
-
-        return admit
 
     @staticmethod
     def _warning(
@@ -494,10 +474,37 @@ def website_policy(
         policy_version=policy_version,
         allowed_hosts=frozenset(aliases),
         allowed_path_prefixes=("/",),
-        allowed_content_types=frozenset({"text/html", "text/plain"}),
+        allowed_content_types=frozenset(
+            {"text/html", "text/plain", "application/xml", "text/xml"}
+        ),
         robots_required=True,
         max_redirects=2,
     )
+
+
+def structured_redirect_admitter(
+    company: str,
+    source_entity_id: str | None,
+) -> Callable[[str, str, int], bool] | None:
+    if source_entity_id is None:
+        return None
+
+    def admit(source_url: str, target_url: str, status_code: int) -> bool:
+        if status_code not in {301, 308}:
+            return False
+        source = _registrable_domain(source_url)
+        target = _registrable_domain(target_url)
+        if not source or not target or target in _EXCLUDED_CANDIDATE_HOSTS:
+            return False
+        normalized_company = company.casefold()
+        similarity = max(
+            fuzz.partial_ratio(normalized_company, source.replace("-", " ")),
+            fuzz.partial_ratio(normalized_company, target.replace("-", " ")),
+            fuzz.ratio(source, target),
+        )
+        return similarity >= 45
+
+    return admit
 
 
 def _indent(value: str, spaces: int) -> str:

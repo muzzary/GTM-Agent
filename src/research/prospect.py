@@ -2,15 +2,17 @@ import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from html import unescape
 from urllib.parse import urlsplit
 
 from src.data.http_collector import ControlledHttpCollector, ResearchCollectionError
+from src.data.source_policy import SourcePolicyError
 from src.research.discovery import (
     SourceObservation,
     attempts_from_evidence,
     observation_to_evidence,
 )
-from src.research.providers import website_policy
+from src.research.providers import structured_redirect_admitter, website_policy
 from src.research.translation import (
     ConservativeEnglishTranslator,
     ResearchTranslator,
@@ -74,22 +76,53 @@ class ProspectResearchService:
             host,
             policy_version="official-website-v1",
         )
-        homepage = self._collector.collect(official_url, policy)
+        redirect_admitter = structured_redirect_admitter(
+            prospect.company,
+            prospect.source_entity_id,
+        )
+        homepage = self._collector.collect(
+            official_url,
+            policy,
+            redirect_admitter=redirect_admitter,
+        )
+        canonical_host = (urlsplit(homepage.canonical_url).hostname or "").lower()
+        if canonical_host != host:
+            policy = website_policy(
+                canonical_host,
+                policy_version="official-website-v1",
+            )
         documents = [homepage]
         warnings: list[str] = []
         failed_attempts: list[CollectionAttempt] = []
         links, pdf_seen = self._select_links(homepage.links, policy.allowed_hosts)
         if pdf_seen:
             warnings.append("pdf_not_extracted")
+        if not links:
+            sitemap_url = f"https://{canonical_host}/sitemap.xml"
+            try:
+                sitemap = self._collector.collect(sitemap_url, policy)
+            except (ResearchCollectionError, SourcePolicyError):
+                warnings.append("sitemap_unavailable")
+            else:
+                links, sitemap_pdf_seen = self._select_links(
+                    self._sitemap_links(sitemap.text),
+                    policy.allowed_hosts,
+                )
+                if sitemap_pdf_seen:
+                    warnings.append("pdf_not_extracted")
         queue = list(links)
         queued = set(queue)
         while queue and len(documents) < 12:
             link = queue.pop(0)
             try:
                 document = self._collector.collect(link, policy)
-            except ResearchCollectionError as error:
+            except (ResearchCollectionError, SourcePolicyError) as error:
                 warnings.append(f"page_failed:{error}")
-                code = str(error)
+                code = (
+                    "source_policy_denied"
+                    if isinstance(error, SourcePolicyError)
+                    else str(error)
+                )
                 if not code.replace("_", "").isalnum():
                     code = "source_failure"
                 failed_attempts.append(
@@ -267,6 +300,14 @@ class ProspectResearchService:
                 selected.append(first)
         selected.extend(link for _, link in ordered if link not in selected)
         return tuple(selected), pdf_seen
+
+    @staticmethod
+    def _sitemap_links(text: str) -> tuple[str, ...]:
+        links = (
+            unescape(value.strip())
+            for value in re.findall(r"<loc>\s*(.*?)\s*</loc>", text, re.I | re.S)
+        )
+        return tuple(dict.fromkeys(link for link in links if link))[:200]
 
     @staticmethod
     def _section_evidence(
