@@ -3,7 +3,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import TypeVar
 
-from src.schemas.crm import Company, Contact, Deal, Pipeline
+from src.schemas.crm import Activity, Company, Contact, Deal, Pipeline
 
 
 class CrmNotFoundError(LookupError):
@@ -55,6 +55,14 @@ class CrmRepository:
                     contact_id TEXT,
                     pipeline_id TEXT NOT NULL,
                     stage_id TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS crm_activities (
+                    activity_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    occurred_at TEXT NOT NULL,
                     payload TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS crm_idempotency (
@@ -197,7 +205,13 @@ class CrmRepository:
         row = self._get_row("crm_pipelines", "pipeline_id", tenant_id, pipeline_id)
         return Pipeline.model_validate_json(row[0])
 
-    def save_deal(self, deal: Deal, *, idempotency_key: str) -> Deal:
+    def save_deal(
+        self,
+        deal: Deal,
+        *,
+        idempotency_key: str,
+        idempotency_fingerprint: str | None = None,
+    ) -> Deal:
         if not idempotency_key.strip() or len(idempotency_key) > 128:
             raise CrmConflictError("idempotency key is required and bounded")
         with self._connect() as connection:
@@ -240,7 +254,9 @@ class CrmRepository:
                     "deal stage must belong to the same tenant and pipeline"
                 )
 
-            fingerprint = sha256(deal.model_dump_json().encode()).hexdigest()
+            fingerprint = sha256(
+                (idempotency_fingerprint or deal.model_dump_json()).encode()
+            ).hexdigest()
             prior = connection.execute(
                 """
                 SELECT resource_id, fingerprint FROM crm_idempotency
@@ -303,6 +319,71 @@ class CrmRepository:
     def get_deal(self, tenant_id: str, deal_id: str) -> Deal:
         row = self._get_row("crm_deals", "deal_id", tenant_id, deal_id)
         return Deal.model_validate_json(row[0])
+
+    def save_activity(self, activity: Activity) -> Activity:
+        table = {
+            "company": "crm_companies",
+            "contact": "crm_contacts",
+            "deal": "crm_deals",
+        }[activity.entity_type.value]
+        id_column = {
+            "company": "company_id",
+            "contact": "contact_id",
+            "deal": "deal_id",
+        }[activity.entity_type.value]
+        with self._connect() as connection:
+            self._assert_related_tenant(
+                connection,
+                table,
+                id_column,
+                activity.entity_id,
+                activity.tenant_id,
+                activity.entity_type.value,
+            )
+            self._assert_existing_tenant(
+                connection,
+                "crm_activities",
+                "activity_id",
+                activity.activity_id,
+                activity.tenant_id,
+            )
+            connection.execute(
+                """
+                INSERT INTO crm_activities (
+                    activity_id, tenant_id, entity_type, entity_id,
+                    occurred_at, payload
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(activity_id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    entity_type = excluded.entity_type,
+                    entity_id = excluded.entity_id,
+                    occurred_at = excluded.occurred_at,
+                    payload = excluded.payload
+                """,
+                (
+                    activity.activity_id,
+                    activity.tenant_id,
+                    activity.entity_type.value,
+                    activity.entity_id,
+                    activity.occurred_at.isoformat(),
+                    activity.model_dump_json(),
+                ),
+            )
+        return activity
+
+    def list_activities(
+        self, tenant_id: str, entity_type: str, entity_id: str
+    ) -> tuple[Activity, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload FROM crm_activities
+                WHERE tenant_id = ? AND entity_type = ? AND entity_id = ?
+                ORDER BY occurred_at, activity_id
+                """,
+                (tenant_id, entity_type, entity_id),
+            ).fetchall()
+        return tuple(Activity.model_validate_json(row[0]) for row in rows)
 
     def _get_deal_from_connection(
         self, connection: sqlite3.Connection, tenant_id: str, deal_id: str

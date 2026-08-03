@@ -58,6 +58,10 @@ class Company(StrictModel):
     source_prospect_id: str | None = Field(
         default=None, pattern=r"^prospect-[a-z0-9-]{4,64}$"
     )
+    source_campaign_id: str | None = Field(
+        default=None, pattern=r"^campaign-[a-z0-9-]{4,64}$"
+    )
+    source_evidence_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=36)
     created_at: AwareDatetime
     updated_at: AwareDatetime
 
@@ -154,3 +158,74 @@ class Activity(StrictModel):
     activity_type: ActivityType = Field(strict=False)
     summary: str = Field(min_length=1, max_length=1_000)
     occurred_at: AwareDatetime
+
+
+class CompanyCreate(StrictModel):
+    company_id: str | None = Field(
+        default=None, pattern=r"^company-[a-z0-9-]{4,64}$"
+    )
+    name: str = Field(min_length=1, max_length=160)
+    normalized_domain: str | None = Field(default=None, max_length=255)
+    website: HttpUrl | None = None
+    industry: str | None = Field(default=None, max_length=120)
+    region: str | None = Field(default=None, max_length=120)
+    custom_fields: dict[str, str] = Field(default_factory=dict, max_length=32)
+    source_prospect_id: str | None = Field(
+        default=None, pattern=r"^prospect-[a-z0-9-]{4,64}$"
+    )
+    source_campaign_id: str | None = Field(
+        default=None, pattern=r"^campaign-[a-z0-9-]{4,64}$"
+    )
+    source_evidence_ids: list[str] = Field(default_factory=list, max_length=36)
+
+
+class ContactCreate(StrictModel):
+    contact_id: str | None = Field(
+        default=None, pattern=r"^contact-[a-z0-9-]{4,64}$"
+    )
+    company_id: str = Field(pattern=r"^company-[a-z0-9-]{4,64}$")
+    full_name: str = Field(min_length=1, max_length=160)
+    role: str = Field(min_length=1, max_length=120)
+    business_email: str | None = Field(default=None, max_length=254)
+    custom_fields: dict[str, str] = Field(default_factory=dict, max_length=32)
+
+
+class PipelineStageCreate(StrictModel):
+    stage_id: str | None = Field(default=None, pattern=r"^stage-[a-z0-9-]{4,64}$")
+    name: str = Field(min_length=1, max_length=80)
+    position: int = Field(ge=0, le=100)
+    probability: float = Field(ge=0, le=1)
+
+
+class PipelineCreate(StrictModel):
+    pipeline_id: str | None = Field(
+        default=None, pattern=r"^pipeline-[a-z0-9-]{4,64}$"
+    )
+    name: str = Field(min_length=1, max_length=120)
+    stages: list[PipelineStageCreate] = Field(min_length=1, max_length=32)
+
+
+class DealCreate(StrictModel):
+    deal_id: str | None = Field(default=None, pattern=r"^deal-[a-z0-9-]{4,64}$")
+    company_id: str = Field(pattern=r"^company-[a-z0-9-]{4,64}$")
+    contact_id: str | None = Field(
+        default=None, pattern=r"^contact-[a-z0-9-]{4,64}$"
+    )
+    pipeline_id: str = Field(pattern=r"^pipeline-[a-z0-9-]{4,64}$")
+    stage_id: str = Field(pattern=r"^stage-[a-z0-9-]{4,64}$")
+    name: str = Field(min_length=1, max_length=160)
+    amount_minor: int = Field(ge=0, le=10**15)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    custom_fields: dict[str, str] = Field(default_factory=dict, max_length=32)
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class ActivityCreate(StrictModel):
+    activity_id: str | None = Field(
+        default=None, pattern=r"^activity-[a-z0-9-]{4,64}$"
+    )
+    entity_type: CrmEntityType = Field(strict=False)
+    entity_id: CrmId
+    activity_type: ActivityType = Field(strict=False)
+    summary: str = Field(min_length=1, max_length=1_000)
+    occurred_at: AwareDatetime = Field(strict=False)

@@ -9,6 +9,9 @@ export default defineConfig({
       '/campaigns': {
         target: process.env.GTM_API_PROXY_TARGET ?? 'http://127.0.0.1:8000',
       },
+      '/crm': {
+        target: process.env.GTM_API_PROXY_TARGET ?? 'http://127.0.0.1:8000',
+      },
     },
   },
 })

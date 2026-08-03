@@ -483,3 +483,43 @@
 - User confirmed CRM record round trips, tenant isolation, invalid-stage
   rejection, and idempotent deal replay behavior.
 - User accepted CRM-1 and approved starting CRM-2.
+
+## CRM-2: CRM API and UI vertical slice
+
+**Status:** Accepted after manual verification
+
+**Changed:**
+
+- Added tenant-scoped CRM REST endpoints for companies, pipelines, contacts,
+  deals, and activities.
+- Added JSON-boundary request schemas and structured 404/409 CRM errors.
+- Added prospect-to-company traceability. A company link requires the selected
+  prospect to be in `prospect_researched` state, and evidence IDs are derived
+  from the owning prospect rather than trusted from the client.
+- Added a browser CRM workspace that creates a company, contact, pipeline, deal,
+  and research activity from a researched prospect, with back navigation.
+- Added concise CRM workspace styling and frontend API contracts.
+
+**Automated verification:**
+
+- Full Python regression suite: 128 tests passed.
+- Frontend suite: 21 tests passed across eight files.
+- Backend Ruff, frontend Oxlint, frontend typecheck, and production build:
+  successful.
+- No new dependency was added.
+
+**Manual gate:**
+
+- Run the frontend and backend together.
+- Complete a fixture campaign through selected-prospect research.
+- Open the CRM workspace, enter a contact and deal value, and confirm the
+  company, contact, pipeline, deal, and research activity are created.
+- Confirm the back button returns to the research profile and that a direct
+  forged prospect link is rejected.
+
+**Manual verification completed:**
+
+- User completed the browser walkthrough from researched prospect to CRM
+  workspace and approved the resulting company, contact, pipeline, deal, and
+  research activity flow.
+- User confirmed back navigation returns to the prospect research view.

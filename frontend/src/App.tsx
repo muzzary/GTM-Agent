@@ -5,6 +5,7 @@ import type { Campaign, CampaignInput, ClaimDecision } from './api/campaign'
 import CampaignForm from './components/CampaignForm'
 import ClaimReview from './components/ClaimReview'
 import ResearchWorkspace from './components/ResearchWorkspace'
+import CrmWorkspace from './components/CrmWorkspace'
 
 const researchStates = [
   'awaiting_prospect_selection',
@@ -14,7 +15,9 @@ const researchStates = [
 
 function App() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [crmOpen, setCrmOpen] = useState(false)
   async function handleCreate(input: CampaignInput) {
+    setCrmOpen(false)
     setCampaign(await createCampaign(input))
   }
 
@@ -47,8 +50,11 @@ function App() {
         {campaign?.state === 'awaiting_claim_approval' && (
           <ClaimReview campaign={campaign} onReview={handleReview} />
         )}
-        {campaign && researchStates.includes(campaign.state) && (
-          <ResearchWorkspace campaign={campaign} onChange={setCampaign} />
+        {campaign && researchStates.includes(campaign.state) && !crmOpen && (
+          <ResearchWorkspace campaign={campaign} onChange={setCampaign} onOpenCrm={() => setCrmOpen(true)} />
+        )}
+        {campaign && crmOpen && (
+          <CrmWorkspace campaign={campaign} onBack={() => setCrmOpen(false)} />
         )}
       </div>
     </main>

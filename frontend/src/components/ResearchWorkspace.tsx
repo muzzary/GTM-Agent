@@ -11,12 +11,13 @@ import type { Campaign, EvidenceRecord, ProspectCandidate } from '../api/campaig
 interface Props {
   campaign: Campaign
   onChange: (campaign: Campaign) => void
+  onOpenCrm?: () => void
 }
 
 const newRequestId = () =>
   `research-request-${crypto.randomUUID().replaceAll('-', '')}`
 
-function ResearchWorkspace({ campaign, onChange }: Props) {
+function ResearchWorkspace({ campaign, onChange, onOpenCrm }: Props) {
   const [seedText, setSeedText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -108,7 +109,7 @@ function ResearchWorkspace({ campaign, onChange }: Props) {
         <button className="primary-action" type="button" disabled={busy} onClick={research}>Research selected company</button>
       </div>}
 
-      {campaign.state === 'prospect_researched' && campaign.prospect_research && <ResearchProfile campaign={campaign} evidence={evidence} selected={selected} />}
+      {campaign.state === 'prospect_researched' && campaign.prospect_research && <ResearchProfile campaign={campaign} evidence={evidence} selected={selected} onOpenCrm={onOpenCrm} />}
     </section>
   )
 }
@@ -124,9 +125,9 @@ function CandidateList({ prospects, evidence, busy, onChoose }: { prospects: Pro
   </article>)}</div>
 }
 
-function ResearchProfile({ campaign, evidence, selected }: { campaign: Campaign; evidence: Map<string, EvidenceRecord>; selected?: ProspectCandidate }) {
+function ResearchProfile({ campaign, evidence, selected, onOpenCrm }: { campaign: Campaign; evidence: Map<string, EvidenceRecord>; selected?: ProspectCandidate; onOpenCrm?: () => void }) {
   const profile = campaign.prospect_research!
-  return <div className="research-profile"><p className="card-label">Research gate complete</p><h3>{selected?.company ?? 'Selected company'}</h3><p className="phase-stop">The evidence profile is ready for review. No outreach has been generated.</p><dl className="score-strip"><div><dt>Evidence quality</dt><dd>{percent(profile.evidence_quality)}</dd></div><div><dt>Research coverage</dt><dd>{percent(profile.research_completeness)}</dd></div></dl><div className="section-ledger"><div><h4>Covered</h4><p>{profile.covered_sections.join(', ')}</p></div><div><h4>Still unknown</h4><p>{profile.unknown_sections.join(', ') || 'No required sections are unknown.'}</p></div></div><div className="finding-list">{profile.findings.map((finding) => <article key={finding.section}><p className="card-label">{finding.section}</p><h4>{finding.heading}</h4><p>{finding.summary}</p><small>{finding.translation_status === 'translated' ? `Translated from ${finding.source_language} to English` : finding.translation_status === 'unavailable' ? 'English translation unavailable' : 'Source is in English'}</small><EvidenceLinks ids={finding.evidence_ids} evidence={evidence} /></article>)}</div></div>
+  return <div className="research-profile"><p className="card-label">Research gate complete</p><h3>{selected?.company ?? 'Selected company'}</h3><p className="phase-stop">The evidence profile is ready for review. No outreach has been generated.</p>{onOpenCrm && <button className="primary-action" type="button" onClick={onOpenCrm}>Open CRM workspace</button>}<dl className="score-strip"><div><dt>Evidence quality</dt><dd>{percent(profile.evidence_quality)}</dd></div><div><dt>Research coverage</dt><dd>{percent(profile.research_completeness)}</dd></div></dl><div className="section-ledger"><div><h4>Covered</h4><p>{profile.covered_sections.join(', ')}</p></div><div><h4>Still unknown</h4><p>{profile.unknown_sections.join(', ') || 'No required sections are unknown.'}</p></div></div><div className="finding-list">{profile.findings.map((finding) => <article key={finding.section}><p className="card-label">{finding.section}</p><h4>{finding.heading}</h4><p>{finding.summary}</p><small>{finding.translation_status === 'translated' ? `Translated from ${finding.source_language} to English` : finding.translation_status === 'unavailable' ? 'English translation unavailable' : 'Source is in English'}</small><EvidenceLinks ids={finding.evidence_ids} evidence={evidence} /></article>)}</div></div>
 }
 
 function EvidenceLinks({ ids, evidence }: { ids: string[]; evidence: Map<string, EvidenceRecord> }) {

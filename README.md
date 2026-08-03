@@ -43,7 +43,9 @@ only from structured official-site records with public-DNS and identity checks.
 
 CRM-1 adds the first local CRM foundation: tenant-scoped companies, contacts,
 pipelines, stages, deals, activities, custom fields, and idempotent SQLite
-persistence. The CRM API, UI, and agent tools are planned in later CRM phases.
+persistence. CRM-2 adds tenant-scoped API endpoints and a workspace that turns a
+researched prospect into a traceable company, contact, pipeline, deal, and
+research activity. Agent tools are planned in later CRM phases.
 
 ## Requirements
 
@@ -137,6 +139,9 @@ The local fixture workflow exposes these endpoints:
 - `GET /campaigns/{campaign_id}/research-runs/{run_id}`
 - `POST /campaigns/{campaign_id}/draft`
 - `GET /campaigns/{campaign_id}/trace`
+- `POST /crm/companies`, `GET /crm/companies`
+- `POST /crm/pipelines`, `POST /crm/contacts`, `POST /crm/deals`
+- `POST /crm/activities`, `GET /crm/activities/{entity_type}/{entity_id}`
 
 The draft endpoint remains for fixture regression testing, but Phase 4's UI
 stops at `prospect_researched`. Positioning is rejected until a valid selected-

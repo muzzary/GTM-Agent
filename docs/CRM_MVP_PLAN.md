@@ -91,6 +91,8 @@ transition tests; migration/restart test; Ruff and lock checks.
 
 ## Phase CRM-2: CRM API and UI vertical slice
 
+**Status:** Accepted after manual verification.
+
 **Goal:** Make the CRM useful to a human before adding model-driven actions.
 
 **Build:**
