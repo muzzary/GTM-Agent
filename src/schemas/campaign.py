@@ -275,7 +275,7 @@ class ProspectCandidate(StrictModel):
     source_entity_id: str | None = Field(default=None, max_length=80)
     official_url: HttpUrl | None = None
     target_role: str | None = Field(default=None, min_length=1, max_length=120)
-    matched_icp_fields: tuple[str, ...] = Field(min_length=1, max_length=12)
+    matched_icp_fields: tuple[str, ...] = Field(default_factory=tuple, max_length=12)
     public_signals: tuple[str, ...] = Field(default_factory=tuple, max_length=12)
     evidence_ids: tuple[str, ...] = Field(min_length=1, max_length=12)
     score: float = Field(ge=0, le=1)
