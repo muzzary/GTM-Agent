@@ -123,28 +123,46 @@ authorization-boundary, and downstream claim-filter tests.
 
 **Manual gate:** Complete onboarding for two contrasting products.
 
-## Phase 4 - Public research and prospect discovery
+## Phase 4 - Multi-source prospect discovery and research
 
-**Proves:** The agent can collect permitted public evidence, discover matching
-companies, and rank them with citations and uncertainty.
+**Proves:** The agent can collect permitted public evidence across structured
+sources, approved market seeds, and official company sites; discover and rank
+matching companies; and deeply research a selected prospect before positioning.
 
 **Builds on:** Phase 3.
 
 **Tasks:**
 
-- Implement source policy, URL validation, rate limits, timeouts, and caching.
-- Store URL, title, timestamp, hash, excerpt, and collection status.
-- Treat retrieved text as untrusted and isolate it from agent instructions.
-- Implement ICP-based prospect discovery and ranking.
+- Implement provider/source policy, robots handling, URL/DNS/redirect
+  validation, rate limits, timeouts, bounded parsing, privacy filtering, and
+  caching.
+- Store publisher, source category, canonical/retrieval URLs, policy/license
+  basis, timestamps, hash, excerpt, evidence type, and collection status.
+- Treat retrieved text as untrusted data and isolate it from destinations,
+  source policy, tools, and agent instructions.
+- Discover candidates through Wikidata/MediaWiki and approved public market
+  seeds, then inspect bounded official-site pages for evidence-backed ranking.
+- Keep discovery score, evidence quality, research completeness, uncertainty,
+  conflicts, and unknowns separate and cited.
 - Display candidate evidence and let the user select a prospect.
+- Add a separate selected-prospect research stage for official products,
+  services, projects, documentation, newsroom, initiatives, and configured
+  public market sources.
+- Require a completed provenance-valid prospect research profile before
+  positioning or outreach can continue.
 
-**Acceptance:** Fixture and approved live-source runs produce ranked prospects
-with evidence; blocked sources and unsupported ranking claims fail explicitly.
+**Acceptance:** Fixture and approved multi-source live runs produce ranked
+prospects with evidence; a selected prospect reaches `prospect_researched` only
+after bounded deep research; blocked sources, incomplete research, and
+unsupported ranking claims fail explicitly without enabling positioning.
 
-**Automated checks:** Source-policy, SSRF boundary, cache, hash, rate-limit,
-citation, ranking, prompt-injection fixture, and unsupported-claim tests.
+**Automated checks:** Provider routing, source/robots policy, SSRF boundary,
+redirect, privacy, cache, hash, rate-limit, citation, ranking,
+fact/inference/conflict/unknown, deep-research completeness, workflow gate,
+prompt-injection fixture, and unsupported-claim tests.
 
-**Manual gate:** Review source behavior and select a prospect from a live run.
+**Manual gate:** Review live source behavior, select a prospect, inspect its
+deep-research profile, and confirm positioning remains gated until completion.
 
 ## Phase 5 - Baseline outreach, traces, and evaluation harness
 
@@ -285,7 +303,7 @@ phase that needs them. This inventory is not permission to install all items.
 | `fastapi` | Local API and workflow contract | Required from Phase 0. |
 | `uvicorn` | Local ASGI server | Required from Phase 0. |
 | `pydantic` | Boundary schemas and validation | Required from Phase 0. |
-| `httpx` | Controlled HTTP collection | Required by Phase 4. |
+| `httpx2` | Controlled HTTP collection | Move the locked package to runtime dependencies in Phase 4. |
 | `pytest` | Automated tests | Required from Phase 0. |
 | `ruff` | Linting and formatting | Required from Phase 0. |
 | `pytest-asyncio` | Async API/tool tests | Add only if async paths require it. |
