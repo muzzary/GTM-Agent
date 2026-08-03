@@ -61,8 +61,7 @@ describe('ClaimReview', () => {
 
     expect(screen.getByText(/deterministic fixture—not live research/i)).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'Review the proposed product profile' })
-        .parentElement,
+      screen.getByRole('heading', { name: 'Review the proposed product profile' }),
     ).toHaveFocus()
     expect(screen.getByRole('button', { name: 'Authorize reviewed claims' })).toBeDisabled()
     expect(screen.getByText(/2 claims still need a decision/i)).toBeInTheDocument()

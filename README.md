@@ -17,14 +17,15 @@ plan, dependency candidates, and required resources.
 
 ## Current status
 
-Phase 2 provides a deterministic FastAPI campaign workflow. Product and ICP
-input can pass through fixture research, claim approval, prospect ranking and
-selection, positioning, outreach generation, validation, evaluation, and an
-ordered trace. The workflow intentionally uses in-memory state and fixture
-services; live research begins in Phase 4 and real model generation begins in
-Phase 5.
+Phase 3 provides the interactive product-onboarding and claim-review workflow.
+Users can submit reusable product and ICP details, inspect the deterministic
+fixture profile and evidence, then approve, reject, or edit every proposed
+claim. Edited wording requires explicit evidence attestation, and the backend
+records the exact authorized wording without changing the original proposal.
 
-The React interface remains a foundation screen until Phase 3.
+The workflow intentionally uses process-local in-memory state and fixture
+services. Live research begins in Phase 4 and real model generation begins in
+Phase 5.
 
 ## Requirements
 
@@ -60,9 +61,20 @@ Set-Location frontend
 npm.cmd run dev
 ```
 
+If the backend uses port 8001:
+
+```powershell
+Set-Location frontend
+$env:GTM_API_PROXY_TARGET = "http://127.0.0.1:8001"
+npm.cmd run dev
+```
+
 Open the URL printed by Vite. By default, the API health check is available at
 `http://127.0.0.1:8000/health`; the Phase 2 runbook explains how to use another
 local port when 8000 is occupied.
+
+Follow [`docs/PHASE3_RUNBOOK.md`](docs/PHASE3_RUNBOOK.md) for the complete
+browser walkthrough and the required two-product manual gate.
 
 ## Phase 2 campaign API
 

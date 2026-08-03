@@ -270,3 +270,40 @@
   validated draft, and passing deterministic evaluation.
 - Confirmed the complete ordered trace contains all ten expected events from
   `campaign_created` through `draft_evaluated`.
+
+## Phase 3: Product onboarding and claim review
+
+**Status:** Automated verification complete; awaiting manual browser gate
+
+**Changed:**
+
+- Added normalized product and ICP form contracts with per-item bounds,
+  duplicate rejection, and controlled-character validation.
+- Kept proposed claim text immutable and added exact reviewed wording,
+  evidence references, wording source, and evidence-attestation audit fields.
+- Added complete/campaign-owned decision enforcement, process-local mutation
+  locking, identical-retry idempotency, and conflicting-replay rejection.
+- Required positioning and drafts to resolve both approved claim IDs and their
+  matching approval IDs; deterministic generation uses reviewed wording.
+- Added a typed frontend API boundary with response ownership, uniqueness,
+  state, evidence-resolution, and approval-provenance guards.
+- Added the accessible product/ICP form, fixture profile/evidence display,
+  approve/reject/edit controls, pending/all-rejected barriers, completion
+  ledger, and second-campaign reset.
+- Added the configurable Vite API proxy and Phase 3 browser runbook.
+
+**Automated verification:**
+
+- Full Python regression suite: 46 tests passed.
+- Backend Ruff lint: clean.
+- Frontend suite: 15 tests passed across API, form, review, and application
+  behavior.
+- Frontend typecheck and Oxlint: clean.
+- Frontend production build: successful.
+- No Python or npm dependency was added.
+
+**Manual review needed:**
+
+- Follow `docs/PHASE3_RUNBOOK.md` with the logistics and cybersecurity inputs.
+- Confirm pending and all-rejected barriers, edited-wording attestation,
+  completion ledger, and clean second-campaign reset.

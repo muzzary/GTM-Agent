@@ -24,7 +24,10 @@ introduced.
 
 | Path | Responsibility |
 | --- | --- |
-| `frontend/src/` | React and TypeScript application, styles, and component tests. |
+| `frontend/src/api/` | Typed campaign requests, API error normalization, and defensive response validation. |
+| `frontend/src/components/` | Accessible product/ICP form and evidence-backed claim-review components. |
+| `frontend/src/forms/` | Pure form normalization and validation rules shared by the onboarding UI. |
+| `frontend/src/` | React application shell, responsive styles, test setup, and component tests. |
 | `frontend/package.json` | Frontend commands and dependency declarations. |
 | `frontend/package-lock.json` | Exact npm dependency lockfile used by local setup and CI. |
 | `src/data/` | Collection, normalization, caching, and provenance handling. |
@@ -34,7 +37,7 @@ introduced.
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
 | `src/schemas/base.py` | Shared strict, immutable Pydantic model configuration. |
-| `src/schemas/campaign.py` | Phase 2 campaign, approval, evidence, prospect, outreach, evaluation, and trace contracts. |
+| `src/schemas/campaign.py` | Campaign inputs, immutable claims, authorized reviewed wording, provenance, outreach, evaluation, and trace contracts. |
 | `src/runtime/api.py` | FastAPI health and deterministic campaign workflow endpoints. |
 | `src/runtime/fixtures.py` | Deterministic fixture research, ranking, positioning, generation, and evaluation stages. |
 | `src/runtime/workflow.py` | Campaign state machine, approval enforcement, trace creation, and in-memory repository. |
@@ -47,6 +50,8 @@ introduced.
 | `tests/` | Backend unit, fixture-based, integration, and regression tests. |
 | `notebooks/phase1_colab_feasibility.ipynb` | Pinned Colab benchmark, QLoRA smoke test, environment capture, and real result-bundle export. |
 | `docs/PHASE2_API_RUNBOOK.md` | Manual PowerShell walkthrough for the deterministic campaign API. |
+| `docs/PHASE3_RUNBOOK.md` | Browser walkthrough and two-product manual acceptance gate for onboarding and claim review. |
+| `docs/PHASE3_SPEC.md` | Approved Phase 3 behavior, authorization invariants, risks, and acceptance tests. |
 
 ## Data and deliverables
 

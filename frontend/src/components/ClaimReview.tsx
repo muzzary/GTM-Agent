@@ -28,7 +28,7 @@ function ClaimReview({ campaign, onReview }: ClaimReviewProps) {
   const [busy, setBusy] = useState(false)
   const [requestError, setRequestError] = useState('')
   const submitting = useRef(false)
-  const headingRef = useRef<HTMLDivElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const pending = campaign.claims.filter((claim) => !reviews[claim.claim_id].decision).length
   const approved = campaign.claims.filter(
     (claim) => reviews[claim.claim_id].decision === 'approved',
@@ -73,9 +73,11 @@ function ClaimReview({ campaign, onReview }: ClaimReviewProps) {
 
   return (
     <section className="review-workspace" aria-labelledby="profile-heading">
-      <div className="section-heading" tabIndex={-1} id="profile-heading" ref={headingRef}>
+      <div className="section-heading">
         <p className="step-label">Step 2 of 2</p>
-        <h2>Review the proposed product profile</h2>
+        <h2 id="profile-heading" tabIndex={-1} ref={headingRef}>
+          Review the proposed product profile
+        </h2>
         <p>Approve only wording that the supplied evidence supports.</p>
       </div>
       <div className="fixture-notice" role="note">
