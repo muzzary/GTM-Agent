@@ -431,3 +431,6 @@
 - Backend Ruff, frontend Oxlint, frontend typecheck, and production build:
   successful.
 - `uv lock --check`: clean with 47 resolved packages.
+- Live Wikidata timing sample for logistics in the United States: 10 bindings
+  in 1.43 seconds using the production label-free SPARQL shape. Public endpoint
+  timing remains variable and is not asserted in CI.
