@@ -2,11 +2,13 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx2
 import pytest
 
 from src.data.http_collector import (
     ControlledHttpCollector,
     HttpResponse,
+    HttpxTransport,
     ResearchCollectionError,
 )
 from src.data.research_cache import ResearchCache
@@ -46,6 +48,21 @@ def response(status: int, body: bytes, content_type: str = "text/html"):
         headers={"content-type": content_type},
         body=body,
     )
+
+
+def test_httpx_transport_reports_timeouts_separately(monkeypatch) -> None:
+    class TimedOutClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def stream(self, *_args, **_kwargs):
+            raise httpx2.ReadTimeout("timed out")
+
+    monkeypatch.setattr("src.data.http_collector.httpx2.Client", TimedOutClient)
+    transport = HttpxTransport("GTM-Agent/test")
+
+    with pytest.raises(ResearchCollectionError, match="^source_timeout$"):
+        transport.get("https://example.com/", headers={}, max_bytes=1024)
 
 
 def test_collector_obeys_robots_and_revalidates_redirects() -> None:

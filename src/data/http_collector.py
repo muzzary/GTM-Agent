@@ -81,6 +81,8 @@ class HttpxTransport:
                     headers=dict(response.headers),
                     body=b"".join(chunks),
                 )
+        except httpx2.TimeoutException as error:
+            raise ResearchCollectionError("source_timeout") from error
         except httpx2.HTTPError as error:
             raise ResearchCollectionError("source_unavailable") from error
 

@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlsplit
 
 from src.data.http_collector import CollectedDocument
 from src.data.source_policy import SourcePolicyError
@@ -137,8 +138,14 @@ def test_website_expander_preserves_candidate_when_source_policy_denies_site() -
 
 def test_wikidata_resolves_industry_then_queries_companies() -> None:
     search_url = WikidataDiscoveryProvider.search_url("logistics")
-    query_url = WikidataDiscoveryProvider.company_query_url(("Q100", "Q101"))
-    search_payload = {"search": [{"id": "Q100"}, {"id": "Q101"}]}
+    query_url = WikidataDiscoveryProvider.company_query_url(("Q177777",))
+    search_payload = {
+        "search": [
+            {"id": "Q100", "label": "military logistics"},
+            {"id": "Q177777", "label": "logistics"},
+            {"id": "Q101", "label": "Logistics Management"},
+        ]
+    }
     query_payload = {
         "results": {
             "bindings": [
@@ -146,13 +153,17 @@ def test_wikidata_resolves_industry_then_queries_companies() -> None:
                     "company": {"value": "http://www.wikidata.org/entity/Q1"},
                     "companyLabel": {"value": "Acme Logistics"},
                     "website": {"value": "https://acme.example/"},
-                    "industryLabel": {"value": "logistics"},
+                    "industry": {
+                        "value": "http://www.wikidata.org/entity/Q177777"
+                    },
                 },
                 {
                     "company": {"value": "not-a-wikidata-entity"},
                     "companyLabel": {"value": "Invalid"},
                     "website": {"value": "https://invalid.example/"},
-                    "industryLabel": {"value": "logistics"},
+                    "industry": {
+                        "value": "http://www.wikidata.org/entity/Q177777"
+                    },
                 },
             ]
         }
@@ -180,6 +191,18 @@ def test_wikidata_resolves_industry_then_queries_companies() -> None:
     assert suggestions[0].official_url == "https://acme.example/"
 
 
+def test_wikidata_query_limits_before_label_resolution() -> None:
+    url = WikidataDiscoveryProvider.company_query_url(("Q177777",), ("Q30",))
+    sparql = parse_qs(urlsplit(url).query)["query"][0]
+
+    assert "SERVICE wikibase:label" not in sparql
+    assert "wdt:P31/wdt:P279*" not in sparql
+    assert "wdt:P159/wdt:P131*" not in sparql
+    assert "SELECT DISTINCT ?company ?website ?industry ?region" in sparql
+    assert "LIMIT 10" in sparql
+    assert sparql.index("LIMIT 10") < sparql.index("rdfs:label")
+
+
 def test_wikidata_resolves_and_retains_region_evidence() -> None:
     region_url = WikidataDiscoveryProvider.search_url("United States")
     industry_url = WikidataDiscoveryProvider.search_url("logistics")
@@ -188,12 +211,19 @@ def test_wikidata_resolves_and_retains_region_evidence() -> None:
         {
             region_url: _document(
                 region_url,
-                text=json.dumps({"search": [{"id": "Q30"}]}),
+                text=json.dumps(
+                    {
+                        "search": [
+                            {"id": "Q11234", "label": "US Census Bureau"},
+                            {"id": "Q30", "label": "United States"},
+                        ]
+                    }
+                ),
                 content_type="application/json",
             ),
             industry_url: _document(
                 industry_url,
-                text=json.dumps({"search": [{"id": "Q100"}]}),
+                text=json.dumps({"search": [{"id": "Q100", "label": "logistics"}]}),
                 content_type="application/json",
             ),
             query_url: _document(
@@ -208,8 +238,12 @@ def test_wikidata_resolves_and_retains_region_evidence() -> None:
                                     },
                                     "companyLabel": {"value": "Acme Logistics"},
                                     "website": {"value": "https://acme.example/"},
-                                    "industryLabel": {"value": "logistics"},
-                                    "regionLabel": {"value": "United States"},
+                                    "industry": {
+                                        "value": "http://www.wikidata.org/entity/Q100"
+                                    },
+                                    "region": {
+                                        "value": "http://www.wikidata.org/entity/Q30"
+                                    },
                                 }
                             ]
                         }

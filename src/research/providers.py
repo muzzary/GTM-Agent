@@ -230,21 +230,24 @@ class WikidataDiscoveryProvider:
   VALUES ?region {{ {region_values} }}
   {{ ?company wdt:P17 ?region. }}
   UNION {{ ?company wdt:P159/wdt:P17 ?region. }}
-  UNION {{ ?company wdt:P159/wdt:P131* ?region. }}
 """.rstrip()
         else:
             region_clause = "  OPTIONAL { ?company wdt:P17 ?region. }"
         sparql = f"""
-SELECT ?company ?companyLabel ?website ?industryLabel ?regionLabel WHERE {{
-  VALUES ?industry {{ {values} }}
-  ?company wdt:P452 ?industry;
-           wdt:P856 ?website;
-           wdt:P31/wdt:P279* wd:Q4830453.
-{region_clause}
-  FILTER(STRSTARTS(STR(?website), "https://"))
-  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+SELECT ?company ?companyLabel ?website ?industry ?region WHERE {{
+  {{
+    SELECT DISTINCT ?company ?website ?industry ?region WHERE {{
+      VALUES ?industry {{ {values} }}
+      ?company wdt:P452 ?industry;
+               wdt:P856 ?website.
+{_indent(region_clause, 4)}
+      FILTER(STRSTARTS(STR(?website), "https://"))
+    }}
+    LIMIT 10
+  }}
+  ?company rdfs:label ?companyLabel.
+  FILTER(LANG(?companyLabel) = "en")
 }}
-LIMIT 20
 """.strip()
         return f"{cls._query_url}?{urlencode({'format': 'json', 'query': sparql})}"
 
@@ -255,15 +258,18 @@ LIMIT 20
     ) -> tuple[CandidateSuggestion, ...]:
         suggestions: list[CandidateSuggestion] = []
         seen_entities: set[str] = set()
-        region_ids = self._resolve_entity_ids(icp.regions, limit=3)
-        if icp.regions and not region_ids:
+        regions_by_id = self._resolve_entities(icp.regions)
+        if icp.regions and len(regions_by_id) != len(icp.regions):
             return ()
         for industry in icp.industries[:3]:
-            entity_ids = self._resolve_entity_ids((industry,), limit=3)
-            if not entity_ids:
+            industries_by_id = self._resolve_entities((industry,))
+            if not industries_by_id:
                 continue
             query_document = self._collector.collect(
-                self.company_query_url(entity_ids, region_ids), self._query_policy
+                self.company_query_url(
+                    tuple(industries_by_id), tuple(regions_by_id)
+                ),
+                self._query_policy,
             )
             results = _json_object(query_document.text).get("results", {})
             bindings = results.get("bindings", []) if isinstance(results, dict) else []
@@ -275,8 +281,10 @@ LIMIT 20
                 entity_uri = _binding_value(binding, "company")
                 company = _binding_value(binding, "companyLabel")
                 official_url = _binding_value(binding, "website")
-                industry_label = _binding_value(binding, "industryLabel")
-                region_label = _binding_value(binding, "regionLabel")
+                industry_id = _entity_id(_binding_value(binding, "industry"))
+                region_id = _entity_id(_binding_value(binding, "region"))
+                industry_label = industries_by_id.get(industry_id, industry)
+                region_label = regions_by_id.get(region_id, "")
                 match = re.fullmatch(
                     r"https?://www\.wikidata\.org/entity/(Q[1-9][0-9]*)",
                     entity_uri,
@@ -325,13 +333,11 @@ LIMIT 20
                     return tuple(suggestions)
         return tuple(suggestions)
 
-    def _resolve_entity_ids(
+    def _resolve_entities(
         self,
         terms: Sequence[str],
-        *,
-        limit: int,
-    ) -> tuple[str, ...]:
-        resolved: list[str] = []
+    ) -> dict[str, str]:
+        resolved: dict[str, str] = {}
         for term in terms:
             document = self._collector.collect(
                 self.search_url(term), self._search_policy
@@ -342,12 +348,12 @@ LIMIT 20
                     isinstance(item, dict)
                     and isinstance(item.get("id"), str)
                     and item["id"].startswith("Q")
-                    and item["id"] not in resolved
+                    and _normalized_label(item.get("label"))
+                    == _normalized_label(term)
                 ):
-                    resolved.append(item["id"])
-                    if len(resolved) == limit:
-                        return tuple(resolved)
-        return tuple(resolved)
+                    resolved[item["id"]] = term
+                    break
+        return resolved
 
 
 def website_policy(
@@ -368,6 +374,25 @@ def website_policy(
         robots_required=True,
         max_redirects=2,
     )
+
+
+def _indent(value: str, spaces: int) -> str:
+    prefix = " " * spaces
+    return "\n".join(prefix + line if line else line for line in value.splitlines())
+
+
+def _normalized_label(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    return " ".join(value.casefold().split())
+
+
+def _entity_id(uri: str) -> str:
+    match = re.fullmatch(
+        r"https?://www\.wikidata\.org/entity/(Q[1-9][0-9]*)",
+        uri,
+    )
+    return match.group(1) if match else ""
 
 
 def _host(url: str) -> str:

@@ -128,16 +128,25 @@ class DiscoveryService:
         suggestions: list[CandidateSuggestion] = []
         used_providers: list[str] = []
         warnings: list[str] = []
+        completed_providers = 0
+        failure_codes: list[str] = []
         for provider in self._providers:
             try:
                 discovered = provider.discover(icp, seed_urls)
             except (ResearchCollectionError, SourcePolicyError) as error:
-                warnings.append(f"{provider.name}:{_safe_collection_code(error)}")
+                code = _safe_collection_code(error)
+                failure_codes.append(code)
+                warnings.append(f"{provider.name}:{code}")
                 continue
+            completed_providers += 1
             if discovered:
                 suggestions.extend(discovered)
                 used_providers.append(provider.name)
         if not suggestions:
+            if completed_providers == 0 and failure_codes:
+                if all(code == "source_timeout" for code in failure_codes):
+                    raise ResearchCollectionError("source_timeout")
+                raise ResearchCollectionError("source_failure")
             raise ResearchCollectionError("no_candidates")
         expanded: list[CandidateSuggestion] = []
         for suggestion in deduplicate_suggestions(suggestions)[:10]:

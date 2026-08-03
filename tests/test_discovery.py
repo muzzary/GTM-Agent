@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 
-from src.data.http_collector import CollectedDocument
+import pytest
+
+from src.data.http_collector import CollectedDocument, ResearchCollectionError
 from src.research.discovery import (
     CandidateSuggestion,
     DiscoveryRanker,
@@ -255,6 +257,56 @@ def test_discovery_service_combines_providers_and_shallow_expands() -> None:
     assert result.providers == ("wikidata", "official_site")
     assert result.warnings == ("official_site:acme.example:source_http_error",)
     assert result.prospects[0].score == 0.8
+
+
+def test_discovery_service_preserves_total_provider_failure() -> None:
+    class FailedProvider:
+        name = "wikidata"
+
+        def discover(self, _icp, _seed_urls):
+            raise ResearchCollectionError("source_unavailable")
+
+    class UnusedExpander:
+        def expand(self, suggestion):
+            raise AssertionError(f"unexpected expansion: {suggestion}")
+
+    with pytest.raises(ResearchCollectionError, match="^source_failure$"):
+        DiscoveryService(
+            providers=(FailedProvider(),),
+            expander=UnusedExpander(),
+        ).run(
+            campaign_id="campaign-example1",
+            icp=_icp(),
+            run_id="research-run-example1",
+            seed_urls=(),
+            new_id=lambda prefix: f"{prefix}-example1",
+            now=NOW,
+        )
+
+
+def test_discovery_service_preserves_total_provider_timeout() -> None:
+    class TimedOutProvider:
+        name = "wikidata"
+
+        def discover(self, _icp, _seed_urls):
+            raise ResearchCollectionError("source_timeout")
+
+    class UnusedExpander:
+        def expand(self, suggestion):
+            raise AssertionError(f"unexpected expansion: {suggestion}")
+
+    with pytest.raises(ResearchCollectionError, match="^source_timeout$"):
+        DiscoveryService(
+            providers=(TimedOutProvider(),),
+            expander=UnusedExpander(),
+        ).run(
+            campaign_id="campaign-example1",
+            icp=_icp(),
+            run_id="research-run-example1",
+            seed_urls=(),
+            new_id=lambda prefix: f"{prefix}-example1",
+            now=NOW,
+        )
 
 
 def test_ranker_excludes_candidates_without_matching_region_evidence() -> None:
