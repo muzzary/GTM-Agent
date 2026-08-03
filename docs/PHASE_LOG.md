@@ -273,7 +273,7 @@
 
 ## Phase 3: Product onboarding and claim review
 
-**Status:** Automated verification complete; awaiting manual browser gate
+**Status:** Approved
 
 **Changed:**
 
@@ -302,8 +302,10 @@
 - Frontend production build: successful.
 - No Python or npm dependency was added.
 
-**Manual review needed:**
+**Manual verification completed:**
 
-- Follow `docs/PHASE3_RUNBOOK.md` with the logistics and cybersecurity inputs.
-- Confirm pending and all-rejected barriers, edited-wording attestation,
+- Completed the browser walkthrough with the contrasting logistics and
+  cybersecurity product/ICP configurations.
+- Confirmed the pending and all-rejected barriers, edited-wording attestation,
   completion ledger, and clean second-campaign reset.
+- User approved Phase 3 after manual verification.
