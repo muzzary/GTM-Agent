@@ -34,6 +34,47 @@ def build_client(tmp_path: Path) -> TestClient:
 TENANT = {"X-Tenant-ID": "tenant-0001"}
 
 
+def create_researched_campaign(client: TestClient) -> str:
+    created = client.post(
+        "/campaigns",
+        json={
+            "product_name": "RouteSignal",
+            "product_url": "https://example.com/routesignal",
+            "short_description": "Highlights recurring delivery exceptions.",
+            "known_capabilities": ["exception reporting"],
+            "known_limitations": ["requires dispatch data"],
+            "icp": {
+                "industries": ["logistics"],
+                "company_size": "mid-market",
+                "roles": ["Head of Operations"],
+                "pain_hypotheses": ["manual exception review"],
+            },
+        },
+    ).json()
+    client.post(
+        f"/campaigns/{created['campaign_id']}/claim-decisions",
+        json={
+            "decisions": [
+                {
+                    "claim_id": claim["claim_id"],
+                    "decision": "approved" if index == 0 else "rejected",
+                }
+                for index, claim in enumerate(created["claims"])
+            ]
+        },
+    )
+    prospect = client.get(f"/campaigns/{created['campaign_id']}/prospects").json()[0]
+    client.post(
+        f"/campaigns/{created['campaign_id']}/prospects/{prospect['prospect_id']}/select"
+    )
+    client.post(
+        f"/campaigns/{created['campaign_id']}/prospects/{prospect['prospect_id']}"
+        "/research-runs",
+        json={"request_id": "research-request-agent-0001"},
+    )
+    return created["campaign_id"]
+
+
 def test_crm_api_creates_pipeline_company_contact_and_deal(tmp_path: Path) -> None:
     client = build_client(tmp_path)
 
@@ -90,6 +131,7 @@ def test_crm_api_creates_pipeline_company_contact_and_deal(tmp_path: Path) -> No
         },
     )
     assert deal_response.status_code == 201
+
     assert deal_response.json()["tenant_id"] == "tenant-0001"
 
     replay = client.post(
@@ -109,6 +151,34 @@ def test_crm_api_creates_pipeline_company_contact_and_deal(tmp_path: Path) -> No
     )
     assert replay.status_code == 201
     assert replay.json() == deal_response.json()
+
+
+def test_agent_api_inspects_researched_prospect_without_mutation(
+    tmp_path: Path,
+) -> None:
+    client = build_client(tmp_path)
+    campaign_id = create_researched_campaign(client)
+
+    response = client.post(
+        "/agent/runs",
+        headers=TENANT,
+        json={
+            "goal": "Inspect the selected prospect",
+            "campaign_id": campaign_id,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["outputs"][0]["result"]["prospect"]["prospect_id"].startswith(
+        "prospect-"
+    )
+    assert [entry["status"] for entry in body["trace"]] == [
+        "tool_called",
+        "succeeded",
+        "final",
+    ]
 
 
 def test_crm_api_rejects_missing_tenant_and_foreign_company(tmp_path: Path) -> None:
@@ -157,9 +227,7 @@ def test_crm_api_records_and_lists_activities(tmp_path: Path) -> None:
     )
     assert response.status_code == 201
 
-    listed = client.get(
-        "/crm/activities/company/company-0001", headers=TENANT
-    )
+    listed = client.get("/crm/activities/company/company-0001", headers=TENANT)
     assert listed.status_code == 200
     assert listed.json()[0]["activity_id"] == "activity-0001"
 
@@ -198,9 +266,7 @@ def test_crm_api_links_only_the_researched_prospect_and_preserves_evidence(
     )
     prospects = client.get(f"/campaigns/{campaign_id}/prospects").json()
     selected = prospects[0]
-    client.post(
-        f"/campaigns/{campaign_id}/prospects/{selected['prospect_id']}/select"
-    )
+    client.post(f"/campaigns/{campaign_id}/prospects/{selected['prospect_id']}/select")
     client.post(
         f"/campaigns/{campaign_id}/prospects/{selected['prospect_id']}/research-runs",
         json={"request_id": "research-request-crm00001"},

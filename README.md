@@ -45,7 +45,11 @@ CRM-1 adds the first local CRM foundation: tenant-scoped companies, contacts,
 pipelines, stages, deals, activities, custom fields, and idempotent SQLite
 persistence. CRM-2 adds tenant-scoped API endpoints and a workspace that turns a
 researched prospect into a traceable company, contact, pipeline, deal, and
-research activity. Agent tools are planned in later CRM phases.
+research activity. CRM-3 adds a dependency-free controlled agent runtime with
+validated, allowlisted CRM tools and approval-gated mutations. Colab model
+integration remains behind the existing validated inference boundary. The
+controlled boundary is available at `POST /agent/runs`; it currently uses the
+deterministic test double and can inspect a completed selected prospect.
 
 ## Requirements
 
@@ -142,6 +146,7 @@ The local fixture workflow exposes these endpoints:
 - `POST /crm/companies`, `GET /crm/companies`
 - `POST /crm/pipelines`, `POST /crm/contacts`, `POST /crm/deals`
 - `POST /crm/activities`, `GET /crm/activities/{entity_type}/{entity_id}`
+- `POST /agent/runs` (controlled test-double execution boundary)
 
 The draft endpoint remains for fixture regression testing, but Phase 4's UI
 stops at `prospect_researched`. Positioning is rejected until a valid selected-

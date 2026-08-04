@@ -31,6 +31,9 @@ introduced.
 | `frontend/package.json` | Frontend commands and dependency declarations. |
 | `frontend/package-lock.json` | Exact npm dependency lockfile used by local setup and CI. |
 | `src/data/` | Controlled HTTP collection, source policy, robots handling, bounded parsing, privacy filtering, and SQLite response caching. |
+| `src/agent/` | Strict model-output contracts, allowlisted CRM tool definitions, approval enforcement, bounded execution, and tool-call traces. |
+| `src/crm/` | Shared CRM business operations used by HTTP endpoints and agent tools. |
+| `src/crm/` | Shared CRM business operations used by HTTP endpoints and agent tools. |
 | `src/schemas/` | Structured records for products, prospects, evidence, and campaigns. |
 | `src/research/` | Regional Wikidata and approved-market discovery, official-site expansion, transparent ranking, selected-prospect research, and optional Colab-backed English translation. |
 | `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |

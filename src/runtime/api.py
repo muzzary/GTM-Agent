@@ -6,6 +6,11 @@ from uuid import uuid4
 from fastapi import FastAPI, Header, Request, status
 from fastapi.responses import JSONResponse
 
+from src.agent.contracts import AgentRunRequest, AgentRunResult
+from src.agent.runtime import ControlledAgentRuntime
+from src.agent.test_double import DeterministicCrmAgent
+from src.agent.tools import CrmToolRegistry
+from src.crm.service import CrmService
 from src.data.crm_repository import CrmConflictError, CrmNotFoundError, CrmRepository
 from src.data.http_collector import ControlledHttpCollector, HttpxTransport
 from src.data.research_cache import ResearchCache
@@ -49,7 +54,6 @@ from src.schemas.crm import (
     DealCreate,
     Pipeline,
     PipelineCreate,
-    PipelineStage,
 )
 from src.schemas.research import (
     ProspectResearchRequest,
@@ -68,9 +72,8 @@ def create_app(
 ) -> FastAPI:
     application = FastAPI(title="GTM Agent", version="0.4.0")
     campaign_workflow = workflow or _default_workflow(app_settings or settings)
-    crm_store = crm_repository or CrmRepository(
-        (app_settings or settings).crm_path
-    )
+    crm_store = crm_repository or CrmRepository((app_settings or settings).crm_path)
+    crm_service = CrmService(crm_store)
 
     @application.exception_handler(CampaignNotFoundError)
     async def campaign_not_found(
@@ -235,6 +238,41 @@ def create_app(
         str, Header(alias="X-Tenant-ID", pattern=r"^tenant-[a-z0-9-]{4,64}$")
     ]
 
+    def read_selected_prospect(tenant_id: str, campaign_id: str) -> dict[str, object]:
+        campaign = campaign_workflow.get_campaign(campaign_id)
+        if campaign.state is not CampaignState.PROSPECT_RESEARCHED:
+            raise WorkflowConflictError(
+                "selected prospect research must be completed first"
+            )
+        if campaign.selected_prospect_id is None:
+            raise WorkflowConflictError("a selected prospect is required")
+        prospect = next(
+            item
+            for item in campaign.prospects
+            if item.prospect_id == campaign.selected_prospect_id
+        )
+        return {
+            "tenant_id": tenant_id,
+            "campaign_id": campaign_id,
+            "prospect": prospect.model_dump(mode="json"),
+            "research": (
+                campaign.prospect_research.model_dump(mode="json")
+                if campaign.prospect_research is not None
+                else None
+            ),
+        }
+
+    @application.post("/agent/runs", response_model=AgentRunResult)
+    def run_agent(payload: AgentRunRequest, tenant_id: TenantHeader) -> AgentRunResult:
+        registry = CrmToolRegistry(crm_service, read_selected_prospect)
+        runtime = ControlledAgentRuntime(registry, max_steps=payload.max_steps)
+        return runtime.run(
+            tenant_id=tenant_id,
+            goal=payload.goal,
+            model=DeterministicCrmAgent(payload.campaign_id),
+            approved_call_ids=payload.approved_call_ids,
+        )
+
     @application.post(
         "/crm/companies",
         response_model=Company,
@@ -270,27 +308,13 @@ def create_app(
                 raise CrmConflictError(
                     "source evidence does not match the selected prospect"
                 )
-        now = _crm_now()
-        company = Company(
-            company_id=payload.company_id or _crm_id("company"),
-            tenant_id=tenant_id,
-            name=payload.name,
-            normalized_domain=payload.normalized_domain,
-            website=payload.website,
-            industry=payload.industry,
-            region=payload.region,
-            custom_fields=payload.custom_fields,
-            source_prospect_id=payload.source_prospect_id,
-            source_campaign_id=source_campaign_id,
-            source_evidence_ids=source_evidence_ids,
-            created_at=now,
-            updated_at=now,
+        return crm_service.create_company(
+            tenant_id, payload, source_evidence_ids=source_evidence_ids
         )
-        return crm_store.save_company(company)
 
     @application.get("/crm/companies", response_model=list[Company])
     def list_crm_companies(tenant_id: TenantHeader) -> tuple[Company, ...]:
-        return crm_store.list_companies(tenant_id)
+        return crm_service.list_companies(tenant_id)
 
     @application.post(
         "/crm/pipelines",
@@ -300,24 +324,7 @@ def create_app(
     def create_crm_pipeline(
         payload: PipelineCreate, tenant_id: TenantHeader
     ) -> Pipeline:
-        pipeline_id = payload.pipeline_id or _crm_id("pipeline")
-        pipeline = Pipeline(
-            pipeline_id=pipeline_id,
-            tenant_id=tenant_id,
-            name=payload.name,
-            stages=tuple(
-                PipelineStage(
-                    stage_id=stage.stage_id or _crm_id("stage"),
-                    pipeline_id=pipeline_id,
-                    tenant_id=tenant_id,
-                    name=stage.name,
-                    position=stage.position,
-                    probability=stage.probability,
-                )
-                for stage in payload.stages
-            ),
-        )
-        return crm_store.save_pipeline(pipeline)
+        return crm_service.create_pipeline(tenant_id, payload)
 
     @application.post(
         "/crm/contacts",
@@ -325,19 +332,7 @@ def create_app(
         status_code=status.HTTP_201_CREATED,
     )
     def create_crm_contact(payload: ContactCreate, tenant_id: TenantHeader) -> Contact:
-        now = _crm_now()
-        contact = Contact(
-            contact_id=payload.contact_id or _crm_id("contact"),
-            company_id=payload.company_id,
-            tenant_id=tenant_id,
-            full_name=payload.full_name,
-            role=payload.role,
-            business_email=payload.business_email,
-            custom_fields=payload.custom_fields,
-            created_at=now,
-            updated_at=now,
-        )
-        return crm_store.save_contact(contact)
+        return crm_service.create_contact(tenant_id, payload)
 
     @application.post(
         "/crm/deals",
@@ -345,29 +340,7 @@ def create_app(
         status_code=status.HTTP_201_CREATED,
     )
     def create_crm_deal(payload: DealCreate, tenant_id: TenantHeader) -> Deal:
-        now = _crm_now()
-        deal = Deal(
-            deal_id=payload.deal_id or _crm_id("deal"),
-            company_id=payload.company_id,
-            contact_id=payload.contact_id,
-            pipeline_id=payload.pipeline_id,
-            stage_id=payload.stage_id,
-            tenant_id=tenant_id,
-            name=payload.name,
-            status="open",
-            amount_minor=payload.amount_minor,
-            currency=payload.currency,
-            custom_fields=payload.custom_fields,
-            created_at=now,
-            updated_at=now,
-        )
-        return crm_store.save_deal(
-            deal,
-            idempotency_key=payload.idempotency_key,
-            idempotency_fingerprint=payload.model_dump_json(
-                exclude={"idempotency_key"}
-            ),
-        )
+        return crm_service.create_deal(tenant_id, payload)
 
     @application.post(
         "/crm/activities",
@@ -377,16 +350,7 @@ def create_app(
     def create_crm_activity(
         payload: ActivityCreate, tenant_id: TenantHeader
     ) -> Activity:
-        activity = Activity(
-            activity_id=payload.activity_id or _crm_id("activity"),
-            tenant_id=tenant_id,
-            entity_type=payload.entity_type,
-            entity_id=payload.entity_id,
-            activity_type=payload.activity_type,
-            summary=payload.summary,
-            occurred_at=payload.occurred_at,
-        )
-        return crm_store.save_activity(activity)
+        return crm_service.create_activity(tenant_id, payload)
 
     @application.get(
         "/crm/activities/{entity_type}/{entity_id}",

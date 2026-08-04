@@ -523,3 +523,52 @@
   workspace and approved the resulting company, contact, pipeline, deal, and
   research activity flow.
 - User confirmed back navigation returns to the prospect research view.
+
+## CRM-3: Agent tools and controlled execution loop
+
+**Status:** Accepted after manual verification
+
+**Changed:**
+
+- Added strict, versioned tool contracts for company search, company creation,
+  and deal creation.
+- Added a bounded agent loop that validates model proposals, passes tool results
+  back as observations, and records successful, failed, and approval-required
+  steps in a trace.
+- Added approval enforcement for CRM mutations; the model cannot access the
+  repository directly or bypass the allowlisted registry.
+- Preserved idempotent deal creation when an approved tool call is replayed.
+- Kept the implementation dependency-free; the test-double model boundary is
+  ready for the validated Colab inference adapter in a later integration step.
+
+**Automated verification:**
+
+- Focused agent contract, approval, adversarial-output, and idempotency tests:
+  4 passed.
+- Ruff check and diff check: clean.
+
+**Manual gate:**
+
+- Run the focused agent fixture and confirm a read-only company search can
+  observe state and finish.
+- Confirm a company-creation proposal stops at `approval_required` and does not
+  write a record before approval.
+- Confirm an approved deal tool call can be replayed without creating a second
+  deal, and inspect the trace for tool, approval, and success events.
+
+**Continuation:**
+
+- Added the shared `CrmService` used by both HTTP routes and agent handlers.
+- Added the read-only `gtm.inspect_selected_prospect` tool and a deterministic
+  test-double boundary at `POST /agent/runs`.
+- Added endpoint coverage proving a completed selected prospect is returned
+  through the agent trace without a CRM mutation.
+
+**Updated automated verification:**
+
+- Focused CRM-3 and API tests: 9 passed.
+
+**Manual verification completed:**
+
+- User confirmed the focused agent checks and controlled prospect-inspection
+  API flow passed, including approval and idempotency behavior.
