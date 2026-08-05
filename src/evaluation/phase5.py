@@ -134,10 +134,10 @@ def build_baseline_report(
                 prompt_sha256=sha256(
                     build_outreach_prompt(case).encode("utf-8")
                 ).hexdigest(),
-                approved_claim_ids=tuple(
+                approved_claim_ids=[
                     claim.claim_id for claim in case.approved_claims
-                ),
-                evidence_ids=benchmark_evidence_ids(case),
+                ],
+                evidence_ids=list(benchmark_evidence_ids(case)),
                 model_revision=response.model.model_revision,
                 status="succeeded",
                 latency_ms=response.runtime.latency_ms,
@@ -198,10 +198,10 @@ def run_baseline(
                         request_id=request.request_id,
                         attempt=attempt,
                         prompt_sha256=prompt_sha256,
-                        approved_claim_ids=tuple(
+                        approved_claim_ids=[
                             claim.claim_id for claim in case.approved_claims
-                        ),
-                        evidence_ids=benchmark_evidence_ids(case),
+                        ],
+                        evidence_ids=list(benchmark_evidence_ids(case)),
                         model_revision=model.model_revision,
                         status="failed",
                         error=detail,
@@ -225,10 +225,10 @@ def run_baseline(
                     request_id=response.request_id,
                     attempt=attempt,
                     prompt_sha256=prompt_sha256,
-                    approved_claim_ids=tuple(
+                    approved_claim_ids=[
                         claim.claim_id for claim in case.approved_claims
-                    ),
-                    evidence_ids=benchmark_evidence_ids(case),
+                    ],
+                    evidence_ids=list(benchmark_evidence_ids(case)),
                     model_revision=response.model.model_revision,
                     status="succeeded",
                     latency_ms=response.runtime.latency_ms,

@@ -109,8 +109,8 @@ class BaselineTraceEntry(StrictModel):
     request_id: str = Field(pattern=r"^req_[a-z0-9]{12,64}$")
     attempt: int = Field(ge=1, le=2)
     prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    approved_claim_ids: tuple[str, ...] = Field(max_length=64)
-    evidence_ids: tuple[str, ...] = Field(max_length=64)
+    approved_claim_ids: list[str] = Field(max_length=64)
+    evidence_ids: list[str] = Field(max_length=64)
     model_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
     status: Literal["succeeded", "failed"]
     latency_ms: float | None = Field(default=None, ge=0, le=86_400_000)
