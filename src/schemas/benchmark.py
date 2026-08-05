@@ -1,9 +1,13 @@
 from typing import Literal
 
-from pydantic import Field, HttpUrl, computed_field
+from pydantic import Field, HttpUrl, computed_field, model_validator
 
 from src.schemas.base import StrictModel
-from src.schemas.inference import OutreachOutput
+from src.schemas.inference import (
+    GenerationSettings,
+    ModelIdentity,
+    OutreachOutput,
+)
 
 
 class CandidateConfig(StrictModel):
@@ -78,6 +82,60 @@ class BaselineCaseEvaluation(StrictModel):
     unresolved_evidence: list[str] = Field(max_length=64)
     supported_claim_count: int = Field(ge=0, le=64)
     cited_evidence_count: int = Field(ge=0, le=64)
+
+
+class BaselineCaseResult(StrictModel):
+    case_id: str = Field(pattern=r"^case-[a-z0-9-]{3,64}$")
+    request_id: str = Field(pattern=r"^req_[a-z0-9]{12,64}$")
+    prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    output: OutreachOutput
+    evaluation: BaselineCaseEvaluation
+
+    @model_validator(mode="after")
+    def evaluation_must_match_case(self) -> "BaselineCaseResult":
+        if self.evaluation.case_id != self.case_id:
+            raise ValueError("baseline evaluation must match its case")
+        return self
+
+
+class BaselineReport(StrictModel):
+    report_version: Literal["1.0"] = "1.0"
+    manifest_version: Literal["1.0"]
+    model: ModelIdentity
+    generation: GenerationSettings
+    cases: list[BaselineCaseResult] = Field(min_length=1, max_length=50)
+
+    @computed_field
+    @property
+    def total_cases(self) -> int:
+        return len(self.cases)
+
+    @computed_field
+    @property
+    def valid_output_count(self) -> int:
+        return len(self.cases)
+
+    @computed_field
+    @property
+    def passed_case_count(self) -> int:
+        return sum(case.evaluation.passed for case in self.cases)
+
+    @computed_field
+    @property
+    def unsupported_claim_count(self) -> int:
+        return sum(
+            len(case.evaluation.unsupported_claims) for case in self.cases
+        )
+
+    @computed_field
+    @property
+    def unresolved_evidence_count(self) -> int:
+        return sum(len(case.evaluation.unresolved_evidence) for case in self.cases)
+
+    @computed_field
+    @property
+    def failure_examples(self) -> list[str]:
+        return [case.case_id for case in self.cases if not case.evaluation.passed]
 
 
 class CandidateResult(StrictModel):

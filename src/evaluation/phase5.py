@@ -1,7 +1,15 @@
 import re
+from collections.abc import Sequence
+from hashlib import sha256
 
-from src.schemas.benchmark import BaselineCaseEvaluation, BenchmarkCase
-from src.schemas.inference import OutreachOutput
+from src.schemas.benchmark import (
+    BaselineCaseEvaluation,
+    BaselineCaseResult,
+    BaselineReport,
+    BenchmarkCase,
+    BenchmarkManifest,
+)
+from src.schemas.inference import InferenceResponse, OutreachOutput
 
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x09\x0b\x0c\x0e-\x1f\x7f]")
 
@@ -83,4 +91,46 @@ def evaluate_baseline_output(
         unresolved_evidence=unresolved_evidence,
         supported_claim_count=len(set(output.claims_used) - set(unsupported_claims)),
         cited_evidence_count=len(set(output.evidence_used) - set(unresolved_evidence)),
+    )
+
+
+def build_baseline_report(
+    manifest: BenchmarkManifest,
+    responses: Sequence[InferenceResponse],
+) -> BaselineReport:
+    if len(responses) != len(manifest.cases):
+        raise ValueError("baseline response count must match benchmark case count")
+    if len({response.request_id for response in responses}) != len(responses):
+        raise ValueError("baseline request IDs must be unique")
+
+    first = responses[0]
+    if any(
+        response.model != first.model or response.generation != first.generation
+        for response in responses[1:]
+    ):
+        raise ValueError("baseline responses must use one model and generation")
+
+    cases = [
+        _build_case_result(case, response)
+        for case, response in zip(manifest.cases, responses, strict=True)
+    ]
+    return BaselineReport(
+        manifest_version=manifest.manifest_version,
+        model=first.model,
+        generation=first.generation,
+        cases=cases,
+    )
+
+
+def _build_case_result(
+    case: BenchmarkCase, response: InferenceResponse
+) -> BaselineCaseResult:
+    prompt_digest = sha256(build_outreach_prompt(case).encode("utf-8")).hexdigest()
+    evaluation = evaluate_baseline_output(case, response.output)
+    return BaselineCaseResult(
+        case_id=case.case_id,
+        request_id=response.request_id,
+        prompt_sha256=prompt_digest,
+        output=response.output,
+        evaluation=evaluation,
     )
