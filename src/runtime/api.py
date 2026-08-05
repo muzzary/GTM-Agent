@@ -10,6 +10,7 @@ from src.agent.contracts import AgentRunRequest, AgentRunResult
 from src.agent.runtime import ControlledAgentRuntime
 from src.agent.test_double import DeterministicCrmAgent
 from src.agent.tools import CrmToolRegistry
+from src.crm.integration import CampaignCrmLinker
 from src.crm.service import CrmService
 from src.data.crm_repository import CrmConflictError, CrmNotFoundError, CrmRepository
 from src.data.http_collector import ControlledHttpCollector, HttpxTransport
@@ -54,6 +55,8 @@ from src.schemas.crm import (
     DealCreate,
     Pipeline,
     PipelineCreate,
+    ProspectCrmLinkRequest,
+    ProspectCrmLinkResult,
 )
 from src.schemas.research import (
     ProspectResearchRequest,
@@ -74,6 +77,9 @@ def create_app(
     campaign_workflow = workflow or _default_workflow(app_settings or settings)
     crm_store = crm_repository or CrmRepository((app_settings or settings).crm_path)
     crm_service = CrmService(crm_store)
+    crm_linker = CampaignCrmLinker(crm_service, crm_store)
+    application.state.campaign_workflow = campaign_workflow
+    application.state.crm_store = crm_store
 
     @application.exception_handler(CampaignNotFoundError)
     async def campaign_not_found(
@@ -264,7 +270,21 @@ def create_app(
 
     @application.post("/agent/runs", response_model=AgentRunResult)
     def run_agent(payload: AgentRunRequest, tenant_id: TenantHeader) -> AgentRunResult:
-        registry = CrmToolRegistry(crm_service, read_selected_prospect)
+        def link_for_agent(
+            agent_tenant_id: str, agent_campaign_id: str, idempotency_key: str
+        ) -> dict[str, object]:
+            result = crm_linker.link_selected_prospect(
+                agent_tenant_id,
+                campaign_workflow.get_campaign(agent_campaign_id),
+                idempotency_key,
+            )
+            return result.model_dump(mode="json")
+
+        registry = CrmToolRegistry(
+            crm_service,
+            read_selected_prospect,
+            link_for_agent,
+        )
         runtime = ControlledAgentRuntime(registry, max_steps=payload.max_steps)
         return runtime.run(
             tenant_id=tenant_id,
@@ -272,6 +292,23 @@ def create_app(
             model=DeterministicCrmAgent(payload.campaign_id),
             approved_call_ids=payload.approved_call_ids,
         )
+
+    @application.post(
+        "/campaigns/{campaign_id}/crm/company",
+        response_model=ProspectCrmLinkResult,
+    )
+    def link_campaign_company(
+        campaign_id: str,
+        payload: ProspectCrmLinkRequest,
+        tenant_id: TenantHeader,
+    ) -> ProspectCrmLinkResult:
+        campaign = campaign_workflow.get_campaign(campaign_id)
+        try:
+            return crm_linker.link_selected_prospect(
+                tenant_id, campaign, payload.idempotency_key
+            )
+        except ValueError as error:
+            raise WorkflowConflictError(str(error)) from error
 
     @application.post(
         "/crm/companies",

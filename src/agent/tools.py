@@ -37,6 +37,11 @@ class InspectSelectedProspectArguments(StrictModel):
     campaign_id: str = Field(pattern=r"^campaign-[a-z0-9-]{4,64}$")
 
 
+class LinkSelectedProspectArguments(StrictModel):
+    campaign_id: str = Field(pattern=r"^campaign-[a-z0-9-]{4,64}$")
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     name: str
@@ -53,6 +58,7 @@ class CrmToolRegistry:
         self,
         service: CrmService,
         prospect_reader: Callable[[str, str], dict[str, object]] | None = None,
+        prospect_linker: Callable[[str, str, str], dict[str, object]] | None = None,
     ) -> None:
         self._tools = {
             "crm.search_companies": ToolSpec(
@@ -85,6 +91,18 @@ class CrmToolRegistry:
                 requires_approval=False,
                 handler=lambda tenant_id, arguments: prospect_reader(
                     tenant_id, arguments.campaign_id
+                ),
+            )
+        if prospect_linker is not None:
+            self._tools["crm.link_selected_prospect"] = ToolSpec(
+                name="crm.link_selected_prospect",
+                version="1",
+                argument_model=LinkSelectedProspectArguments,
+                requires_approval=True,
+                handler=lambda tenant_id, arguments: prospect_linker(
+                    tenant_id,
+                    arguments.campaign_id,
+                    arguments.idempotency_key,
                 ),
             )
         self._service = service

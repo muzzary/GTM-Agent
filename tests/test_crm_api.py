@@ -4,6 +4,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from src.crm.integration import CampaignCrmLinker
+from src.crm.service import CrmService
 from src.data.crm_repository import CrmRepository
 from src.runtime.api import create_app
 from src.runtime.fixtures import DeterministicFixturePipeline
@@ -295,3 +297,89 @@ def test_crm_api_links_only_the_researched_prospect_and_preserves_evidence(
         },
     )
     assert forged.status_code == 409
+
+
+def test_crm4_links_researched_prospect_and_records_research_activity(
+    tmp_path: Path,
+) -> None:
+    client = build_client(tmp_path)
+    campaign_id = create_researched_campaign(client)
+
+    linked = client.post(
+        f"/campaigns/{campaign_id}/crm/company",
+        headers=TENANT,
+        json={"idempotency_key": "link-prospect-0001"},
+    )
+
+    assert linked.status_code == 200
+    body = linked.json()
+    assert body["status"] == "linked"
+    assert body["company"]["source_campaign_id"] == campaign_id
+    assert body["activity"]["activity_type"] == "research"
+    activities = client.get(
+        f"/crm/activities/company/{body['company']['company_id']}", headers=TENANT
+    )
+    assert activities.status_code == 200
+    assert len(activities.json()) == 1
+
+
+def test_crm4_agent_link_requires_approval_then_links(tmp_path: Path) -> None:
+    client = build_client(tmp_path)
+    campaign_id = create_researched_campaign(client)
+
+    paused = client.post(
+        "/agent/runs",
+        headers=TENANT,
+        json={
+            "goal": "Link the selected prospect to CRM",
+            "campaign_id": campaign_id,
+        },
+    )
+    assert paused.status_code == 200
+    assert paused.json()["status"] == "approval_required"
+    assert client.get("/crm/companies", headers=TENANT).json() == []
+
+    approved = client.post(
+        "/agent/runs",
+        headers=TENANT,
+        json={
+            "goal": "Link the selected prospect to CRM",
+            "campaign_id": campaign_id,
+            "approved_call_ids": ["tool-call-link-prospect-0001"],
+        },
+    )
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "completed"
+    assert [entry["status"] for entry in approved.json()["trace"]] == [
+        "tool_called",
+        "succeeded",
+        "final",
+    ]
+
+
+def test_crm4_surfaces_duplicate_domain_for_review_without_merging(
+    tmp_path: Path,
+) -> None:
+    client = build_client(tmp_path)
+    campaign_id = create_researched_campaign(client)
+    campaign = client.app.state.campaign_workflow.get_campaign(campaign_id)
+    selected = campaign.prospects[0].model_copy(
+        update={"official_url": "https://www.fixture-one.example"}
+    )
+    campaign = campaign.model_copy(
+        update={"prospects": (selected, *campaign.prospects[1:])}
+    )
+    client.post(
+        "/crm/companies",
+        headers=TENANT,
+        json={"name": "Existing Company", "normalized_domain": "fixture-one.example"},
+    )
+
+    repository = CrmRepository(tmp_path / "crm.sqlite3")
+    result = CampaignCrmLinker(
+        CrmService(repository), repository
+    ).link_selected_prospect("tenant-0001", campaign, "link-prospect-0002")
+
+    assert result.status == "conflict_review"
+    assert result.company is None
+    assert len(result.duplicate_company_ids) == 1

@@ -173,3 +173,43 @@ def test_adversarial_output_cannot_select_unknown_or_invalid_tool(
     assert [company.name for company in repository.list_companies(TENANT)] == [
         "Acme Logistics"
     ]
+
+
+def test_link_selected_prospect_tool_is_approval_gated(tmp_path: Path) -> None:
+    repository = seeded_repository(tmp_path)
+    calls: list[tuple[str, str, str]] = []
+
+    def linker(
+        tenant_id: str, campaign_id: str, idempotency_key: str
+    ) -> dict[str, object]:
+        calls.append((tenant_id, campaign_id, idempotency_key))
+        return {"status": "linked"}
+
+    registry = CrmToolRegistry(CrmService(repository), prospect_linker=linker)
+    call = {
+        "kind": "tool_call",
+        "call_id": "tool-call-link-0001",
+        "tool_name": "crm.link_selected_prospect",
+        "arguments": {
+            "campaign_id": "campaign-0001",
+            "idempotency_key": "link-0001",
+        },
+    }
+
+    paused = ControlledAgentRuntime(registry).run(
+        tenant_id=TENANT,
+        goal="Link the researched prospect",
+        model=ScriptedModel([call]),
+    )
+    assert paused.status == "approval_required"
+    assert calls == []
+
+    approved = ControlledAgentRuntime(registry).run(
+        tenant_id=TENANT,
+        goal="Link the researched prospect",
+        model=ScriptedModel([call, AgentFinal(kind="final", message="linked")]),
+        approved_call_ids={"tool-call-link-0001"},
+    )
+
+    assert approved.status == "completed"
+    assert calls == [(TENANT, "campaign-0001", "link-0001")]

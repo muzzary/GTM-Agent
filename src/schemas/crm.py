@@ -32,6 +32,11 @@ class ActivityType(StrEnum):
     DEAL_STAGE_CHANGED = "deal_stage_changed"
 
 
+class ProspectLinkStatus(StrEnum):
+    LINKED = "linked"
+    CONFLICT_REVIEW = "conflict_review"
+
+
 class CustomFieldType(StrEnum):
     TEXT = "text"
     NUMBER = "number"
@@ -161,9 +166,7 @@ class Activity(StrictModel):
 
 
 class CompanyCreate(StrictModel):
-    company_id: str | None = Field(
-        default=None, pattern=r"^company-[a-z0-9-]{4,64}$"
-    )
+    company_id: str | None = Field(default=None, pattern=r"^company-[a-z0-9-]{4,64}$")
     name: str = Field(min_length=1, max_length=160)
     normalized_domain: str | None = Field(default=None, max_length=255)
     website: HttpUrl | None = None
@@ -180,9 +183,7 @@ class CompanyCreate(StrictModel):
 
 
 class ContactCreate(StrictModel):
-    contact_id: str | None = Field(
-        default=None, pattern=r"^contact-[a-z0-9-]{4,64}$"
-    )
+    contact_id: str | None = Field(default=None, pattern=r"^contact-[a-z0-9-]{4,64}$")
     company_id: str = Field(pattern=r"^company-[a-z0-9-]{4,64}$")
     full_name: str = Field(min_length=1, max_length=160)
     role: str = Field(min_length=1, max_length=120)
@@ -198,9 +199,7 @@ class PipelineStageCreate(StrictModel):
 
 
 class PipelineCreate(StrictModel):
-    pipeline_id: str | None = Field(
-        default=None, pattern=r"^pipeline-[a-z0-9-]{4,64}$"
-    )
+    pipeline_id: str | None = Field(default=None, pattern=r"^pipeline-[a-z0-9-]{4,64}$")
     name: str = Field(min_length=1, max_length=120)
     stages: list[PipelineStageCreate] = Field(min_length=1, max_length=32)
 
@@ -208,9 +207,7 @@ class PipelineCreate(StrictModel):
 class DealCreate(StrictModel):
     deal_id: str | None = Field(default=None, pattern=r"^deal-[a-z0-9-]{4,64}$")
     company_id: str = Field(pattern=r"^company-[a-z0-9-]{4,64}$")
-    contact_id: str | None = Field(
-        default=None, pattern=r"^contact-[a-z0-9-]{4,64}$"
-    )
+    contact_id: str | None = Field(default=None, pattern=r"^contact-[a-z0-9-]{4,64}$")
     pipeline_id: str = Field(pattern=r"^pipeline-[a-z0-9-]{4,64}$")
     stage_id: str = Field(pattern=r"^stage-[a-z0-9-]{4,64}$")
     name: str = Field(min_length=1, max_length=160)
@@ -221,11 +218,21 @@ class DealCreate(StrictModel):
 
 
 class ActivityCreate(StrictModel):
-    activity_id: str | None = Field(
-        default=None, pattern=r"^activity-[a-z0-9-]{4,64}$"
-    )
+    activity_id: str | None = Field(default=None, pattern=r"^activity-[a-z0-9-]{4,64}$")
     entity_type: CrmEntityType = Field(strict=False)
     entity_id: CrmId
     activity_type: ActivityType = Field(strict=False)
     summary: str = Field(min_length=1, max_length=1_000)
     occurred_at: AwareDatetime = Field(strict=False)
+
+
+class ProspectCrmLinkRequest(StrictModel):
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class ProspectCrmLinkResult(StrictModel):
+    status: ProspectLinkStatus = Field(strict=False)
+    company: Company | None = None
+    activity: Activity | None = None
+    duplicate_company_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=16)
+    reason: str = Field(min_length=1, max_length=500)

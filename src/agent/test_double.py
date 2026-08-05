@@ -17,6 +17,16 @@ class DeterministicCrmAgent:
             and "prospect" in goal.casefold()
         ):
             self._used = True
+            if "link" in goal.casefold():
+                return AgentToolCall(
+                    kind="tool_call",
+                    call_id="tool-call-link-prospect-0001",
+                    tool_name="crm.link_selected_prospect",
+                    arguments={
+                        "campaign_id": self._campaign_id,
+                        "idempotency_key": "agent-link-prospect-0001",
+                    },
+                )
             return AgentToolCall(
                 kind="tool_call",
                 call_id="tool-call-inspect-prospect-0001",

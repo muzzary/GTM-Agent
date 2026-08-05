@@ -116,6 +116,15 @@ class CrmRepository:
             ).fetchall()
         return tuple(Company.model_validate_json(row[0]) for row in rows)
 
+    def find_companies_by_domain(
+        self, tenant_id: str, normalized_domain: str
+    ) -> tuple[Company, ...]:
+        return tuple(
+            company
+            for company in self.list_companies(tenant_id)
+            if company.normalized_domain == normalized_domain
+        )
+
     def save_contact(self, contact: Contact) -> Contact:
         with self._connect() as connection:
             self._assert_related_tenant(

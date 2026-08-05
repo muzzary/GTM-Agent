@@ -32,8 +32,7 @@ introduced.
 | `frontend/package-lock.json` | Exact npm dependency lockfile used by local setup and CI. |
 | `src/data/` | Controlled HTTP collection, source policy, robots handling, bounded parsing, privacy filtering, and SQLite response caching. |
 | `src/agent/` | Strict model-output contracts, allowlisted CRM tool definitions, approval enforcement, bounded execution, and tool-call traces. |
-| `src/crm/` | Shared CRM business operations used by HTTP endpoints and agent tools. |
-| `src/crm/` | Shared CRM business operations used by HTTP endpoints and agent tools. |
+| `src/crm/` | Shared CRM business operations and GTM-to-CRM prospect linking used by HTTP endpoints and agent tools. |
 | `src/schemas/` | Structured records for products, prospects, evidence, and campaigns. |
 | `src/research/` | Regional Wikidata and approved-market discovery, official-site expansion, transparent ranking, selected-prospect research, and optional Colab-backed English translation. |
 | `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |
@@ -60,6 +59,7 @@ introduced.
 | `docs/PHASE4_FOLLOWUP_SPEC.md` | Regional targeting, broader company coverage, plain-English findings, and translation contracts. |
 | `docs/PHASE4_1_SEARCH_SPEC.md` | Fast multi-source discovery, redirect recovery, extraction, safety, and performance contracts. |
 | `docs/CRM_MVP_PLAN.md` | Dependency-ordered plan for the agent-first CRM and revenue MVP extension. |
+| `docs/CRM4_RUNBOOK.md` | Manual verification for reviewed prospect-to-company CRM linking. |
 
 ## Data and deliverables
 

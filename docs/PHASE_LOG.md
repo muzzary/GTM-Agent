@@ -572,3 +572,41 @@
 
 - User confirmed the focused agent checks and controlled prospect-inspection
   API flow passed, including approval and idempotency behavior.
+
+## CRM-4: GTM-to-CRM workflow integration
+
+**Status:** Accepted after manual verification
+
+**Changed:**
+
+- Added a reviewed link operation for completed selected-prospect research.
+- Preserved prospect, campaign, and evidence IDs on the CRM company and added
+  a research activity to the company timeline.
+- Added normalized-domain duplicate detection that returns an explicit
+  `conflict_review` result without silently merging records.
+- Added the `crm.link_selected_prospect` allowlisted tool with approval gating.
+
+**Current automated verification:**
+
+- CRM-4 API, duplicate-conflict, and agent approval tests: 5 passed.
+- Full backend regression suite: 137 tests passed.
+- Ruff and diff checks: clean.
+
+**Manual gate:**
+
+- Complete a researched fixture campaign and call
+  `POST /campaigns/{campaign_id}/crm/company`.
+- Confirm the response preserves the selected prospect evidence and creates a
+  research activity.
+- Repeat the link and confirm the existing record is returned idempotently.
+- Seed a company with the same normalized domain and confirm
+  `conflict_review` is returned without merging.
+- Run the agent tool path and confirm the link pauses for approval before any
+  CRM mutation.
+
+**Manual verification completed:**
+
+- Live discovery found Brink’s with an official domain at `us.brinks.com`.
+- A seeded same-domain CRM company produced `conflict_review` with the existing
+  company ID and no second company was created or merged.
+- The user confirmed the CRM-4 manual checks passed.

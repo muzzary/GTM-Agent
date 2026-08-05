@@ -49,7 +49,10 @@ research activity. CRM-3 adds a dependency-free controlled agent runtime with
 validated, allowlisted CRM tools and approval-gated mutations. Colab model
 integration remains behind the existing validated inference boundary. The
 controlled boundary is available at `POST /agent/runs`; it currently uses the
-deterministic test double and can inspect a completed selected prospect.
+deterministic test double and can inspect a completed selected prospect. CRM-4
+adds a reviewed GTM-to-CRM link operation: it preserves selected-prospect
+evidence, records a research activity, detects duplicate normalized domains,
+and exposes the mutation as an approval-gated agent tool.
 
 ## Requirements
 
@@ -146,6 +149,7 @@ The local fixture workflow exposes these endpoints:
 - `POST /crm/companies`, `GET /crm/companies`
 - `POST /crm/pipelines`, `POST /crm/contacts`, `POST /crm/deals`
 - `POST /crm/activities`, `GET /crm/activities/{entity_type}/{entity_id}`
+- `POST /campaigns/{campaign_id}/crm/company` (reviewed prospect-to-company link)
 - `POST /agent/runs` (controlled test-double execution boundary)
 
 The draft endpoint remains for fixture regression testing, but Phase 4's UI

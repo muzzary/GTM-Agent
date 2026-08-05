@@ -39,5 +39,5 @@ class AgentRunResult(StrictModel):
 class AgentRunRequest(StrictModel):
     goal: str = Field(min_length=1, max_length=2_000)
     campaign_id: str | None = Field(default=None, pattern=r"^campaign-[a-z0-9-]{4,64}$")
-    approved_call_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=16)
+    approved_call_ids: list[str] = Field(default_factory=list, max_length=16)
     max_steps: int = Field(default=8, ge=1, le=12)
