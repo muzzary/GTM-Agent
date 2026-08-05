@@ -207,7 +207,7 @@ with the next user-interface pass:
 
 ## Phase 5 - Baseline outreach, traces, and evaluation harness
 
-**Status:** Implementation in progress on `codex/phase-5-baseline`.
+**Status:** Accepted after manual verification.
 
 The CRM and revenue extension is planned separately in
 [`docs/CRM_MVP_PLAN.md`](CRM_MVP_PLAN.md). It will connect the outreach

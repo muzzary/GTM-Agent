@@ -646,3 +646,43 @@
 - Late-arrival warnings and explainable event IDs were visible in the report.
 - The user confirmed the read-only `crm.revenue_report` agent tool completed
   without an approval gate.
+
+## Phase 5: Baseline outreach, traces, and evaluation harness
+
+**Status:** Accepted after manual verification
+
+**Changed:**
+
+- Added a deterministic prompt-only outreach builder using the existing
+  product/ICP benchmark matrix, with explicit approved claims and bounded
+  evidence context.
+- Extended the inference output contract additively with `evidence_used` while
+  preserving compatibility with existing Phase 1 result bundles.
+- Added deterministic approved-claim and evidence-ID evaluation checks,
+  reproducible per-case baseline reports, prompt digests, and failure examples.
+- Added a bounded baseline runner with request/model/generation matching,
+  one-retry maximum, explicit failures, latency capture, and complete attempt
+  traces.
+- Added canonical, size-limited baseline report JSON persistence and a Phase 5
+  runbook. Generated reports remain local under the ignored `results/` boundary.
+
+**Automated verification:**
+
+- Full backend regression suite: 153 tests passed.
+- Backend Ruff and diff checks: clean.
+- Frontend suite: 21 tests passed across eight files.
+- Frontend Oxlint, typecheck, and production build: successful.
+- No dependency changes were made.
+
+**Manual verification completed:**
+
+- User reviewed the Phase 5 prompt, support checks, bounded retry behavior,
+  traces, report persistence, and runbook, and approved the implementation for
+  push.
+
+**Known limitation:**
+
+- `npm audit` could not reach the npm advisory endpoint in the restricted
+  environment. No npm dependencies changed in this phase.
+- Semantic factuality beyond claim/evidence identifiers remains a human-review
+  responsibility; the harness does not overclaim automated understanding.
