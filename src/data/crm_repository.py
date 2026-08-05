@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from src.schemas.crm import Activity, Company, Contact, Deal, Pipeline
+from src.schemas.revenue import RevenueEvent
 
 
 class CrmNotFoundError(LookupError):
@@ -65,6 +66,13 @@ class CrmRepository:
                     occurred_at TEXT NOT NULL,
                     payload TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS crm_revenue_events (
+                    event_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    subscription_id TEXT NOT NULL,
+                    effective_at TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS crm_idempotency (
                     tenant_id TEXT NOT NULL,
                     operation TEXT NOT NULL,
@@ -77,6 +85,8 @@ class CrmRepository:
                     ON crm_companies (tenant_id);
                 CREATE INDEX IF NOT EXISTS idx_crm_deals_tenant
                     ON crm_deals (tenant_id);
+                CREATE INDEX IF NOT EXISTS idx_crm_revenue_events_tenant_time
+                    ON crm_revenue_events (tenant_id, effective_at);
                 """
             )
 
@@ -329,6 +339,121 @@ class CrmRepository:
         row = self._get_row("crm_deals", "deal_id", tenant_id, deal_id)
         return Deal.model_validate_json(row[0])
 
+    def list_deals(self, tenant_id: str) -> tuple[Deal, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT payload FROM crm_deals WHERE tenant_id = ? ORDER BY deal_id",
+                (tenant_id,),
+            ).fetchall()
+        return tuple(Deal.model_validate_json(row[0]) for row in rows)
+
+    def save_revenue_event(self, event: RevenueEvent) -> RevenueEvent:
+        if not event.idempotency_key.strip() or len(event.idempotency_key) > 128:
+            raise CrmConflictError(
+                "revenue event idempotency key is required and bounded"
+            )
+        payload = event.model_dump_json()
+        fingerprint = sha256(
+            event.model_dump_json(exclude={"idempotency_key"}).encode()
+        ).hexdigest()
+        with self._connect() as connection:
+            self._assert_related_tenant(
+                connection,
+                "crm_companies",
+                "company_id",
+                event.company_id,
+                event.tenant_id,
+                "company",
+            )
+            if event.deal_id is not None:
+                self._assert_related_tenant(
+                    connection,
+                    "crm_deals",
+                    "deal_id",
+                    event.deal_id,
+                    event.tenant_id,
+                    "deal",
+                )
+            self._assert_existing_tenant(
+                connection,
+                "crm_revenue_events",
+                "event_id",
+                event.event_id,
+                event.tenant_id,
+            )
+            existing = connection.execute(
+                "SELECT payload FROM crm_revenue_events WHERE event_id = ?",
+                (event.event_id,),
+            ).fetchone()
+            if existing is not None:
+                saved = RevenueEvent.model_validate_json(existing[0])
+                if saved.model_dump_json() != payload:
+                    raise CrmConflictError(
+                        "revenue event ID was reused with different data"
+                    )
+            prior = connection.execute(
+                """
+                SELECT resource_id, fingerprint FROM crm_idempotency
+                WHERE tenant_id = ? AND operation = ? AND idempotency_key = ?
+                """,
+                (event.tenant_id, "revenue_event", event.idempotency_key),
+            ).fetchone()
+            if prior is not None:
+                if prior[1] != fingerprint:
+                    raise CrmConflictError(
+                        "revenue event idempotency key was reused with different data"
+                    )
+                return self._get_revenue_event_from_connection(
+                    connection, event.tenant_id, prior[0]
+                )
+            if existing is None:
+                connection.execute(
+                    """
+                    INSERT INTO crm_revenue_events (
+                        event_id, tenant_id, subscription_id, effective_at, payload
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.event_id,
+                        event.tenant_id,
+                        event.subscription_id,
+                        event.effective_at.isoformat(),
+                        payload,
+                    ),
+                )
+            connection.execute(
+                """
+                INSERT INTO crm_idempotency (
+                    tenant_id, operation, idempotency_key, resource_id, fingerprint
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    event.tenant_id,
+                    "revenue_event",
+                    event.idempotency_key,
+                    event.event_id,
+                    fingerprint,
+                ),
+            )
+        return event
+
+    def list_revenue_events(self, tenant_id: str) -> tuple[RevenueEvent, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload FROM crm_revenue_events
+                WHERE tenant_id = ? ORDER BY effective_at, event_id
+                """,
+                (tenant_id,),
+            ).fetchall()
+        return tuple(RevenueEvent.model_validate_json(row[0]) for row in rows)
+
+    def get_revenue_event(self, tenant_id: str, event_id: str) -> RevenueEvent:
+        with self._connect() as connection:
+            return self._get_revenue_event_from_connection(
+                connection, tenant_id, event_id
+            )
+
     def save_activity(self, activity: Activity) -> Activity:
         table = {
             "company": "crm_companies",
@@ -404,6 +529,20 @@ class CrmRepository:
         if row is None:
             raise CrmConflictError("idempotency record points to a missing deal")
         return Deal.model_validate_json(row[0])
+
+    def _get_revenue_event_from_connection(
+        self, connection: sqlite3.Connection, tenant_id: str, event_id: str
+    ) -> RevenueEvent:
+        row = connection.execute(
+            """
+            SELECT payload FROM crm_revenue_events
+            WHERE event_id = ? AND tenant_id = ?
+            """,
+            (event_id, tenant_id),
+        ).fetchone()
+        if row is None:
+            raise CrmNotFoundError(f"revenue event not found: {event_id}")
+        return RevenueEvent.model_validate_json(row[0])
 
     def _get_row(
         self, table: str, id_column: str, tenant_id: str, record_id: str

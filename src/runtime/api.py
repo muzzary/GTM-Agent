@@ -1,9 +1,9 @@
 import os
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, Request, status
+from fastapi import FastAPI, Header, Query, Request, status
 from fastapi.responses import JSONResponse
 
 from src.agent.contracts import AgentRunRequest, AgentRunResult
@@ -25,6 +25,7 @@ from src.research.providers import (
     WikidataDiscoveryProvider,
 )
 from src.research.translation import ColabResearchTranslator
+from src.revenue.service import RevenueService
 from src.runtime.fixtures import DeterministicFixturePipeline
 from src.runtime.settings import Settings
 from src.runtime.workflow import (
@@ -64,6 +65,7 @@ from src.schemas.research import (
     ResearchRequest,
     ResearchRun,
 )
+from src.schemas.revenue import RevenueEvent, RevenueEventCreate, RevenueReport
 
 settings = Settings.from_mapping(os.environ)
 
@@ -77,6 +79,7 @@ def create_app(
     campaign_workflow = workflow or _default_workflow(app_settings or settings)
     crm_store = crm_repository or CrmRepository((app_settings or settings).crm_path)
     crm_service = CrmService(crm_store)
+    revenue_service = RevenueService(crm_store)
     crm_linker = CampaignCrmLinker(crm_service, crm_store)
     application.state.campaign_workflow = campaign_workflow
     application.state.crm_store = crm_store
@@ -284,6 +287,9 @@ def create_app(
             crm_service,
             read_selected_prospect,
             link_for_agent,
+            lambda report_tenant_id, as_of, currency: revenue_service.report(
+                report_tenant_id, as_of, currency
+            ).model_dump(mode="json"),
         )
         runtime = ControlledAgentRuntime(registry, max_steps=payload.max_steps)
         return runtime.run(
@@ -292,6 +298,24 @@ def create_app(
             model=DeterministicCrmAgent(payload.campaign_id),
             approved_call_ids=payload.approved_call_ids,
         )
+
+    @application.post(
+        "/crm/revenue/events",
+        response_model=RevenueEvent,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_revenue_event(
+        payload: RevenueEventCreate, tenant_id: TenantHeader
+    ) -> RevenueEvent:
+        return revenue_service.ingest_event(tenant_id, payload)
+
+    @application.get("/crm/revenue/report", response_model=RevenueReport)
+    def get_revenue_report(
+        tenant_id: TenantHeader,
+        as_of: date,
+        currency: str = Query(default="USD", pattern=r"^[A-Z]{3}$"),
+    ) -> RevenueReport:
+        return revenue_service.report(tenant_id, as_of, currency)
 
     @application.post(
         "/campaigns/{campaign_id}/crm/company",

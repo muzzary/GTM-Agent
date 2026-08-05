@@ -383,3 +383,84 @@ def test_crm4_surfaces_duplicate_domain_for_review_without_merging(
     assert result.status == "conflict_review"
     assert result.company is None
     assert len(result.duplicate_company_ids) == 1
+
+
+def test_crm5_revenue_api_reports_mrr_pipeline_and_forecast(
+    tmp_path: Path,
+) -> None:
+    client = build_client(tmp_path)
+    client.post(
+        "/crm/companies",
+        headers=TENANT,
+        json={"company_id": "company-0001", "name": "Acme Logistics"},
+    )
+    client.post(
+        "/crm/pipelines",
+        headers=TENANT,
+        json={
+            "pipeline_id": "pipeline-0001",
+            "name": "New business",
+            "stages": [
+                {
+                    "stage_id": "stage-0001",
+                    "name": "Qualified",
+                    "position": 1,
+                    "probability": 0.5,
+                }
+            ],
+        },
+    )
+    client.post(
+        "/crm/deals",
+        headers=TENANT,
+        json={
+            "deal_id": "deal-0001",
+            "company_id": "company-0001",
+            "pipeline_id": "pipeline-0001",
+            "stage_id": "stage-0001",
+            "name": "Acme expansion",
+            "amount_minor": 20000,
+            "currency": "USD",
+            "idempotency_key": "deal-0001",
+        },
+    )
+    event_payload = {
+        "subscription_id": "subscription-0001",
+        "company_id": "company-0001",
+        "event_type": "converted",
+        "effective_at": "2026-08-01T12:00:00Z",
+        "recorded_at": "2026-08-05T12:00:00Z",
+        "mrr_minor_after": 10000,
+        "currency": "USD",
+        "idempotency_key": "revenue-0001",
+    }
+    created = client.post(
+        "/crm/revenue/events", headers=TENANT, json=event_payload
+    )
+    assert created.status_code == 201, created.text
+    replay = client.post(
+        "/crm/revenue/events", headers=TENANT, json=event_payload
+    )
+    assert replay.status_code == 201
+    report = client.get(
+        "/crm/revenue/report?as_of=2026-08-05&currency=USD", headers=TENANT
+    )
+
+    assert report.status_code == 200
+    body = report.json()
+    assert body["mrr_minor"] == 10000
+    assert body["new_business"]["amount_minor"] == 10000
+    assert body["pipeline_value"]["amount_minor"] == 20000
+    assert body["forecast_value"]["amount_minor"] == 10000
+
+    agent_report = client.post(
+        "/agent/runs",
+        headers=TENANT,
+        json={
+            "goal": "Show the revenue report",
+            "approved_call_ids": [],
+        },
+    )
+    assert agent_report.status_code == 200, agent_report.text
+    assert agent_report.json()["status"] == "completed", agent_report.text
+    assert agent_report.json()["outputs"][0]["tool_name"] == "crm.revenue_report"

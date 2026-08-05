@@ -11,6 +11,16 @@ class DeterministicCrmAgent:
     def next_output(
         self, goal: str, _observations: tuple[dict[str, object], ...]
     ) -> object:
+        if not self._used and any(
+            term in goal.casefold() for term in ("revenue", "mrr", "pipeline forecast")
+        ):
+            self._used = True
+            return AgentToolCall(
+                kind="tool_call",
+                call_id="tool-call-revenue-report-0001",
+                tool_name="crm.revenue_report",
+                arguments={"as_of": "2026-08-05", "currency": "USD"},
+            )
         if (
             not self._used
             and self._campaign_id is not None

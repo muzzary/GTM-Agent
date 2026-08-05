@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 from hashlib import sha256
 
 from pydantic import Field, HttpUrl
@@ -42,6 +43,11 @@ class LinkSelectedProspectArguments(StrictModel):
     idempotency_key: str = Field(min_length=1, max_length=128)
 
 
+class RevenueReportArguments(StrictModel):
+    as_of: date = Field(strict=False)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     name: str
@@ -59,6 +65,7 @@ class CrmToolRegistry:
         service: CrmService,
         prospect_reader: Callable[[str, str], dict[str, object]] | None = None,
         prospect_linker: Callable[[str, str, str], dict[str, object]] | None = None,
+        revenue_reporter: Callable[[str, date, str], dict[str, object]] | None = None,
     ) -> None:
         self._tools = {
             "crm.search_companies": ToolSpec(
@@ -103,6 +110,16 @@ class CrmToolRegistry:
                     tenant_id,
                     arguments.campaign_id,
                     arguments.idempotency_key,
+                ),
+            )
+        if revenue_reporter is not None:
+            self._tools["crm.revenue_report"] = ToolSpec(
+                name="crm.revenue_report",
+                version="1",
+                argument_model=RevenueReportArguments,
+                requires_approval=False,
+                handler=lambda tenant_id, arguments: revenue_reporter(
+                    tenant_id, arguments.as_of, arguments.currency
                 ),
             )
         self._service = service

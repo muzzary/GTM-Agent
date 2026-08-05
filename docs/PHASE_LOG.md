@@ -610,3 +610,39 @@
 - A seeded same-domain CRM company produced `conflict_review` with the existing
   company ID and no second company was created or merged.
 - The user confirmed the CRM-4 manual checks passed.
+
+## CRM-5: Revenue event ledger and reporting
+
+**Status:** Accepted after manual verification
+
+**Changed:**
+
+- Added strict revenue event types for trial, conversion, expansion, contraction,
+  cancellation, and reactivation, plus subscription snapshots and explainable
+  report metrics.
+- Added tenant-scoped SQLite event persistence with deterministic event IDs and
+  idempotency conflict protection.
+- Added effective-time MRR, new business, expansion, contraction, churn,
+  pipeline value, probability-weighted forecast, and reconciliation warnings.
+- Added `POST /crm/revenue/events`, `GET /crm/revenue/report`, and the read-only
+  `crm.revenue_report` agent tool.
+
+**Current automated verification:**
+
+- Revenue contract, ledger, report, replay, tenant-isolation, and API tests: 6 passed.
+- Ruff and diff checks: clean.
+
+**Manual gate:**
+
+- Follow [`docs/CRM5_RUNBOOK.md`](CRM5_RUNBOOK.md).
+- Confirm effective-time ordering, late-arrival warning, duplicate replay,
+  explainable metric event IDs, pipeline value, and weighted forecast.
+- Confirm the read-only agent report tool completes without approval.
+
+**Manual verification completed:**
+
+- The revenue report produced the expected MRR, new-business, expansion, churn,
+  pipeline, and forecast totals.
+- Late-arrival warnings and explainable event IDs were visible in the report.
+- The user confirmed the read-only `crm.revenue_report` agent tool completed
+  without an approval gate.

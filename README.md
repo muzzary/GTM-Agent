@@ -53,6 +53,10 @@ deterministic test double and can inspect a completed selected prospect. CRM-4
 adds a reviewed GTM-to-CRM link operation: it preserves selected-prospect
 evidence, records a research activity, detects duplicate normalized domains,
 and exposes the mutation as an approval-gated agent tool.
+CRM-5 adds a dependency-free revenue event ledger with idempotent ingestion,
+effective-time MRR and churn calculations, pipeline value, probability-weighted
+forecasting, explainable event IDs, reconciliation warnings, and a read-only
+agent report tool.
 
 ## Requirements
 
@@ -150,6 +154,7 @@ The local fixture workflow exposes these endpoints:
 - `POST /crm/pipelines`, `POST /crm/contacts`, `POST /crm/deals`
 - `POST /crm/activities`, `GET /crm/activities/{entity_type}/{entity_id}`
 - `POST /campaigns/{campaign_id}/crm/company` (reviewed prospect-to-company link)
+- `POST /crm/revenue/events`, `GET /crm/revenue/report`
 - `POST /agent/runs` (controlled test-double execution boundary)
 
 The draft endpoint remains for fixture regression testing, but Phase 4's UI
