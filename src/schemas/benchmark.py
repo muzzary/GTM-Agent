@@ -88,13 +88,40 @@ class BaselineCaseResult(StrictModel):
     case_id: str = Field(pattern=r"^case-[a-z0-9-]{3,64}$")
     request_id: str = Field(pattern=r"^req_[a-z0-9]{12,64}$")
     prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    output: OutreachOutput
-    evaluation: BaselineCaseEvaluation
+    output: OutreachOutput | None = None
+    evaluation: BaselineCaseEvaluation | None = None
+    retry_count: int = Field(ge=0, le=1)
+    failure: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
     def evaluation_must_match_case(self) -> "BaselineCaseResult":
-        if self.evaluation.case_id != self.case_id:
+        if self.evaluation is not None and self.evaluation.case_id != self.case_id:
             raise ValueError("baseline evaluation must match its case")
+        if (self.output is None) == (self.failure is None):
+            raise ValueError("baseline case must have either output or failure")
+        if self.output is not None and self.evaluation is None:
+            raise ValueError("successful baseline case requires an evaluation")
+        return self
+
+
+class BaselineTraceEntry(StrictModel):
+    case_id: str = Field(pattern=r"^case-[a-z0-9-]{3,64}$")
+    request_id: str = Field(pattern=r"^req_[a-z0-9]{12,64}$")
+    attempt: int = Field(ge=1, le=2)
+    prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    approved_claim_ids: tuple[str, ...] = Field(max_length=64)
+    evidence_ids: tuple[str, ...] = Field(max_length=64)
+    model_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+    status: Literal["succeeded", "failed"]
+    latency_ms: float | None = Field(default=None, ge=0, le=86_400_000)
+    error: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def status_fields_must_match(self) -> "BaselineTraceEntry":
+        if self.status == "succeeded" and self.latency_ms is None:
+            raise ValueError("successful baseline trace requires latency")
+        if self.status == "failed" and self.error is None:
+            raise ValueError("failed baseline trace requires an error")
         return self
 
 
@@ -104,6 +131,7 @@ class BaselineReport(StrictModel):
     model: ModelIdentity
     generation: GenerationSettings
     cases: list[BaselineCaseResult] = Field(min_length=1, max_length=50)
+    trace: list[BaselineTraceEntry] = Field(min_length=1, max_length=100)
 
     @computed_field
     @property
@@ -113,29 +141,43 @@ class BaselineReport(StrictModel):
     @computed_field
     @property
     def valid_output_count(self) -> int:
-        return len(self.cases)
+        return sum(case.output is not None for case in self.cases)
 
     @computed_field
     @property
     def passed_case_count(self) -> int:
-        return sum(case.evaluation.passed for case in self.cases)
+        return sum(
+            case.evaluation is not None and case.evaluation.passed
+            for case in self.cases
+        )
 
     @computed_field
     @property
     def unsupported_claim_count(self) -> int:
         return sum(
-            len(case.evaluation.unsupported_claims) for case in self.cases
+            len(case.evaluation.unsupported_claims)
+            for case in self.cases
+            if case.evaluation is not None
         )
 
     @computed_field
     @property
     def unresolved_evidence_count(self) -> int:
-        return sum(len(case.evaluation.unresolved_evidence) for case in self.cases)
+        return sum(
+            len(case.evaluation.unresolved_evidence)
+            for case in self.cases
+            if case.evaluation is not None
+        )
 
     @computed_field
     @property
     def failure_examples(self) -> list[str]:
-        return [case.case_id for case in self.cases if not case.evaluation.passed]
+        return [
+            case.case_id
+            for case in self.cases
+            if case.failure is not None
+            or (case.evaluation is not None and not case.evaluation.passed)
+        ]
 
 
 class CandidateResult(StrictModel):
