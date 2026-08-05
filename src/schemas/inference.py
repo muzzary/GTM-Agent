@@ -33,6 +33,7 @@ class OutreachOutput(StrictModel):
     subject: str = Field(min_length=1, max_length=120)
     body: str = Field(min_length=1, max_length=4000)
     claims_used: list[str] = Field(default_factory=list, max_length=64)
+    evidence_used: list[str] = Field(default_factory=list, max_length=64)
     uncertainty_notes: list[str] = Field(default_factory=list, max_length=32)
 
 

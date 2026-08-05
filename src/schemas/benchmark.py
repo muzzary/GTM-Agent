@@ -71,6 +71,15 @@ class CaseEvaluation(StrictModel):
     passes_claim_gate: bool
 
 
+class BaselineCaseEvaluation(StrictModel):
+    case_id: str = Field(pattern=r"^case-[a-z0-9-]{3,64}$")
+    passed: bool
+    unsupported_claims: list[str] = Field(max_length=64)
+    unresolved_evidence: list[str] = Field(max_length=64)
+    supported_claim_count: int = Field(ge=0, le=64)
+    cited_evidence_count: int = Field(ge=0, le=64)
+
+
 class CandidateResult(StrictModel):
     model_id: str = Field(min_length=3, max_length=200)
     model_revision: str = Field(pattern=r"^[0-9a-f]{40}$")

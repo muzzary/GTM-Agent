@@ -1,6 +1,7 @@
 import re
 
-from src.schemas.benchmark import BenchmarkCase
+from src.schemas.benchmark import BaselineCaseEvaluation, BenchmarkCase
+from src.schemas.inference import OutreachOutput
 
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x09\x0b\x0c\x0e-\x1f\x7f]")
 
@@ -24,7 +25,12 @@ def build_outreach_prompt(case: BenchmarkCase) -> str:
     claims = "\n".join(
         f"- {claim.claim_id}: {claim.text}" for claim in case.approved_claims
     )
-    evidence = "\n".join(f"- {item}" for item in case.prospect_evidence)
+    evidence = "\n".join(
+        f"- {evidence_id}: {item}"
+        for evidence_id, item in zip(
+            benchmark_evidence_ids(case), case.prospect_evidence, strict=True
+        )
+    )
     return "\n".join(
         (
             "You write concise, evidence-aware B2B outreach.",
@@ -55,3 +61,26 @@ def _assert_prompt_value(value: str) -> None:
         raise ValueError(
             "prompt context cannot contain control characters or line breaks"
         )
+
+
+def benchmark_evidence_ids(case: BenchmarkCase) -> tuple[str, ...]:
+    return tuple(
+        f"evidence-{case.case_id}-{index}"
+        for index in range(1, len(case.prospect_evidence) + 1)
+    )
+
+
+def evaluate_baseline_output(
+    case: BenchmarkCase, output: OutreachOutput
+) -> BaselineCaseEvaluation:
+    unsupported_claims = sorted(set(output.claims_used) - case.approved_claim_ids)
+    known_evidence = set(benchmark_evidence_ids(case))
+    unresolved_evidence = sorted(set(output.evidence_used) - known_evidence)
+    return BaselineCaseEvaluation(
+        case_id=case.case_id,
+        passed=not unsupported_claims and not unresolved_evidence,
+        unsupported_claims=unsupported_claims,
+        unresolved_evidence=unresolved_evidence,
+        supported_claim_count=len(set(output.claims_used) - set(unsupported_claims)),
+        cited_evidence_count=len(set(output.evidence_used) - set(unresolved_evidence)),
+    )
