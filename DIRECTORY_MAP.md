@@ -62,6 +62,7 @@ introduced.
 | `docs/CRM_MVP_PLAN.md` | Dependency-ordered plan for the agent-first CRM and revenue MVP extension. |
 | `docs/CRM4_RUNBOOK.md` | Manual verification for reviewed prospect-to-company CRM linking. |
 | `docs/CRM5_RUNBOOK.md` | Manual verification for revenue events, reports, forecasts, and warnings. |
+| `docs/PHASE5_RUNBOOK.md` | Prompt-only baseline, support checks, retry traces, and report review. |
 
 ## Data and deliverables
 

@@ -32,8 +32,11 @@ while preserving the original source excerpts and translation status.
 Campaign state remains process-local and is cleared when the backend restarts.
 The collector is not an unrestricted web crawler: exact source admission,
 public-IP checks, robots rules, rate limits, response bounds, privacy filtering,
-and a local ignored SQLite cache apply. Real model generation begins in Phase
-5.
+and a local ignored SQLite cache apply. Phase 5 now provides a prompt-only
+baseline harness: it builds deterministic evidence-aware prompts, validates
+supported claim/evidence IDs, records bounded retry traces, and saves
+reproducible baseline reports. Real Colab inference remains an external adapter
+boundary; endpoint failures are explicit and do not produce successful output.
 
 Phase 4.1 runs independent discovery sources and bounded official-site
 expansions concurrently. Its Wikidata query limits candidates before label
