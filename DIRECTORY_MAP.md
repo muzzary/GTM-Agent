@@ -52,6 +52,7 @@ introduced.
 | --- | --- |
 | `tests/` | Backend unit, fixture-based, integration, and regression tests. |
 | `notebooks/phase1_colab_feasibility.ipynb` | Pinned Colab benchmark, QLoRA smoke test, environment capture, and real result-bundle export. |
+| `notebooks/phase6_outreach_adapter.ipynb` | Private Colab LoRA/QLoRA pilot scaffold with dataset validation and artifact metadata export. |
 | `docs/PHASE2_API_RUNBOOK.md` | Manual PowerShell walkthrough for the deterministic campaign API. |
 | `docs/PHASE3_RUNBOOK.md` | Browser walkthrough and two-product manual acceptance gate for onboarding and claim review. |
 | `docs/PHASE3_SPEC.md` | Approved Phase 3 behavior, authorization invariants, risks, and acceptance tests. |
@@ -64,6 +65,8 @@ introduced.
 | `docs/CRM5_RUNBOOK.md` | Manual verification for revenue events, reports, forecasts, and warnings. |
 | `docs/PHASE5_RUNBOOK.md` | Prompt-only baseline, support checks, retry traces, and report review. |
 | `docs/PHASE6_SPEC.md` | Reviewed synthetic pilot boundary, provenance contract, split rules, and adapter gates. |
+| `configs/phase6/pilot.json` | Reviewed synthetic Phase 6 training, validation, and held-out examples with provenance and quality labels. |
+| `configs/phase6/training.json` | Pinned Phase 6 base revision and bounded LoRA training configuration. |
 
 ## Data and deliverables
 

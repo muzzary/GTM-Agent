@@ -1,0 +1,15 @@
+{
+  "config_version": "1.0",
+  "base_model_id": "Qwen/Qwen3-4B-Instruct-2507",
+  "base_model_revision": "cdbee75f17c01a7cc42f958dc650907174af0554",
+  "adapter_id": "gtm-agent-outreach-pilot",
+  "seed": 42,
+  "max_length": 768,
+  "epochs": 1,
+  "max_steps": 6,
+  "learning_rate": 0.0002,
+  "lora_rank": 4,
+  "lora_alpha": 8,
+  "lora_dropout": 0.0,
+  "target_modules": "all-linear"
+}

@@ -686,3 +686,34 @@
   environment. No npm dependencies changed in this phase.
 - Semantic factuality beyond claim/evidence identifiers remains a human-review
   responsibility; the harness does not overclaim automated understanding.
+
+## Phase 6: Reviewed dataset and one outreach adapter
+
+**Status:** Implementation in progress; manual Colab gate pending
+
+**Changed:**
+
+- Added a strict reviewed-example schema with source, license, generation,
+  reviewer, quality, claim, evidence, and content-hash fields.
+- Added dataset audit checks for duplicate content, product/company/prospect
+  split leakage, unsupported claim/evidence IDs, unreviewed training rows, and
+  Phase 1 benchmark overlap.
+- Added a six-example reviewed synthetic pilot across multiple products and
+  ICP groups, with disjoint train, validation, and held-out identities.
+- Added a pinned, bounded training configuration and private Colab LoRA/QLoRA
+  scaffold that validates the dataset before training and writes private
+  adapter metadata with artifact hashes.
+
+**Automated verification:**
+
+- Full backend regression suite: 163 tests passed.
+- Ruff and diff checks: clean.
+- No dependency changes were made.
+
+**Manual gate:**
+
+- Run the private Colab notebook with the reviewed base revision.
+- Review adapter artifacts and compare blind adapter/base outputs on the
+  unchanged Phase 5 benchmark.
+- Confirm factuality and approved-claim/evidence gates remain clean before
+  marking Phase 6 accepted.

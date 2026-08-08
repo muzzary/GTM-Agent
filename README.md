@@ -38,6 +38,10 @@ supported claim/evidence IDs, records bounded retry traces, and saves
 reproducible baseline reports. Real Colab inference remains an external adapter
 boundary; endpoint failures are explicit and do not produce successful output.
 
+Phase 6 now includes a reviewed synthetic pilot manifest, leakage checks, a
+pinned bounded LoRA/QLoRA training configuration, and a private Colab adapter
+scaffold. Training and the base-vs-adapter benchmark review remain manual gates.
+
 Phase 4.1 runs independent discovery sources and bounded official-site
 expansions concurrently. Its Wikidata query limits candidates before label
 resolution, selected-company research can use a same-host sitemap when normal
