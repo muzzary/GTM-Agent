@@ -4,6 +4,7 @@ import pytest
 
 from src.evaluation.phase5 import benchmark_evidence_ids, build_baseline_report
 from src.evaluation.phase6 import compare_baseline_reports
+from src.schemas.benchmark import BaselineCaseResult
 from src.schemas.inference import (
     GenerationSettings,
     InferenceResponse,
@@ -104,3 +105,31 @@ def test_comparison_rejects_base_identity_or_case_mismatch() -> None:
 
     with pytest.raises(ValueError, match="base model revision"):
         compare_baseline_reports(base, mismatched, "c" * 64)
+
+
+def test_comparison_rejects_zero_valid_outputs_as_inconclusive() -> None:
+    base, adapter = reports()
+
+    def failed(report):
+        return report.model_copy(
+            update={
+                "cases": [
+                    BaselineCaseResult(
+                        case_id=case.case_id,
+                        request_id=case.request_id,
+                        prompt_sha256=case.prompt_sha256,
+                        retry_count=0,
+                        failure="model output is invalid",
+                        raw_output_excerpt="<think>not JSON</think>",
+                    )
+                    for case in report.cases
+                ]
+            }
+        )
+
+    comparison = compare_baseline_reports(failed(base), failed(adapter), "c" * 64)
+
+    assert comparison.quality_change == "inconclusive"
+    assert comparison.report_version == "1.1"
+    assert comparison.valid_output_gate_passed is False
+    assert comparison.accepted is False

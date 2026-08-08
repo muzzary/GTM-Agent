@@ -28,6 +28,7 @@ def main() -> None:
         base_report,
         adapter_report,
         hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
+        minimum_valid_output_rate=manifest.hard_gates.minimum_valid_output_rate,
     )
     if metadata.adapter_id != comparison.adapter_id:
         raise ValueError("adapter metadata ID does not match comparison")
@@ -45,6 +46,7 @@ def main() -> None:
             {
                 "manifest_version": manifest.manifest_version,
                 "quality_change": comparison.quality_change,
+                "valid_output_gate_passed": comparison.valid_output_gate_passed,
                 "factuality_gates_passed": comparison.factuality_gates_passed,
                 "no_case_regressions": comparison.no_case_regressions,
                 "accepted": comparison.accepted,

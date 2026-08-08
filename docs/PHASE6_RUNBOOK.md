@@ -23,7 +23,9 @@ private Google Drive.
    - `comparison.json`
 
 The evaluation cell uses zero retries. Invalid model output becomes an explicit
-failed case; it is never converted into a successful result.
+failed case; it is never converted into a successful result. Failed cases keep
+only a bounded raw-output excerpt for diagnosis. The selected Qwen Instruct
+revision is already non-thinking-only; output normalization is not assumed.
 
 ## Local validation
 
@@ -47,10 +49,14 @@ matches the adapter report, and the report remains within the size limit.
 
 The deterministic report must show:
 
+- at least the benchmark's 90% valid structured-output rate;
 - zero unsupported adapter claim IDs;
 - zero unresolved adapter evidence IDs;
 - no per-case quality regressions versus the base report; and
 - a quality result of `improved` or `unchanged`.
+
+A run below the valid-output threshold is `inconclusive` and cannot be
+accepted, even when both base and adapter fail in the same way.
 
 Then manually compare representative base and adapter emails for relevance,
 clarity, differentiation, credibility, CTA quality, and brand fit. Do not

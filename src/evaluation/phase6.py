@@ -8,7 +8,7 @@ from src.schemas.inference import GenerationSettings
 
 
 class AdapterComparisonReport(StrictModel):
-    report_version: Literal["1.0"] = "1.0"
+    report_version: Literal["1.1"] = "1.1"
     benchmark_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     generation: GenerationSettings
     base_model_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
@@ -24,7 +24,11 @@ class AdapterComparisonReport(StrictModel):
     passed_case_count_delta: int
     adapter_unsupported_claim_count: int = Field(ge=0)
     adapter_unresolved_evidence_count: int = Field(ge=0)
-    quality_change: Literal["improved", "regressed", "unchanged"]
+    minimum_valid_output_rate: float = Field(ge=0, le=1)
+    valid_output_gate_passed: bool
+    quality_change: Literal[
+        "improved", "regressed", "unchanged", "inconclusive"
+    ]
     factuality_gates_passed: bool
     no_case_regressions: bool
     regressed_case_ids: list[str] = Field(max_length=50)
@@ -33,14 +37,22 @@ class AdapterComparisonReport(StrictModel):
     @computed_field
     @property
     def accepted(self) -> bool:
-        return self.factuality_gates_passed and self.no_case_regressions
+        return (
+            self.valid_output_gate_passed
+            and self.factuality_gates_passed
+            and self.no_case_regressions
+        )
 
 
 def compare_baseline_reports(
     base: BaselineReport,
     adapter: BaselineReport,
     benchmark_manifest_sha256: str,
+    *,
+    minimum_valid_output_rate: float = 0.9,
 ) -> AdapterComparisonReport:
+    if not 0 <= minimum_valid_output_rate <= 1:
+        raise ValueError("minimum valid output rate must be between zero and one")
     _validate_report_pair(base, adapter)
     base_by_case = {case.case_id: case for case in base.cases}
     adapter_by_case = {case.case_id: case for case in adapter.cases}
@@ -55,8 +67,15 @@ def compare_baseline_reports(
             improved_case_ids.append(case_id)
 
     passed_delta = adapter.passed_case_count - base.passed_case_count
+    base_valid_output_rate = base.valid_output_count / base.total_cases
+    adapter_valid_output_rate = adapter.valid_output_count / adapter.total_cases
+    valid_output_gate_passed = (
+        adapter_valid_output_rate >= minimum_valid_output_rate
+    )
     quality_change = (
-        "improved"
+        "inconclusive"
+        if not valid_output_gate_passed
+        else "improved"
         if passed_delta > 0
         else "regressed"
         if passed_delta < 0
@@ -70,17 +89,16 @@ def compare_baseline_reports(
         adapter_id=adapter.model.adapter_id,
         adapter_revision=adapter.model.adapter_revision,
         total_cases=base.total_cases,
-        base_valid_output_rate=base.valid_output_count / base.total_cases,
-        adapter_valid_output_rate=adapter.valid_output_count / adapter.total_cases,
-        valid_output_rate_delta=(
-            adapter.valid_output_count / adapter.total_cases
-            - base.valid_output_count / base.total_cases
-        ),
+        base_valid_output_rate=base_valid_output_rate,
+        adapter_valid_output_rate=adapter_valid_output_rate,
+        valid_output_rate_delta=adapter_valid_output_rate - base_valid_output_rate,
         base_passed_case_count=base.passed_case_count,
         adapter_passed_case_count=adapter.passed_case_count,
         passed_case_count_delta=passed_delta,
         adapter_unsupported_claim_count=adapter.unsupported_claim_count,
         adapter_unresolved_evidence_count=adapter.unresolved_evidence_count,
+        minimum_valid_output_rate=minimum_valid_output_rate,
+        valid_output_gate_passed=valid_output_gate_passed,
         quality_change=quality_change,
         factuality_gates_passed=(
             adapter.unsupported_claim_count == 0

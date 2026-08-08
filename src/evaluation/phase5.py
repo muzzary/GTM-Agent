@@ -192,6 +192,7 @@ def run_baseline(
                 _validate_baseline_response(response, request, model, generation)
             except Exception as error:
                 detail = str(error)[:500] or error.__class__.__name__
+                raw_output_excerpt = getattr(error, "raw_output_excerpt", None)
                 trace.append(
                     BaselineTraceEntry(
                         case_id=case.case_id,
@@ -215,6 +216,7 @@ def run_baseline(
                             prompt_sha256=prompt_sha256,
                             retry_count=attempt - 1,
                             failure=detail,
+                            raw_output_excerpt=raw_output_excerpt,
                         )
                     )
                 continue

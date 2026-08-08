@@ -12,6 +12,14 @@ from src.schemas.benchmark import (
 )
 from src.schemas.inference import OutreachOutput
 
+MAX_RAW_OUTPUT_EXCERPT_CHARS = 2_000
+
+
+class ModelOutputValidationError(ValueError):
+    def __init__(self, message: str, raw_text: str) -> None:
+        super().__init__(message)
+        self.raw_output_excerpt = raw_text[:MAX_RAW_OUTPUT_EXCERPT_CHARS]
+
 
 def load_manifest(path: Path) -> BenchmarkManifest:
     try:
@@ -25,12 +33,15 @@ def parse_model_output(raw_text: str) -> OutreachOutput:
     try:
         raw = json.loads(raw_text)
     except json.JSONDecodeError as exc:
-        raise ValueError("model output is not valid JSON") from exc
+        raise ModelOutputValidationError(
+            "model output is not valid JSON", raw_text
+        ) from exc
     try:
         return OutreachOutput.model_validate(raw)
     except ValidationError as exc:
-        raise ValueError(
-            "model output does not match the valid output contract"
+        raise ModelOutputValidationError(
+            "model output does not match the valid output contract",
+            raw_text,
         ) from exc
 
 

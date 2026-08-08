@@ -92,6 +92,7 @@ class BaselineCaseResult(StrictModel):
     evaluation: BaselineCaseEvaluation | None = None
     retry_count: int = Field(ge=0, le=1)
     failure: str | None = Field(default=None, max_length=500)
+    raw_output_excerpt: str | None = Field(default=None, max_length=2_000)
 
     @model_validator(mode="after")
     def evaluation_must_match_case(self) -> "BaselineCaseResult":
@@ -101,6 +102,8 @@ class BaselineCaseResult(StrictModel):
             raise ValueError("baseline case must have either output or failure")
         if self.output is not None and self.evaluation is None:
             raise ValueError("successful baseline case requires an evaluation")
+        if self.raw_output_excerpt is not None and self.failure is None:
+            raise ValueError("raw output diagnostics require a failed case")
         return self
 
 

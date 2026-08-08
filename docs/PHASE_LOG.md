@@ -706,11 +706,14 @@
 - Added a deterministic base-versus-adapter comparison contract, fail-closed
   metadata/report validation, and a Colab evaluation handoff for the unchanged
   Phase 1/5 benchmark.
+- Hardened the evaluation gate after a real zero-valid-output run: contract
+  failures preserve bounded raw diagnostics, and sub-threshold comparisons are
+  now inconclusive and rejected.
 
 **Automated verification:**
 
 - Full backend regression suite: 163 tests passed.
-- Full backend regression suite after evaluation handoff: 169 tests passed.
+- Full backend regression suite after evaluation hardening: 171 tests passed.
 - Ruff and diff checks: clean.
 - No dependency changes were made.
 

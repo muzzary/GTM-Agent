@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.evaluation.phase1 import load_manifest
+from src.evaluation.phase1 import load_manifest, parse_model_output
 from src.evaluation.phase5 import benchmark_evidence_ids, run_baseline
 from src.schemas.inference import (
     GenerationSettings,
@@ -91,3 +91,21 @@ def test_runner_stops_after_one_retry_and_reports_failure() -> None:
     ]
     assert all(case.failure == "colab endpoint unavailable" for case in report.cases)
     assert len(report.trace) == 4
+
+
+def test_runner_preserves_bounded_raw_output_for_contract_failures() -> None:
+    case = load_manifest(MANIFEST_PATH).cases[0]
+
+    def generate(_request):
+        parse_model_output("<think>reasoning</think>" + "x" * 3_000)
+
+    report = run_baseline(
+        load_manifest(MANIFEST_PATH).model_copy(update={"cases": [case]}),
+        MODEL,
+        generate,
+        max_retries=0,
+    )
+
+    assert report.valid_output_count == 0
+    assert report.cases[0].raw_output_excerpt.startswith("<think>reasoning</think>")
+    assert len(report.cases[0].raw_output_excerpt) == 2_000
