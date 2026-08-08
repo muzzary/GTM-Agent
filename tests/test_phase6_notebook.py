@@ -26,6 +26,12 @@ def test_phase6_notebook_is_clean_and_validates_before_training() -> None:
     assert "split_counts[\"train\"]" in source
     assert "held_out" in source
     assert "get_peft_model" in source
+    assert "PeftModel.from_pretrained" in source
+    assert "run_baseline" in source
+    assert "compare_baseline_reports" in source
+    assert "base-report.json" in source
+    assert "adapter-report.json" in source
+    assert "comparison.json" in source
     assert "save_pretrained" in source
     assert "adapter-metadata.json" in source
     assert "cloudflared" not in source.lower()

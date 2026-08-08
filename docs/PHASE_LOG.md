@@ -703,10 +703,14 @@
 - Added a pinned, bounded training configuration and private Colab LoRA/QLoRA
   scaffold that validates the dataset before training and writes private
   adapter metadata with artifact hashes.
+- Added a deterministic base-versus-adapter comparison contract, fail-closed
+  metadata/report validation, and a Colab evaluation handoff for the unchanged
+  Phase 1/5 benchmark.
 
 **Automated verification:**
 
 - Full backend regression suite: 163 tests passed.
+- Full backend regression suite after evaluation handoff: 169 tests passed.
 - Ruff and diff checks: clean.
 - No dependency changes were made.
 

@@ -11,7 +11,7 @@ class ModelIdentity(StrictModel):
     adapter_id: str | None = Field(default=None, min_length=3, max_length=200)
     adapter_revision: str | None = Field(
         default=None,
-        pattern=r"^[0-9a-f]{40}$",
+        pattern=r"^[0-9a-f]{64}$",
     )
 
     @model_validator(mode="after")
