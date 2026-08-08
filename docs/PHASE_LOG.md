@@ -709,11 +709,15 @@
 - Hardened the evaluation gate after a real zero-valid-output run: contract
   failures preserve bounded raw diagnostics, and sub-threshold comparisons are
   now inconclusive and rejected.
+- Hardened the outreach prompt after the diagnostic run: it now defines all
+  five output fields and their exact JSON types, requires evidence citations,
+  and forbids unsupported or strengthened benefit language.
 
 **Automated verification:**
 
 - Full backend regression suite: 163 tests passed.
 - Full backend regression suite after evaluation hardening: 171 tests passed.
+- Full backend regression suite after prompt hardening: 173 tests passed.
 - Ruff and diff checks: clean.
 - No dependency changes were made.
 
