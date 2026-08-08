@@ -40,9 +40,12 @@ boundary; endpoint failures are explicit and do not produce successful output.
 
 Phase 6 now includes a reviewed synthetic pilot manifest, leakage checks, a
 pinned bounded LoRA/QLoRA training configuration, and a private Colab adapter
-scaffold. Training and the base-vs-adapter benchmark review remain manual gates.
-The evaluation handoff writes separate base, adapter, and deterministic
-comparison reports for local validation.
+scaffold. The technical Colab pilot passed, but manual semantic review did not
+accept outreach quality because the adapter was unchanged and retained
+grounding, citation-use, personalization, and CTA weaknesses. The evaluation
+handoff writes separate base, adapter, and deterministic comparison reports for
+local validation. Dataset research and the proposed tightened rubric are in
+[`docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md`](docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md).
 
 Phase 4.1 runs independent discovery sources and bounded official-site
 expansions concurrently. Its Wikidata query limits candidates before label

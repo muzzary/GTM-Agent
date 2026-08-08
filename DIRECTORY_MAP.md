@@ -66,6 +66,7 @@ introduced.
 | `docs/PHASE5_RUNBOOK.md` | Prompt-only baseline, support checks, retry traces, and report review. |
 | `docs/PHASE6_SPEC.md` | Reviewed synthetic pilot boundary, provenance contract, split rules, and adapter gates. |
 | `docs/PHASE6_RUNBOOK.md` | Colab adapter evaluation and local comparison-report validation steps. |
+| `docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md` | Phase 6 pilot disposition, fine-tuning dataset decisions, outreach research, and proposed tightened rubric. |
 | `configs/phase6/pilot.json` | Reviewed synthetic Phase 6 training, validation, and held-out examples with provenance and quality labels. |
 | `configs/phase6/training.json` | Pinned Phase 6 base revision and bounded LoRA training configuration. |
 

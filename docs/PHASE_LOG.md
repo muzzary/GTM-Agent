@@ -689,7 +689,7 @@
 
 ## Phase 6: Reviewed dataset and one outreach adapter
 
-**Status:** Implementation in progress; manual Colab gate pending
+**Status:** Technical pilot successful; quality gate unaccepted
 
 **Changed:**
 
@@ -712,6 +712,16 @@
 - Hardened the outreach prompt after the diagnostic run: it now defines all
   five output fields and their exact JSON types, requires evidence citations,
   and forbids unsupported or strengthened benefit language.
+- Completed the real Colab pilot: both base and adapter produced valid output
+  for 9/9 cases, with zero unknown claim/evidence IDs and no identifier-level
+  regression. The adapter's measured quality remained unchanged.
+- Completed manual semantic review. The review found unsupported fact
+  combinations, citations not used in the corresponding message, generic
+  product copy, and missing CTAs, so the quality gate remains unaccepted.
+- Researched fine-tuning datasets and outreach evidence, recorded explicit
+  use/hold/reject decisions, and proposed a sentence-level support map plus
+  stricter training and output gates in
+  [`PHASE6_DATASET_AND_RUBRIC_RESEARCH.md`](PHASE6_DATASET_AND_RUBRIC_RESEARCH.md).
 
 **Automated verification:**
 
@@ -721,10 +731,13 @@
 - Ruff and diff checks: clean.
 - No dependency changes were made.
 
-**Manual gate:**
+**Manual verification:**
 
-- Run the private Colab notebook with the reviewed base revision.
-- Review adapter artifacts and compare blind adapter/base outputs on the
-  unchanged Phase 5 benchmark.
-- Confirm factuality and approved-claim/evidence gates remain clean before
-  marking Phase 6 accepted.
+- Technical compatibility passed: training, artifact persistence, adapter load,
+  and deterministic evaluation all completed successfully in private Colab.
+- Automated comparison reported 100% valid output for base and adapter, 9/9
+  identifier-level passes, no regressions, `quality_change: unchanged`, and
+  `accepted: true` for the machine gates.
+- Manual semantic quality did not pass. Phase 6 must not be described as
+  quality-accepted until a later adapter demonstrates grounded, useful outreach
+  improvement under the tightened rubric.
