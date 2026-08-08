@@ -63,6 +63,7 @@ introduced.
 | `docs/CRM4_RUNBOOK.md` | Manual verification for reviewed prospect-to-company CRM linking. |
 | `docs/CRM5_RUNBOOK.md` | Manual verification for revenue events, reports, forecasts, and warnings. |
 | `docs/PHASE5_RUNBOOK.md` | Prompt-only baseline, support checks, retry traces, and report review. |
+| `docs/PHASE6_SPEC.md` | Reviewed synthetic pilot boundary, provenance contract, split rules, and adapter gates. |
 
 ## Data and deliverables
 

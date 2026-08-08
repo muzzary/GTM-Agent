@@ -238,6 +238,8 @@ trace-completeness, retry-limit, and benchmark reproducibility tests.
 
 ## Phase 6 - Reviewed dataset and one outreach adapter
 
+**Status:** Implementation in progress on `codex/phase-6-reviewed-adapter`.
+
 **Proves:** A reviewed, leakage-safe dataset and LoRA/QLoRA adapter improve
 defined outreach behavior without weakening factuality.
 
