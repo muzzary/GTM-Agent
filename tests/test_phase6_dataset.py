@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from src.schemas.dataset import (
 from src.training.dataset import DatasetValidationError, validate_dataset
 
 BENCHMARK_PATH = Path("configs/phase1/benchmark.json")
+PILOT_PATH = Path("configs/phase6/pilot.json")
 REVIEWED_AT = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
 
 
@@ -114,6 +116,18 @@ def test_reviewed_synthetic_pilot_passes_audit() -> None:
     assert report.split_counts == {"train": 2, "validation": 1, "held_out": 1}
     assert report.overlap_groups == []
     assert report.errors == []
+
+
+def test_versioned_pilot_manifest_passes_audit() -> None:
+    dataset = DatasetManifest.model_validate(
+        json.loads(PILOT_PATH.read_text(encoding="utf-8"))
+    )
+
+    report = validate_dataset(dataset, load_manifest(BENCHMARK_PATH))
+
+    assert report.passed is True
+    assert report.split_counts == {"train": 3, "validation": 2, "held_out": 1}
+    assert len(dataset.examples) == 6
 
 
 def test_audit_rejects_duplicate_content_and_identity_overlap() -> None:

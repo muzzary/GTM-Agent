@@ -52,7 +52,7 @@ class TrainingExample(StrictModel):
     generation_method: GenerationMethod = Field(strict=False)
     reviewer_status: ReviewStatus = Field(strict=False)
     reviewer_reference: str | None = Field(default=None, max_length=160)
-    reviewed_at: AwareDatetime | None = None
+    reviewed_at: AwareDatetime | None = Field(default=None, strict=False)
     relevance: int = Field(ge=1, le=5)
     clarity: int = Field(ge=1, le=5)
     differentiation: int = Field(ge=1, le=5)
