@@ -109,7 +109,7 @@
 
 ## Phase 0: Reproducible project foundation
 
-**Status:** Ready for manual review
+**Status:** Accepted after manual verification
 
 **Changed:**
 
@@ -136,11 +136,10 @@
 - Production npm dependency audit: zero known vulnerabilities.
 - Public-reference and tracked-secret scans: clean.
 
-**Manual review needed:**
+**Manual verification completed:**
 
-- Run the backend and frontend using the README instructions.
-- Confirm the frontend foundation screen renders and `/health` returns the
-  documented JSON response.
+- The user confirmed the Phase 0 foundation was manually accepted.
+- The accepted Phase 0 through Phase 5 history was consolidated onto `main`.
 
 ### CI import-path correction
 
@@ -665,10 +664,15 @@
   traces.
 - Added canonical, size-limited baseline report JSON persistence and a Phase 5
   runbook. Generated reports remain local under the ignored `results/` boundary.
+- Hardened the outreach prompt after evaluation exposed an incomplete output
+  contract: all five fields and their JSON types are explicit, evidence IDs are
+  required for used prospect facts, and unsupported strengthened language is
+  forbidden.
 
 **Automated verification:**
 
 - Full backend regression suite: 153 tests passed.
+- Full backend regression suite after prompt hardening: 155 tests passed.
 - Backend Ruff and diff checks: clean.
 - Frontend suite: 21 tests passed across eight files.
 - Frontend Oxlint, typecheck, and production build: successful.
@@ -682,7 +686,7 @@
 
 **Known limitation:**
 
-- `npm audit` could not reach the npm advisory endpoint in the restricted
-  environment. No npm dependencies changed in this phase.
+- The production npm dependency audit was rerun during branch consolidation
+  and reported zero vulnerabilities.
 - Semantic factuality beyond claim/evidence identifiers remains a human-review
   responsibility; the harness does not overclaim automated understanding.
