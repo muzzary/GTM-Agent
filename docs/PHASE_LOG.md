@@ -814,3 +814,15 @@
 - Do not create the first 100-row training dataset or run an adapter evaluation
   on this candidate until the lifecycle is frozen with real reviewer
   provenance.
+
+**Cross-model semantic review:**
+
+- Claude Code using exact model `claude-opus-4-8` and maximum effort
+  individually reviewed all 60 cases with read-only access.
+- Verdict: `APPROVE_WITH_FIXES`; 55 cases passed and five weak-evidence cases
+  require correction before freeze.
+- The review also found repetitive status templates, arbitrary exact required
+  claim selection, flattened pain hypotheses, uniform operations roles, no
+  protected abstention cases, and no invasive-personalization case.
+- Codex reproduced the material findings. The complete concise record is in
+  `docs/PHASE6_CLAUDE_OPUS_REVIEW.md`.

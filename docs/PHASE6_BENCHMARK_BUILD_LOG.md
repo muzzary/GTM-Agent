@@ -159,3 +159,21 @@ the controlled first-party synthetic provenance boundary.
 - **Resolution:** Retry only the explicit scoped `git add` operation with Git
   repository-write approval. No file content or history was altered by the
   failed staging attempt.
+
+## 2026-08-10: Claude Opus 4.8 semantic review
+
+- **Initial issue:** The first read-only Claude CLI request failed before model
+  inference because the local OAuth session had expired. No tokens were used
+  and no cost was incurred.
+- **Resolution:** The user renewed Claude authentication. The same request was
+  rerun with exact model `claude-opus-4-8`, maximum effort, read-only tools, no
+  fallback, no session persistence, and a USD 15 cap.
+- **Result:** Opus individually reviewed all 60 cases for USD 2.435928 and
+  returned `APPROVE_WITH_FIXES`: 55 pass, 5 need case-specific corrections,
+  with additional cross-case template, claim-selection, role, and adversarial
+  coverage findings.
+- **Verification:** Codex reproduced the five weak-evidence ambiguities, uniform
+  role distribution, protected-case composition, and missing
+  `invasive_personalization` coverage directly from the manifest.
+- **Disposition:** Keep the benchmark `pending_review` and
+  `evaluation_ready: false` until corrections and final re-review complete.

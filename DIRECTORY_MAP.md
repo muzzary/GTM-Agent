@@ -75,6 +75,7 @@ introduced.
 | `configs/phase6/benchmark-v2.json` | Pending-review 60-case grounded-outreach benchmark candidate; never training data. |
 | `docs/PHASE6_BENCHMARK_REVIEW.md` | Benchmark coverage summary, protected-set rules, and manual freeze checklist. |
 | `docs/PHASE6_BENCHMARK_BUILD_LOG.md` | Recoverable benchmark-build issues, diagnoses, and fixes. |
+| `docs/PHASE6_CLAUDE_OPUS_REVIEW.md` | Independent Opus 4.8 all-case semantic review, verified findings, and benchmark disposition. |
 
 ## Data and deliverables
 
