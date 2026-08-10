@@ -23,6 +23,9 @@ results/*
 !results/.gitkeep
 models/
 checkpoints/
+output/
+phase6-test-temp*/
+phase6-fix-test-temp*/
 *.safetensors
 *.bin
 *.pt

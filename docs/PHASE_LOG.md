@@ -726,12 +726,35 @@
   use/hold/reject decisions, and proposed a sentence-level support map plus
   stricter training and output gates in
   [`PHASE6_DATASET_AND_RUBRIC_RESEARCH.md`](PHASE6_DATASET_AND_RUBRIC_RESEARCH.md).
+- Approved the additive v2 quality-correction specification while preserving
+  the reproducible v1 pilot contract and artifacts.
+- Added a sentence-level grounded outreach contract with safe abstention
+  states, exact body/support-map coverage, and explicit sentence roles.
+- Added fail-closed deterministic hard gates for known IDs, semantic support
+  verdicts, citation recall, unsupported fact combinations, hypothesis
+  discipline, CTA count and offer integrity, and subject/body bounds.
+- Added the versioned v2 training-record envelope with grouped identities,
+  structured claims and evidence, provenance and license controls, reviewer
+  status, six-dimension scores, and stable content hashing.
+- Hardened the v2 slice after adversarial review: train rows now execute their
+  configured hard gates instead of trusting a boolean, every sentence requires
+  an exact semantic verdict, CTA intent is structured, JSON/hash round trips
+  are stable, and claim/evidence provenance is recorded per item.
+- Bound semantic verdicts to immutable role/support snapshots, prevented
+  configured limits from weakening mandatory bounds, required reviewer-marked
+  offers to cite an approved claim, and normalized hashes to Unicode NFC.
+- Preserved the byte-compatible v1 digest while isolating NFC normalization to
+  v2, required every CTA to cite an approved claim, and canonicalized support
+  and verdict identifier snapshots as unique sorted lists.
 
 **Automated verification:**
 
 - Full backend regression suite: 163 tests passed.
 - Full backend regression suite after evaluation hardening: 171 tests passed.
 - Full backend regression suite after prompt hardening: 173 tests passed.
+- Phase 6 v2 quality and dataset contract tests: 34 passed.
+- Complete Phase 6 regression set after final hardening: 51 passed.
+- Full backend regression suite after final hardening: 207 tests passed.
 - Ruff and diff checks: clean.
 - No dependency changes were made.
 
@@ -745,3 +768,5 @@
 - Manual semantic quality did not pass. Phase 6 must not be described as
   quality-accepted until a later adapter demonstrates grounded, useful outreach
   improvement under the tightened rubric.
+- The v2 contract-and-gates slice awaits user manual review before building the
+  frozen benchmark or the first 100-row reviewed dataset.

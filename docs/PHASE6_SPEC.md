@@ -7,6 +7,77 @@ one LoRA/QLoRA adapter that can be compared with the Phase 5 prompt-only base
 baseline. The adapter must improve defined outreach behavior without weakening
 approved-claim or evidence support.
 
+## V2 quality-correction slice
+
+The technical pilot proved compatibility but did not pass semantic review. The
+next adapter therefore uses an additive v2 contract; the v1 pilot remains
+unchanged and reproducible.
+
+### Grounded output contract
+
+- `generation_status` is `drafted`, `needs_more_evidence`, `disqualified`, or
+  `opted_out`.
+- A drafted output contains a one-to-six-word subject and a 25-to-150-word
+  body. Executive first-touch examples target 50-to-100 body words.
+- Every body sentence appears exactly once in `support_map` and has one role:
+  `prospect_fact`, `product_claim`, `hypothesis`, or `cta`.
+- Every support-map entry contains exactly one grammatical sentence. CTA
+  entries also declare `interest_question` or `approved_offer`; approved offers
+  require a corresponding approved claim. Every CTA references an approved
+  product claim, including an interest question.
+- Prospect facts require evidence IDs; product claims require approved claim
+  IDs. A sentence cannot combine claim and evidence IDs unless a future
+  explicit relation contract approves that combination.
+- A draft contains exactly one low-friction CTA. Offers, meetings, audits,
+  trials, samples, or benchmarks cannot be mentioned unless their availability
+  is represented by an approved claim.
+- Hypotheses remain questions or use uncertainty language. They are never
+  presented as known prospect conditions.
+- Non-draft statuses contain no subject, body, support map, or sendable CTA and
+  require an uncertainty note explaining the abstention.
+- Global claim/evidence arrays are not generated. Reporting may derive them
+  from `support_map`.
+
+### Hard gates
+
+All hard gates must pass before human scoring:
+
+1. strict contract and exact body/support-map coverage;
+2. approved claim and evidence identifiers only;
+3. sentence-level citation precision and no unused citations;
+4. support for every factual prospect and product sentence;
+5. no unsupported claim/evidence combinations;
+6. explicit uncertainty for hypotheses;
+7. exactly one truthful, low-friction CTA;
+8. safe abstention for insufficient evidence, disqualification, and opt-out;
+9. configured subject and body bounds.
+
+Semantic support is fail-closed: each factual support-map entry requires an
+explicit reviewer/evaluator verdict. Every sentence, including hypotheses and
+CTAs, requires an exact positive verdict snapshot covering its assigned role,
+CTA kind, claim IDs, evidence IDs, and offer semantics. Identifier existence
+alone is not treated as proof that a source supports the wording.
+
+V2 content hashes normalize Unicode to NFC. The v1 digest remains byte-for-byte
+unchanged so existing pilot rows and artifacts continue to validate.
+
+### Human rubric and adapter acceptance
+
+After hard gates pass, reviewers score personalization, grounding, clarity,
+differentiation, CTA quality, and brand fit from 1 to 5. Adapter quality is
+accepted only with at least 95% valid structured output, zero unsupported
+claims/false citations/unsafe actions, no held-out hard-gate regression, a
+blind average of at least 4/5 with no dimension below 3, measurable improvement
+over the base model, and a separate untouched adversarial set.
+
+### Dataset expansion sequence
+
+Freeze a 60-to-100-case benchmark first. Then create and manually review a
+balanced 100-row first-party slice before expanding toward 600-to-1,000 rows.
+External synthetic rows remain auxiliary, attributed, and at or below 20% of
+training tokens until an ablation proves benefit. Dataset generation does not
+start in this contract slice.
+
 ## Scope decisions
 
 - The first pilot uses reviewed synthetic examples only. Public datasets remain
