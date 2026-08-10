@@ -38,6 +38,9 @@ introduced.
 | `src/research/` | Regional Wikidata and approved-market discovery, official-site expansion, transparent ranking, selected-prospect research, and optional Colab-backed English translation. |
 | `src/outreach/` | Prompts, inference contracts, result-bundle validation/import, and output parsing. |
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
+| `src/evaluation/phase6_benchmark.py` | Frozen Phase 6 benchmark loading, coverage, identity-leakage, duplicate, and protected-adversarial auditing. |
+| `src/evaluation/build_phase6_benchmark.py` | Deterministic builder for the controlled 60-case Phase 6 benchmark candidate. |
+| `src/schemas/quality_benchmark.py` | Strict Phase 6 benchmark case, lifecycle, prompt-projection, hash, and audit contracts. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
 | `src/schemas/base.py` | Shared strict, immutable Pydantic model configuration. |
 | `src/schemas/campaign.py` | Campaign inputs, immutable claims, authorized reviewed wording, provenance, outreach, evaluation, and trace contracts. |
@@ -69,6 +72,9 @@ introduced.
 | `docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md` | Phase 6 pilot disposition, fine-tuning dataset decisions, outreach research, and proposed tightened rubric. |
 | `configs/phase6/pilot.json` | Reviewed synthetic Phase 6 training, validation, and held-out examples with provenance and quality labels. |
 | `configs/phase6/training.json` | Pinned Phase 6 base revision and bounded LoRA training configuration. |
+| `configs/phase6/benchmark-v2.json` | Pending-review 60-case grounded-outreach benchmark candidate; never training data. |
+| `docs/PHASE6_BENCHMARK_REVIEW.md` | Benchmark coverage summary, protected-set rules, and manual freeze checklist. |
+| `docs/PHASE6_BENCHMARK_BUILD_LOG.md` | Recoverable benchmark-build issues, diagnoses, and fixes. |
 
 ## Data and deliverables
 

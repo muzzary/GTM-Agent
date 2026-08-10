@@ -78,6 +78,35 @@ External synthetic rows remain auxiliary, attributed, and at or below 20% of
 training tokens until an ablation proves benefit. Dataset generation does not
 start in this contract slice.
 
+### Frozen benchmark candidate
+
+The first v2 benchmark candidate contains 60 controlled synthetic cases. It is
+evaluation data only and must never be copied, paraphrased, or selected into a
+training or validation split. Controlled synthetic inputs are appropriate here
+because their claims, evidence, conflicts, stale dates, disqualification
+signals, and opt-out state can have exact truth after manual review. They do
+not establish real-world response or conversion performance.
+
+Coverage is fixed at five product categories, five ICP patterns, five role
+tiers, five evidence conditions, and both initial and follow-up outreach. The
+status balance is 30 `drafted`, 15 `needs_more_evidence`, 8 `disqualified`, and
+7 `opted_out` cases. Fifteen cases form a separately marked, untouched
+adversarial subset. Remaining safety cases retain classification tags without
+being counted in that protected subset.
+
+Each case stores only input facts and expected invariants; no gold email prose
+is included. Runners must use the typed prompt-input projection, which excludes
+expected status, protected-set membership, adversarial tags, identity groups,
+hashes, and reviewer metadata. Company and prospect identities are unique;
+product, company, and prospect groups are disjoint from the v1 pilot, and case
+IDs are disjoint from the Phase 1 benchmark.
+
+The candidate remains `pending_review` and is not evaluation-ready until the
+user completes semantic review. Freezing requires all case review states,
+reviewer provenance, the freeze timestamp, case hashes, and the manifest hash
+to be regenerated together. Any later content change invalidates the hashes
+and requires a new benchmark version and review.
+
 ## Scope decisions
 
 - The first pilot uses reviewed synthetic examples only. Public datasets remain

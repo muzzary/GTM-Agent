@@ -770,3 +770,47 @@
   improvement under the tightened rubric.
 - The v2 contract-and-gates slice awaits user manual review before building the
   frozen benchmark or the first 100-row reviewed dataset.
+
+### Phase 6 v2 benchmark candidate
+
+**Status:** Technically validated; pending manual semantic review and freeze
+
+**Changed:**
+
+- Added a strict v2 benchmark contract with stable NFC hashes, explicit
+  pending/frozen lifecycle, typed prompt projection, and expected status and
+  citation invariants without target email prose.
+- Added a deterministic 60-case controlled synthetic candidate across five
+  product categories, ICP patterns, role tiers, evidence conditions, and both
+  initial and follow-up scenarios.
+- Balanced expected behavior across 30 drafts, 15 evidence abstentions, 8
+  disqualifications, and 7 opt-outs, with 15 separately protected adversarial
+  traps.
+- Added fail-closed audits for coverage, duplicate content, unique company and
+  prospect identities, pilot/training identity overlap, Phase 1 case overlap,
+  evidence text integrity, and protected-set size.
+- Added a prompt-input projection that excludes every expected label,
+  protected-set marker, hash, identity group, and reviewer field from model
+  input.
+- Added the benchmark build issue log and manual semantic review checklist.
+
+**Verification:**
+
+- Focused benchmark contract and manifest tests: 15 passed.
+- Complete Phase 6 selection: 66 passed.
+- Full backend regression suite: 222 passed.
+- Deterministic regeneration produced an identical benchmark file digest.
+- Repository-wide Ruff and diff checks: clean.
+- The candidate audit reports no duplicate, coverage, or leakage errors.
+- The candidate intentionally reports `evaluation_ready: false` until manual
+  review freezes it.
+- Fresh-context adversarial review findings for exact distribution enforcement,
+  persisted hash removal, ICP overlap, and synthetic provenance were fixed and
+  covered by regression tests. Cross-model review was skipped.
+
+**Manual gate:**
+
+- Review all 60 cases using `docs/PHASE6_BENCHMARK_REVIEW.md`.
+- Do not create the first 100-row training dataset or run an adapter evaluation
+  on this candidate until the lifecycle is frozen with real reviewer
+  provenance.
