@@ -177,3 +177,53 @@ the controlled first-party synthetic provenance boundary.
   `invasive_personalization` coverage directly from the manifest.
 - **Disposition:** Keep the benchmark `pending_review` and
   `evaluation_ready: false` until corrections and final re-review complete.
+
+## 2026-08-10: Opus remediation RED baseline
+
+- **Issue reproduced:** The correction tests fail against the old candidate:
+  five weak signals are domain-irrelevant, exact claim selection is arbitrary,
+  all products share one operations role ladder, the protected set contains
+  only drafts, invasive personalization is absent, and shortcut wording is
+  repeated.
+- **Contract change:** Because the candidate is not frozen and has no evaluation
+  consumer yet, replace `required_claim_ids` with `acceptable_claim_ids`.
+  Drafts must cite at least one ID from this set; they are no longer forced to
+  match one arbitrary claim.
+- **External review:** Per user instruction, Claude Opus will not be rerun after
+  these corrections.
+
+### Corrected-builder verification
+
+- The regenerated candidate passes all 20 focused benchmark tests.
+- Ruff found one long reporting-disqualifier string; it was wrapped without
+  changing generated content.
+
+### Freeze RED baseline
+
+- The corrected artifact still reported `evaluation_ready: false` because its
+  lifecycle remained `pending_review`.
+- The user authorized applying the delegated review fixes and proceeding to
+  evaluation without another Opus run. Freeze provenance therefore records
+  user-authorized remediation, not a second Opus review.
+
+### Stale test cleanup
+
+- Nineteen corrected tests passed; one failed because an earlier atomic patch
+  removed the `re` import but not its now-meaningless normalization block.
+- Removed that dead test code. The substantive shortcut-language assertions
+  remain.
+
+## 2026-08-11: Corrected benchmark frozen
+
+- Applied every reproducible Opus finding without rerunning the paid review,
+  as directed by the user.
+- Froze the corrected 60-case artifact with user-authorized remediation
+  provenance; this makes the benchmark evaluation-ready but does not accept
+  the separate Phase 6 model-quality gate.
+- Focused benchmark tests: 20 passed.
+- Complete Phase 6 test selection: 71 passed.
+- Full backend regression suite: 227 passed.
+- Repository-wide Ruff and diff checks: clean, apart from known warnings for
+  inaccessible pre-existing `.tmp/pytest-*` directories.
+- Deterministic regeneration produced the same benchmark file digest.
+- The final technical audit passes and reports `evaluation_ready: true`.

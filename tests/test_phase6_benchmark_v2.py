@@ -116,7 +116,7 @@ def benchmark_case(index: int, **updates: object) -> Phase6BenchmarkCase:
             constraints=OutreachConstraints(),
         ),
         "expected_generation_status": status,
-        "required_claim_ids": [claim_id] if status == "drafted" else [],
+        "acceptable_claim_ids": [claim_id] if status == "drafted" else [],
         "required_evidence_ids": [evidence_id]
         if status == "drafted" and evidence_condition != "absent"
         else [],
@@ -178,7 +178,7 @@ def test_versioned_60_case_benchmark_passes_strict_audit() -> None:
     )
 
     assert report.passed is True
-    assert report.evaluation_ready is False
+    assert report.evaluation_ready is True
     assert report.total_cases == 60
     assert report.adversarial_case_count == 15
     assert report.status_counts == {
@@ -254,7 +254,7 @@ def test_audit_enforces_exact_status_and_protected_distributions() -> None:
         0,
         evidence_condition="weak",
         expected_generation_status="needs_more_evidence",
-        required_claim_ids=[],
+        acceptable_claim_ids=[],
         required_evidence_ids=[],
     )
     shifted = benchmark.model_copy(
@@ -314,7 +314,7 @@ def test_case_rejects_non_controlled_provenance() -> None:
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("required_claim_ids", ["claim-unknown"], "claim"),
+        ("acceptable_claim_ids", ["claim-unknown"], "claim"),
         ("required_evidence_ids", ["evidence-unknown"], "evidence"),
         ("adversarial_tags", ["opt_out_signal"], "opted_out"),
     ],
@@ -333,7 +333,7 @@ def test_abstention_cases_require_the_corresponding_signal() -> None:
         40,
         evidence_condition="strong",
         expected_generation_status="opted_out",
-        required_claim_ids=[],
+        acceptable_claim_ids=[],
         required_evidence_ids=[],
         adversarial_tags=["opt_out_signal"],
     )
@@ -341,7 +341,7 @@ def test_abstention_cases_require_the_corresponding_signal() -> None:
         41,
         evidence_condition="strong",
         expected_generation_status="disqualified",
-        required_claim_ids=[],
+        acceptable_claim_ids=[],
         required_evidence_ids=[],
         adversarial_tags=["disqualification_signal"],
     )
@@ -375,3 +375,97 @@ def test_prompt_projection_excludes_evaluation_labels_and_metadata() -> None:
         "license_basis",
     ):
         assert forbidden_key not in serialized
+
+
+def test_weak_evidence_is_domain_relevant_without_false_presupposition() -> None:
+    benchmark = load_phase6_benchmark(BENCHMARK_PATH)
+    domain_markers = {
+        "reporting_automation": {"report", "scorecard"},
+        "security_asset_inventory": {"asset", "cloud"},
+        "developer_productivity": {"ci", "build"},
+        "support_knowledge_workflow": {"support", "knowledge"},
+        "crm_data_hygiene": {"crm", "record"},
+    }
+    weak_cases = [
+        case for case in benchmark.cases if case.evidence_condition == "weak"
+    ]
+
+    assert len(weak_cases) == 5
+    for case in weak_cases:
+        evidence_text = " ".join(
+            item.text.casefold() for item in case.input.prospect_evidence
+        )
+        assert any(
+            marker in evidence_text for marker in domain_markers[case.product_category]
+        )
+        assert "several locations" not in evidence_text
+        assert all(
+            not hypothesis.casefold().startswith("the observed")
+            for hypothesis in case.input.pain_hypotheses
+        )
+
+
+def test_drafts_accept_any_approved_claim_instead_of_one_arbitrary_claim() -> None:
+    benchmark = load_phase6_benchmark(BENCHMARK_PATH)
+
+    for case in benchmark.cases:
+        approved_ids = sorted(claim.claim_id for claim in case.input.approved_claims)
+        if case.expected_generation_status == "drafted":
+            assert case.acceptable_claim_ids == approved_ids
+        else:
+            assert case.acceptable_claim_ids == []
+
+
+def test_products_use_distinct_domain_role_ladders() -> None:
+    benchmark = load_phase6_benchmark(BENCHMARK_PATH)
+    roles_by_product = {
+        category: {
+            case.input.target_role
+            for case in benchmark.cases
+            if case.product_category == category
+        }
+        for category in PRODUCTS
+    }
+
+    assert all(len(roles) == 5 for roles in roles_by_product.values())
+    assert len(set().union(*roles_by_product.values())) == 25
+
+
+def test_protected_set_includes_abstention_and_invasive_input_traps() -> None:
+    benchmark = load_phase6_benchmark(BENCHMARK_PATH)
+    protected = [case for case in benchmark.cases if case.protected_adversarial]
+
+    assert len(protected) == 15
+    assert {case.expected_generation_status for case in protected} >= {
+        "drafted",
+        "needs_more_evidence",
+    }
+    assert any(
+        "invasive_personalization" in case.adversarial_tags for case in protected
+    )
+    invasive_evidence = [
+        item.text
+        for case in protected
+        if "invasive_personalization" in case.adversarial_tags
+        for item in case.input.prospect_evidence
+    ]
+    assert any("personal detail" in text.casefold() for text in invasive_evidence)
+
+
+def test_case_language_avoids_the_reviewed_shortcut_templates() -> None:
+    benchmark = load_phase6_benchmark(BENCHMARK_PATH)
+    evidence_text = " ".join(
+        evidence.text.casefold()
+        for case in benchmark.cases
+        for evidence in case.input.prospect_evidence
+    )
+    hypotheses = [
+        hypothesis
+        for case in benchmark.cases
+        for hypothesis in case.input.pain_hypotheses
+    ]
+
+    assert "does not operate the relevant" not in evidence_text
+    assert "requests no further sales outreach" not in evidence_text
+    assert "2023 archive" not in evidence_text
+    assert not any("may create coordination work" in item for item in hypotheses)

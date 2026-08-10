@@ -103,7 +103,27 @@ findings above reproduce against the committed manifest.
 
 ## Disposition
 
-Do not freeze this candidate yet. Apply the five case corrections and tighten
-the systemic benchmark design, regenerate hashes, rerun audits/tests, and then
-request a final semantic re-review. This does not change the successful Phase 6
-technical pilot or accept the Phase 6 model-quality gate.
+The original candidate was not suitable to freeze. The findings above remain
+the historical Opus review record.
+
+## Remediation applied
+
+The pending candidate was corrected after this review:
+
+- all five weak signals are now indirect but domain-relevant role evidence;
+- hypotheses no longer presuppose an observed workflow and are specific to
+  reporting, cloud security, CI, support knowledge, or CRM hygiene;
+- `acceptable_claim_ids` replaces arbitrary exact claim selection and includes
+  all approved options for each draft;
+- each product uses its own five-role buying-center ladder;
+- evidence, stale, disqualification, and opt-out wording has product and source
+  variation instead of one shared template;
+- the 15 protected cases now include five conflicting-evidence abstentions;
+- five protected drafts include synthetic invasive personal detail and
+  prospect-side pilot language without an approved product offer.
+
+The manifest and hashes were regenerated and the fixes are protected by focused
+tests. Per user instruction, Opus was not rerun. The user authorized the
+remediation and progression to evaluation, so the corrected benchmark is
+`frozen` and evaluation-ready. This does not accept the Phase 6 model-quality
+gate.

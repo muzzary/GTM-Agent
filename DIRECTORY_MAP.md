@@ -72,7 +72,7 @@ introduced.
 | `docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md` | Phase 6 pilot disposition, fine-tuning dataset decisions, outreach research, and proposed tightened rubric. |
 | `configs/phase6/pilot.json` | Reviewed synthetic Phase 6 training, validation, and held-out examples with provenance and quality labels. |
 | `configs/phase6/training.json` | Pinned Phase 6 base revision and bounded LoRA training configuration. |
-| `configs/phase6/benchmark-v2.json` | Pending-review 60-case grounded-outreach benchmark candidate; never training data. |
+| `configs/phase6/benchmark-v2.json` | Frozen 60-case grounded-outreach evaluation benchmark; never training data. |
 | `docs/PHASE6_BENCHMARK_REVIEW.md` | Benchmark coverage summary, protected-set rules, and manual freeze checklist. |
 | `docs/PHASE6_BENCHMARK_BUILD_LOG.md` | Recoverable benchmark-build issues, diagnoses, and fixes. |
 | `docs/PHASE6_CLAUDE_OPUS_REVIEW.md` | Independent Opus 4.8 all-case semantic review, verified findings, and benchmark disposition. |

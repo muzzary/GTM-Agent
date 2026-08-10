@@ -773,7 +773,7 @@
 
 ### Phase 6 v2 benchmark candidate
 
-**Status:** Technically validated; pending manual semantic review and freeze
+**Status:** Frozen and evaluation-ready; Phase 6 model-quality gate unaccepted
 
 **Changed:**
 
@@ -796,24 +796,23 @@
 
 **Verification:**
 
-- Focused benchmark contract and manifest tests: 15 passed.
-- Complete Phase 6 selection: 66 passed.
-- Full backend regression suite: 222 passed.
+- Focused benchmark contract and manifest tests: 20 passed.
+- Complete Phase 6 selection: 71 passed.
+- Full backend regression suite: 227 passed.
 - Deterministic regeneration produced an identical benchmark file digest.
 - Repository-wide Ruff and diff checks: clean.
 - The candidate audit reports no duplicate, coverage, or leakage errors.
-- The candidate intentionally reports `evaluation_ready: false` until manual
-  review freezes it.
+- The corrected benchmark reports `evaluation_ready: true`; this does not
+  accept the separate Phase 6 model-quality gate.
 - Fresh-context adversarial review findings for exact distribution enforcement,
   persisted hash removal, ICP overlap, and synthetic provenance were fixed and
   covered by regression tests. Cross-model review was skipped.
 
 **Manual gate:**
 
-- Review all 60 cases using `docs/PHASE6_BENCHMARK_REVIEW.md`.
-- Do not create the first 100-row training dataset or run an adapter evaluation
-  on this candidate until the lifecycle is frozen with real reviewer
-  provenance.
+- The user delegated all-case semantic review to Claude Opus 4.8, authorized
+  the verified remediation, skipped a paid Opus rerun, and approved progression
+  to evaluation.
 
 **Cross-model semantic review:**
 
@@ -826,3 +825,17 @@
   protected abstention cases, and no invasive-personalization case.
 - Codex reproduced the material findings. The complete concise record is in
   `docs/PHASE6_CLAUDE_OPUS_REVIEW.md`.
+
+**Opus finding remediation:**
+
+- Replaced the five generic location-only weak signals with domain-relevant
+  role evidence and removed false “observed workflow” presuppositions.
+- Replaced arbitrary exact required-claim selection with an acceptable-claim
+  set containing every approved option for each draft.
+- Added product-specific pain hypotheses and 25 distinct buying-center roles
+  across reporting, security, engineering, support, and revenue operations.
+- Varied evidence and abstention wording, added five invasive-personalization
+  traps, and moved five conflicting-evidence abstentions into the 15-case
+  protected subset.
+- Regenerated the candidate and hashes. Opus was not rerun per user direction;
+  user-authorized remediation provenance freezes the benchmark for evaluation.

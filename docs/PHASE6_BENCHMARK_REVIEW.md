@@ -3,8 +3,8 @@
 ## Current state
 
 `configs/phase6/benchmark-v2.json` is a technically validated, controlled
-synthetic benchmark candidate. Its lifecycle is `pending_review`, so evaluation
-runners must not treat it as frozen or accepted yet.
+synthetic benchmark. Its lifecycle is `frozen` and the audit reports
+`evaluation_ready: true` after user-authorized remediation of the Opus review.
 
 The benchmark deliberately contains no target email prose. It measures whether
 a model can produce grounded outreach or safely abstain from structured facts,
@@ -38,8 +38,8 @@ Review the JSON by product in twelve-case blocks. For every case confirm:
 2. each evidence excerpt supports only what its evidence condition says;
 3. the expected status is correct, especially for weak, conflicting, stale,
    absent, disqualified, and opted-out inputs;
-4. required claim and evidence IDs are appropriate for drafted cases and empty
-   for abstentions;
+4. acceptable claim IDs contain every valid approved option, required evidence
+   IDs identify the personalization anchor, and both are empty for abstentions;
 5. adversarial tags describe a real trap without revealing it through the typed
    prompt-input projection;
 6. the target role, ICP, and scenario are coherent enough for meaningful
@@ -47,9 +47,9 @@ Review the JSON by product in twelve-case blocks. For every case confirm:
 7. the case is not copied from the pilot, Phase 1 benchmark, or future training
    examples.
 
-After all 60 cases pass, update every case to `reviewed`, record the real
-reviewer reference and timestamp, set the manifest lifecycle to `frozen`, and
-regenerate all hashes. Until then, `evaluation_ready` remains false.
+All 60 cases now carry reviewed provenance, the manifest lifecycle is `frozen`,
+and every case and manifest hash was regenerated. Any content change requires a
+new version, review decision, and complete hash regeneration.
 
 ## Interpretation boundary
 

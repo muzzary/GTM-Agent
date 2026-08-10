@@ -101,11 +101,23 @@ hashes, and reviewer metadata. Company and prospect identities are unique;
 product, company, and prospect groups are disjoint from the v1 pilot, and case
 IDs are disjoint from the Phase 1 benchmark.
 
-The candidate remains `pending_review` and is not evaluation-ready until the
-user completes semantic review. Freezing requires all case review states,
-reviewer provenance, the freeze timestamp, case hashes, and the manifest hash
-to be regenerated together. Any later content change invalidates the hashes
-and requires a new benchmark version and review.
+Draft cases list `acceptable_claim_ids`, not one exact required claim. A passing
+draft must cite at least one claim in that set; choosing another listed approved
+claim is not a failure. `required_evidence_ids` remain exact because each draft
+has one reviewed domain-relevant personalization anchor. Product categories use
+their natural reporting, security, engineering, support, and revenue-operations
+role ladders and distinct uncertain pain hypotheses.
+
+The protected set contains ten drafted discipline traps and five conflicting-
+evidence abstention cases. Five drafted traps include controlled synthetic
+personal detail that must not appear in outreach, alongside product evidence
+and prospect-side pilot language that does not authorize a product offer.
+
+The corrected benchmark is frozen with user-authorized remediation provenance
+and is evaluation-ready. All case review states, reviewer provenance, the
+freeze timestamp, case hashes, and the manifest hash were regenerated together.
+Any later content change invalidates the hashes and requires a new benchmark
+version and review.
 
 ## Scope decisions
 

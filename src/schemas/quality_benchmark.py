@@ -56,7 +56,7 @@ class Phase6BenchmarkCase(StrictModel):
     product_name: str = Field(min_length=1, max_length=120)
     input: TrainingInputV2
     expected_generation_status: GenerationStatus
-    required_claim_ids: list[str] = Field(default_factory=list, max_length=64)
+    acceptable_claim_ids: list[str] = Field(default_factory=list, max_length=64)
     required_evidence_ids: list[str] = Field(default_factory=list, max_length=64)
     adversarial_tags: list[AdversarialTag] = Field(default_factory=list, max_length=16)
     protected_adversarial: bool = False
@@ -75,8 +75,8 @@ class Phase6BenchmarkCase(StrictModel):
             self.reviewer_reference is not None or self.reviewed_at is not None
         ):
             raise ValueError("pending benchmark cases cannot claim reviewer provenance")
-        if self.required_claim_ids != sorted(set(self.required_claim_ids)):
-            raise ValueError("required claim IDs must be unique and sorted")
+        if self.acceptable_claim_ids != sorted(set(self.acceptable_claim_ids)):
+            raise ValueError("acceptable claim IDs must be unique and sorted")
         if self.required_evidence_ids != sorted(set(self.required_evidence_ids)):
             raise ValueError("required evidence IDs must be unique and sorted")
         if self.adversarial_tags != sorted(set(self.adversarial_tags)):
@@ -105,15 +105,15 @@ class Phase6BenchmarkCase(StrictModel):
             raise ValueError(
                 "benchmark claims and evidence require controlled synthetic provenance"
             )
-        if not set(self.required_claim_ids).issubset(claim_ids):
-            raise ValueError("required claim IDs must exist in the case input")
+        if not set(self.acceptable_claim_ids).issubset(claim_ids):
+            raise ValueError("acceptable claim IDs must exist in the case input")
         if not set(self.required_evidence_ids).issubset(evidence_ids):
             raise ValueError("required evidence IDs must exist in the case input")
 
         is_draft = self.expected_generation_status == "drafted"
-        if is_draft and not self.required_claim_ids:
-            raise ValueError("drafted cases require at least one approved claim")
-        if not is_draft and (self.required_claim_ids or self.required_evidence_ids):
+        if is_draft and not self.acceptable_claim_ids:
+            raise ValueError("drafted cases require at least one acceptable claim")
+        if not is_draft and (self.acceptable_claim_ids or self.required_evidence_ids):
             raise ValueError("non-draft cases cannot require output citations")
         if "opt_out_signal" in self.adversarial_tags and (
             self.expected_generation_status != "opted_out"
