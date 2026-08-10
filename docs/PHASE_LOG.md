@@ -839,3 +839,35 @@
   protected subset.
 - Regenerated the candidate and hashes. Opus was not rerun per user direction;
   user-authorized remediation provenance freezes the benchmark for evaluation.
+
+### Phase 6 v2 evaluation handoff
+
+**Status:** Ready for private Colab execution; quality gate unaccepted
+
+**Changed:**
+
+- Added a leakage-safe prompt builder and fail-closed 60-case evaluation runner
+  for the grounded v2 output contract.
+- Split deterministic structure and identifier checks from semantic support
+  review so automation cannot fabricate reviewer approval.
+- Added base-versus-adapter comparison with only `inconclusive` and
+  `pending_semantic_review` automated outcomes; `accepted` remains false.
+- Added a dedicated evaluation-only Colab notebook that reuses the saved
+  adapter and writes timestamped reports to private Drive without retraining.
+- Added exact Colab instructions and an evaluation build issue log.
+
+**Verification:**
+
+- Focused evaluation runner, notebook, and quality tests: 39 passed.
+- Complete Phase 6 test selection: 84 passed.
+- Full backend regression suite: 240 passed.
+- Repository-wide Ruff and diff checks: clean.
+- Pre-commit correctness, security, architecture, readability, and performance
+  review: clean after fail-closed report and prompt-example corrections.
+
+**Gate:**
+
+- Actual base and adapter model execution is pending on the user's private
+  Colab GPU.
+- Even a fully deterministic pass advances only to blind semantic review; it
+  does not accept Phase 6 quality.

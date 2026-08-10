@@ -1,12 +1,58 @@
 # Phase 6 Adapter Evaluation Runbook
 
+## V2 quality-gate evaluation
+
+The frozen 60-case benchmark is evaluated with the dedicated
+`notebooks/phase6_v2_evaluation.ipynb` notebook. This notebook is
+evaluation-only: it does not train or modify the saved adapter, and it does not
+run the superseded nine-case pilot evaluation.
+
+1. Open the notebook directly in Colab from the repository branch:
+   [Open Phase 6 v2 evaluation in Colab](https://colab.research.google.com/github/muzzary/GTM-Agent/blob/codex/phase-6-reviewed-adapter/notebooks/phase6_v2_evaluation.ipynb).
+2. Select **Runtime > Change runtime type > GPU**.
+3. Run every cell from top to bottom. Approve Google Drive access when asked.
+4. Confirm the setup output reports 60 cases and the expected adapter ID and
+   revision.
+5. Let the base-model cell finish all 60 requests. It saves its report before
+   releasing the model from GPU memory.
+6. Run the adapter cell. It evaluates the same 60 prompts and writes the final
+   comparison.
+
+Each run creates a timestamped private Drive directory under
+`MyDrive/gtm-agent-phase6/evaluation-v2-<timestamp>/` containing:
+
+- `phase6-v2-base-report.json`;
+- `phase6-v2-adapter-report.json`; and
+- `phase6-v2-comparison.json`.
+
+Download those three files after the run. Do not upload model weights or the
+adapter directory. The reports preserve bounded invalid-output excerpts for
+diagnosis and use zero retries, so malformed output is a visible failed case.
+
+### Reading the automated result
+
+- `inconclusive` means the adapter produced fewer than 95% valid outputs or
+  failed at least one deterministic case gate.
+- `pending_semantic_review` means every adapter case passed deterministic
+  structure, expected-status, citation-ID, required-evidence, and CTA gates.
+- `accepted` remains false in both cases. Sentence support, personalization,
+  differentiation, CTA quality, and brand fit require the separate blind
+  semantic review before the Phase 6 quality gate can be accepted.
+
+The prompt is built exclusively from the typed benchmark projection. Expected
+status, acceptable and required output IDs, adversarial tags, protected-set
+membership, hashes, identity groups, and reviewer metadata are withheld from
+the model.
+
+## Legacy technical-pilot evaluation
+
 Phase 6 evaluates the saved LoRA adapter against the unchanged Phase 1/5
 benchmark. The benchmark is never used for training. The Colab notebook runs
 the pinned base model and adapter with the same prompts, generation settings,
 and deterministic seed, then writes both reports and a comparison report to
 private Google Drive.
 
-## Colab evaluation
+### Legacy Colab evaluation
 
 1. Open `notebooks/phase6_outreach_adapter.ipynb` in Colab and select a GPU.
 2. Run the cells through adapter training and confirm the adapter metadata is
@@ -27,7 +73,7 @@ failed case; it is never converted into a successful result. Failed cases keep
 only a bounded raw-output excerpt for diagnosis. The selected Qwen Instruct
 revision is already non-thinking-only; output normalization is not assumed.
 
-## Local validation
+### Legacy local validation
 
 Download the two reports and `adapter-metadata.json` from Drive. Keep them in
 an ignored local directory, then run:

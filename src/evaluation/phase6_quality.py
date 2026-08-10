@@ -35,10 +35,37 @@ def evaluate_grounded_output(
     support_verdicts: Mapping[str, SentenceSupportVerdict],
     constraints: OutreachConstraints | None = None,
 ) -> GroundedQualityReport:
+    structural = evaluate_grounded_structure(
+        output,
+        approved_claim_ids=approved_claim_ids,
+        approved_evidence_ids=approved_evidence_ids,
+        constraints=constraints,
+    )
+    violations = [
+        *_support_verdict_violations(output, support_verdicts),
+        *_semantic_offer_violations(output, support_verdicts),
+        *structural.violations,
+    ]
+    return GroundedQualityReport(
+        passed=not violations,
+        subject_word_count=structural.subject_word_count,
+        body_word_count=structural.body_word_count,
+        violations=violations,
+    )
+
+
+def evaluate_grounded_structure(
+    output: GroundedOutreachOutput,
+    *,
+    approved_claim_ids: Set[str],
+    approved_evidence_ids: Set[str],
+    constraints: OutreachConstraints | None = None,
+) -> GroundedQualityReport:
+    """Evaluate deterministic gates without asserting semantic support."""
     constraints = constraints or OutreachConstraints()
     subject_word_count = _word_count(output.subject)
     body_word_count = _word_count(output.body)
-    violations = _support_verdict_violations(output, support_verdicts)
+    violations: list[HardGateViolation] = []
 
     if output.generation_status != "drafted":
         return GroundedQualityReport(
@@ -90,7 +117,7 @@ def evaluate_grounded_output(
                 entry,
                 approved_claim_ids=approved_claim_ids,
                 approved_evidence_ids=approved_evidence_ids,
-                verdict=support_verdicts.get(entry.sentence),
+                verdict=None,
             )
         )
 
@@ -226,6 +253,24 @@ def _support_verdict_violations(
         if not _verdict_matches(entries[sentence], support_verdicts[sentence])
     )
     return violations
+
+
+def _semantic_offer_violations(
+    output: GroundedOutreachOutput,
+    support_verdicts: Mapping[str, SentenceSupportVerdict],
+) -> list[HardGateViolation]:
+    return [
+        _sentence_violation(
+            "unapproved_offer",
+            "CTA offer requires an approved claim",
+            entry,
+        )
+        for entry in output.support_map
+        if entry.role == "cta"
+        and not entry.claim_ids
+        and (verdict := support_verdicts.get(entry.sentence)) is not None
+        and verdict.mentions_offer
+    ]
 
 
 def _verdict_matches(

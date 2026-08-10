@@ -1,7 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
-from src.evaluation.phase6_quality import evaluate_grounded_output
+from src.evaluation.phase6_quality import (
+    evaluate_grounded_output,
+    evaluate_grounded_structure,
+)
 from src.schemas.inference import (
     GroundedOutreachOutput,
     OutreachConstraints,
@@ -91,6 +94,19 @@ def test_grounded_draft_passes_all_hard_gates() -> None:
     assert report.violations == []
     assert report.subject_word_count == 2
     assert report.body_word_count >= 25
+
+
+def test_structural_evaluation_does_not_fabricate_semantic_verdicts() -> None:
+    output = grounded_draft()
+
+    report = evaluate_grounded_structure(
+        output,
+        approved_claim_ids={"claim-001"},
+        approved_evidence_ids={"evidence-001"},
+    )
+
+    assert report.passed is True
+    assert report.violations == []
 
 
 def test_output_contract_requires_exact_body_support_map_coverage() -> None:

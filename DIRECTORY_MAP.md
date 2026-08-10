@@ -40,6 +40,7 @@ introduced.
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `src/evaluation/phase6_benchmark.py` | Frozen Phase 6 benchmark loading, coverage, identity-leakage, duplicate, and protected-adversarial auditing. |
 | `src/evaluation/build_phase6_benchmark.py` | Deterministic builder for the controlled 60-case Phase 6 benchmark candidate. |
+| `src/evaluation/phase6_v2.py` | Leakage-safe v2 prompt construction, deterministic case scoring, fail-closed report generation, and base/adapter comparison. |
 | `src/schemas/quality_benchmark.py` | Strict Phase 6 benchmark case, lifecycle, prompt-projection, hash, and audit contracts. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
 | `src/schemas/base.py` | Shared strict, immutable Pydantic model configuration. |
@@ -56,6 +57,7 @@ introduced.
 | `tests/` | Backend unit, fixture-based, integration, and regression tests. |
 | `notebooks/phase1_colab_feasibility.ipynb` | Pinned Colab benchmark, QLoRA smoke test, environment capture, and real result-bundle export. |
 | `notebooks/phase6_outreach_adapter.ipynb` | Private Colab LoRA/QLoRA pilot scaffold with dataset validation and artifact metadata export. |
+| `notebooks/phase6_v2_evaluation.ipynb` | Evaluation-only Colab handoff for the frozen 60-case benchmark and saved adapter. |
 | `docs/PHASE2_API_RUNBOOK.md` | Manual PowerShell walkthrough for the deterministic campaign API. |
 | `docs/PHASE3_RUNBOOK.md` | Browser walkthrough and two-product manual acceptance gate for onboarding and claim review. |
 | `docs/PHASE3_SPEC.md` | Approved Phase 3 behavior, authorization invariants, risks, and acceptance tests. |
@@ -76,6 +78,7 @@ introduced.
 | `docs/PHASE6_BENCHMARK_REVIEW.md` | Benchmark coverage summary, protected-set rules, and manual freeze checklist. |
 | `docs/PHASE6_BENCHMARK_BUILD_LOG.md` | Recoverable benchmark-build issues, diagnoses, and fixes. |
 | `docs/PHASE6_CLAUDE_OPUS_REVIEW.md` | Independent Opus 4.8 all-case semantic review, verified findings, and benchmark disposition. |
+| `docs/PHASE6_EVALUATION_BUILD_LOG.md` | V2 evaluation-runner issues, diagnoses, fixes, and verification evidence. |
 
 ## Data and deliverables
 
