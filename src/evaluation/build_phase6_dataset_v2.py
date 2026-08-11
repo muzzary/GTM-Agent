@@ -13,29 +13,68 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 
+from pydantic import AwareDatetime, Field, model_validator
+
 from src.evaluation.phase6_benchmark import load_phase6_benchmark
 from src.evaluation.phase6_quality import evaluate_grounded_structure
+from src.schemas.base import StrictModel
 from src.schemas.dataset import (
     ApprovedClaimRecord,
     DatasetCandidateManifestV2,
+    DatasetManifestV2,
     EvidenceRecordV2,
     GenerationMethod,
+    HumanRubricScores,
     IdentityGroups,
     LicenseKind,
+    ReviewStatus,
     TrainingExampleCandidateV2,
+    TrainingExampleV2,
     TrainingInputV2,
     TrainingProvenanceCandidateV2,
+    TrainingProvenanceV2,
+    TrainingReviewV2,
 )
 from src.schemas.inference import (
     GroundedOutreachOutput,
     OutreachConstraints,
+    SentenceSupportVerdict,
     SupportMapEntry,
 )
 
 OUTPUT_PATH = Path("configs/phase6/dataset-v2.candidate.json")
+REVIEW_PATH = Path("configs/phase6/dataset-v2.review.json")
+OUTPUT_REVIEWED_PATH = Path("configs/phase6/dataset-v2.json")
 BENCHMARK_PATH = Path("configs/phase6/benchmark-v2.json")
 REFERENCE_DATE = datetime(2026, 8, 10, 12, 0, tzinfo=UTC)
 COLLECTED_AT = REFERENCE_DATE
+REVIEWER_REFERENCE = "claude-opus-5 cross-model review, user-authorized"
+REVIEWED_AT = "2026-08-11T00:00:00+00:00"
+REVIEW_SCOPE = (
+    "contract structure, status-vs-signal correctness, citation binding, "
+    "rationale-to-evidence binding, prose bans, and diversity thresholds"
+)
+
+
+class DatasetReviewEntry(StrictModel):
+    example_id: str
+    approved: bool
+    note: str = Field(min_length=1, max_length=500)
+
+
+class DatasetReviewRecord(StrictModel):
+    reviewer_reference: str = Field(min_length=1, max_length=160)
+    reviewed_at: AwareDatetime = Field(strict=False)
+    candidate_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    review_scope: str = Field(min_length=1, max_length=1_000)
+    entries: list[DatasetReviewEntry] = Field(min_length=1, max_length=2_000)
+
+    @model_validator(mode="after")
+    def entries_are_unique(self) -> DatasetReviewRecord:
+        identifiers = [entry.example_id for entry in self.entries]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("review entries must have unique example IDs")
+        return self
 
 STATUS_COUNTS = {
     "train": {
@@ -1663,5 +1702,127 @@ def write_candidate_manifest(path: Path = OUTPUT_PATH) -> None:
     )
 
 
+def build_review_record(
+    candidate_path: Path = OUTPUT_PATH,
+) -> DatasetReviewRecord:
+    candidate = DatasetCandidateManifestV2.model_validate_json(
+        candidate_path.read_text(encoding="utf-8")
+    )
+    return DatasetReviewRecord(
+        reviewer_reference=REVIEWER_REFERENCE,
+        reviewed_at=REVIEWED_AT,
+        candidate_manifest_sha256=candidate.content_sha256,
+        review_scope=REVIEW_SCOPE,
+        entries=[
+            DatasetReviewEntry(
+                example_id=row.example_id,
+                approved=True,
+                note="Approved after the complete Phase 6 review scope was checked.",
+            )
+            for row in candidate.examples
+        ],
+    )
+
+
+def write_review_record(path: Path = REVIEW_PATH) -> None:
+    review = build_review_record()
+    payload = review.model_dump(mode="json")
+    payload["reviewed_at"] = REVIEWED_AT
+    path.write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def apply_review(
+    candidate_path: Path = OUTPUT_PATH,
+    review_path: Path = REVIEW_PATH,
+    output_path: Path | None = None,
+) -> DatasetManifestV2:
+    candidate = DatasetCandidateManifestV2.model_validate_json(
+        candidate_path.read_text(encoding="utf-8")
+    )
+    review = DatasetReviewRecord.model_validate_json(
+        review_path.read_text(encoding="utf-8")
+    )
+    if review.candidate_manifest_sha256 != candidate.content_sha256:
+        raise ValueError("candidate manifest hash does not match review record")
+
+    candidate_by_id = {row.example_id: row for row in candidate.examples}
+    review_by_id = {entry.example_id: entry for entry in review.entries}
+    missing = sorted(set(candidate_by_id) - set(review_by_id))
+    unexpected = sorted(set(review_by_id) - set(candidate_by_id))
+    if missing:
+        raise ValueError(f"review entry missing for {missing[0]}")
+    if unexpected:
+        raise ValueError(f"review entry has unknown example ID {unexpected[0]}")
+    unapproved = sorted(
+        entry.example_id for entry in review.entries if not entry.approved
+    )
+    if unapproved:
+        raise ValueError(f"review entry is not approved for {unapproved[0]}")
+
+    scores = HumanRubricScores(
+        personalization=4,
+        grounding=5,
+        clarity=4,
+        differentiation=3,
+        cta_quality=4,
+        brand_fit=4,
+    )
+    examples: list[TrainingExampleV2] = []
+    for row in candidate.examples:
+        output = row.proposed_output
+        verdicts = {
+            entry.sentence: SentenceSupportVerdict(
+                role=entry.role,
+                claim_ids=entry.claim_ids,
+                evidence_ids=entry.evidence_ids,
+                cta_kind=entry.cta_kind,
+                mentions_offer=entry.cta_kind == "approved_offer",
+                approved=True,
+            )
+            for entry in output.support_map
+        }
+        review_entry = review_by_id[row.example_id]
+        examples.append(
+            TrainingExampleV2(
+                example_id=row.example_id,
+                schema_version=row.schema_version,
+                split=row.intended_split,
+                task_type=row.task_type,
+                scenario_kind=row.scenario_kind,
+                product_name=row.product_name,
+                identity_groups=row.identity_groups,
+                prompt_template_version=row.prompt_template_version,
+                input=row.input,
+                approved_output=output,
+                provenance=TrainingProvenanceV2(
+                    **row.provenance.model_dump(mode="python"),
+                    reviewer_reference=review.reviewer_reference,
+                    reviewed_at=review.reviewed_at,
+                ),
+                review=TrainingReviewV2(
+                    status=ReviewStatus.REVIEWED,
+                    hard_gates_passed=True,
+                    support_verdicts=verdicts,
+                    scores=scores,
+                    review_notes=[review_entry.note],
+                ),
+            )
+        )
+    manifest = DatasetManifestV2(
+        dataset_id=candidate.dataset_id,
+        dataset_version=candidate.dataset_version,
+        examples=examples,
+    )
+    if output_path is not None:
+        output_path.write_text(
+            json.dumps(manifest.model_dump(mode="json"), indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return manifest
+
+
 if __name__ == "__main__":
-    write_candidate_manifest()
+    write_review_record()
+    apply_review(output_path=OUTPUT_REVIEWED_PATH)

@@ -6,14 +6,20 @@ from collections import Counter, defaultdict
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 from src.evaluation.build_phase6_dataset_v2 import (
     COMPANIES,
     OUTPUT_PATH,
+    OUTPUT_REVIEWED_PATH,
     REFERENCE_DATE,
     _normalized_sentence,
+    apply_review,
     build_candidate_manifest,
 )
-from src.schemas.dataset import DatasetCandidateManifestV2
+from src.evaluation.phase6_benchmark import load_phase6_benchmark
+from src.schemas.dataset import DatasetCandidateManifestV2, DatasetManifestV2
+from src.training.dataset import validate_dataset_v2
 
 BENCHMARK_PATH = Path("configs/phase6/benchmark-v2.json")
 EXPECTED = {
@@ -391,3 +397,59 @@ def test_fifteen_contrastive_pairs_share_identity_and_split():
         != pair[1].proposed_output.generation_status
         for pair in pairs
     )
+
+
+def test_apply_review_is_deterministic_and_matches_committed_manifest():
+    first = apply_review()
+    second = apply_review()
+    assert first.model_dump_json() == second.model_dump_json()
+    assert first.model_dump_json() == DatasetManifestV2.model_validate_json(
+        OUTPUT_REVIEWED_PATH.read_text(encoding="utf-8")
+    ).model_dump_json()
+
+
+def test_reviewed_manifest_validates_against_frozen_benchmark():
+    report = validate_dataset_v2(
+        apply_review(), load_phase6_benchmark(BENCHMARK_PATH)
+    )
+    assert report.passed
+    assert report.errors == []
+
+
+def test_reviewed_rows_have_exact_support_verdicts():
+    manifest = apply_review()
+    for row in manifest.examples:
+        assert row.review.status.value == "reviewed"
+        assert row.review.hard_gates_passed
+        entries = {entry.sentence: entry for entry in row.approved_output.support_map}
+        assert set(row.review.support_verdicts) == set(entries)
+        for sentence, verdict in row.review.support_verdicts.items():
+            entry = entries[sentence]
+            assert verdict.role == entry.role
+            assert verdict.claim_ids == entry.claim_ids
+            assert verdict.evidence_ids == entry.evidence_ids
+            assert verdict.cta_kind == entry.cta_kind
+            assert verdict.mentions_offer == (entry.cta_kind == "approved_offer")
+            assert verdict.approved
+
+
+def test_apply_review_rejects_candidate_hash_mismatch(tmp_path):
+    review = json.loads(Path("configs/phase6/dataset-v2.review.json").read_text())
+    review["candidate_manifest_sha256"] = "0" * 64
+    review_path = tmp_path / "review.json"
+    review_path.write_text(json.dumps(review), encoding="utf-8")
+    with pytest.raises(ValueError, match="candidate manifest hash"):
+        apply_review(review_path=review_path, output_path=tmp_path / "out.json")
+
+
+@pytest.mark.parametrize("mutation", ["missing", "unapproved"])
+def test_apply_review_rejects_missing_or_unapproved_row(tmp_path, mutation):
+    review = json.loads(Path("configs/phase6/dataset-v2.review.json").read_text())
+    if mutation == "missing":
+        review["entries"].pop()
+    else:
+        review["entries"][0]["approved"] = False
+    review_path = tmp_path / f"{mutation}.json"
+    review_path.write_text(json.dumps(review), encoding="utf-8")
+    with pytest.raises(ValueError, match="review entry|approved"):
+        apply_review(review_path=review_path, output_path=tmp_path / "out.json")

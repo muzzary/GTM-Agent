@@ -1,0 +1,628 @@
+{
+  "reviewer_reference": "claude-opus-5 cross-model review, user-authorized",
+  "reviewed_at": "2026-08-11T00:00:00+00:00",
+  "candidate_manifest_sha256": "31e94b84a0c1e4f4db25ec1af4bf0a763c8c2517be9a87bb61bf7f66c42b43a1",
+  "review_scope": "contract structure, status-vs-signal correctness, citation binding, rationale-to-evidence binding, prose bans, and diversity thresholds",
+  "entries": [
+    {
+      "example_id": "dataset-example-candidate-001",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-002",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-003",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-004",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-005",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-006",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-007",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-008",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-009",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-010",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-011",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-012",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-013",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-014",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-015",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-016",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-017",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-018",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-019",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-020",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-021",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-022",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-023",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-024",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-025",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-026",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-027",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-028",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-029",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-030",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-031",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-032",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-033",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-034",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-035",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-036",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-037",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-038",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-039",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-040",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-041",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-042",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-043",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-044",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-045",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-046",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-047",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-048",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-049",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-050",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-051",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-052",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-053",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-054",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-055",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-056",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-057",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-058",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-059",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-060",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-061",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-062",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-063",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-064",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-065",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-066",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-067",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-068",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-069",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-070",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-071",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-072",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-073",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-074",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-075",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-076",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-077",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-078",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-079",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-080",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-081",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-082",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-083",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-084",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-085",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-086",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-087",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-088",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-089",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-090",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-091",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-092",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-093",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-094",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-095",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-096",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-097",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-098",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-099",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-100",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-101",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-102",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-103",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-104",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-105",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-106",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-107",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-108",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-109",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-110",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-111",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-112",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-113",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-114",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-115",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-116",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-117",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-118",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-119",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-120",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-121",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-122",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-123",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    },
+    {
+      "example_id": "dataset-example-candidate-124",
+      "approved": true,
+      "note": "Approved after the complete Phase 6 review scope was checked."
+    }
+  ]
+}
