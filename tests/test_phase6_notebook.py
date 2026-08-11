@@ -97,6 +97,42 @@ def test_phase6_v2_evaluation_notebook_is_clean_and_scoped() -> None:
     assert "ngrok" not in source.lower()
 
 
+def test_phase6_v2_notebooks_guard_against_stale_imports() -> None:
+    pinned_versions = {
+        "transformers": "5.14.1",
+        "accelerate": "1.14.0",
+        "bitsandbytes": "0.50.0",
+        "peft": "0.20.0",
+        "safetensors": "0.8.0",
+    }
+
+    for source in (
+        v2_training_notebook_source(),
+        v2_evaluation_notebook_source(),
+    ):
+        assert "PINNED_VERSIONS" in source
+        for package, version in pinned_versions.items():
+            assert f'"{package}": "{version}"' in source
+        assert "importlib.metadata.version" in source
+        assert "__version__" in source
+        assert "raise RuntimeError" in source
+        assert "Runtime > Restart session, then run all cells top to bottom." in source
+        assert "Do not re-run the install cell in a live session." in source
+
+
+def test_phase6_v2_notebooks_warn_before_install() -> None:
+    warning = (
+        "After any interrupted run, restart the runtime before re-running this "
+        "notebook. Re-running %pip install in a live session produces exactly "
+        "this stale-import failure."
+    )
+
+    for path in (V2_TRAINING_NOTEBOOK_PATH, V2_EVALUATION_NOTEBOOK_PATH):
+        notebook = json.loads(path.read_text(encoding="utf-8"))
+        assert notebook["cells"][0]["cell_type"] == "markdown"
+        assert warning in "".join(notebook["cells"][0]["source"])
+
+
 def test_phase6_v2_evaluation_notebook_code_cells_compile() -> None:
     notebook = json.loads(
         V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
