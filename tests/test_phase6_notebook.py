@@ -76,7 +76,15 @@ def test_phase6_notebook_code_cells_compile_after_colab_magics() -> None:
 def test_phase6_v2_evaluation_notebook_is_clean_and_scoped() -> None:
     source = v2_evaluation_notebook_source()
 
-    assert "benchmark-v2.json" in source
+    assert "configs/phase6/training-v2.json" in source
+    assert "configs/phase6/training.json" not in source
+    assert "configs/phase6/benchmark-v2.json" in source
+    assert "TrainingConfigV2" in source
+    assert "metadata.adapter_id == config.adapter_id" in source
+    assert "metadata.dataset_id == v2_dataset.dataset_id" in source
+    assert "metadata.dataset_version == v2_dataset.dataset_version" in source
+    assert "Qwen/Qwen3-4B-Instruct-2507" in source
+    assert "cdbee75f17c01a7cc42f958dc650907174af0554" in source
     assert "audit_phase6_benchmark" in source
     assert "run_phase6_v2_evaluation" in source
     assert "phase6-v2-base-report.json" in source
@@ -153,6 +161,9 @@ def test_phase6_v2_training_notebook_is_scoped_and_masks_assistant_loss() -> Non
         "labels = input_ids.clone()",
         "labels[:, :prompt_length] = -100",
         "validation_loss",
+        '"dataset_id": dataset.dataset_id',
+        '"dataset_version": dataset.dataset_version',
+        '"adapter-metadata.json"',
     ):
         assert required in source
     assert not re.search(r"(?<!\.)\btokenizer\(", source)
