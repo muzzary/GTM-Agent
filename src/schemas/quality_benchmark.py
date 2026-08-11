@@ -7,7 +7,7 @@ from pydantic import AwareDatetime, Field, model_validator
 from pydantic.networks import HttpUrl
 
 from src.schemas.base import StrictModel
-from src.schemas.dataset import IdentityGroups, TrainingInputV2
+from src.schemas.dataset import IdentityGroups, ScenarioKind, TrainingInputV2
 from src.schemas.inference import OutreachConstraints
 
 ProductCategory = Literal[
@@ -29,7 +29,6 @@ EvidenceCondition = Literal["strong", "weak", "conflicting", "stale", "absent"]
 GenerationStatus = Literal[
     "drafted", "needs_more_evidence", "disqualified", "opted_out"
 ]
-ScenarioKind = Literal["initial_outreach", "follow_up"]
 AdversarialTag = Literal[
     "unsupported_fact_combination",
     "invented_pain",

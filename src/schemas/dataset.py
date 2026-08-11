@@ -20,6 +20,9 @@ class DatasetSplit(StrEnum):
     HELD_OUT = "held_out"
 
 
+ScenarioKind = Literal["initial_outreach", "follow_up"]
+
+
 class LicenseKind(StrEnum):
     SYNTHETIC = "synthetic"
     PUBLIC_DATASET = "public_dataset"
@@ -127,6 +130,27 @@ class DatasetManifest(StrictModel):
         return self
 
 
+class DatasetManifestV2(StrictModel):
+    dataset_id: str = Field(pattern=r"^dataset-[a-z0-9-]{4,64}$")
+    dataset_version: str = Field(pattern=r"^\d+\.\d+$")
+    examples: list["TrainingExampleV2"] = Field(min_length=1, max_length=2_000)
+    content_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def content_hash_is_valid(self) -> Self:
+        expected_hash = self.content_sha256_for_audit()
+        if self.content_sha256 is None:
+            object.__setattr__(self, "content_sha256", expected_hash)
+        elif self.content_sha256 != expected_hash:
+            raise ValueError("content_sha256 does not match v2 dataset manifest")
+        return self
+
+    def content_sha256_for_audit(self) -> str:
+        return _content_digest_v2(
+            self.model_dump(mode="json", exclude={"content_sha256"})
+        )
+
+
 class DatasetAuditReport(StrictModel):
     dataset_id: str
     passed: bool
@@ -137,6 +161,21 @@ class DatasetAuditReport(StrictModel):
     unsupported_claim_ids: list[str]
     unsupported_evidence_ids: list[str]
     benchmark_overlap: list[str]
+    errors: list[str]
+
+
+class DatasetAuditReportV2(StrictModel):
+    dataset_id: str
+    passed: bool
+    split_counts: dict[str, int]
+    status_counts: dict[str, dict[str, int]]
+    overlap_groups: list[str]
+    duplicate_example_ids: list[str]
+    duplicate_content_hashes: list[str]
+    unsupported_claim_ids: list[str]
+    unsupported_evidence_ids: list[str]
+    benchmark_identity_overlap: list[str]
+    benchmark_content_overlap: list[str]
     errors: list[str]
 
 
@@ -264,6 +303,8 @@ class TrainingExampleV2(StrictModel):
     schema_version: Literal["2.0"]
     split: DatasetSplit = Field(strict=False)
     task_type: Literal["outreach_generation"]
+    scenario_kind: "ScenarioKind"
+    product_name: str = Field(min_length=1, max_length=120)
     identity_groups: IdentityGroups
     prompt_template_version: str = Field(
         pattern=r"^[a-z0-9][a-z0-9-]{3,63}$"

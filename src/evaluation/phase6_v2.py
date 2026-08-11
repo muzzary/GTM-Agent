@@ -7,6 +7,7 @@ from pydantic import Field, computed_field, model_validator
 
 from src.evaluation.phase6_quality import evaluate_grounded_structure
 from src.schemas.base import StrictModel
+from src.schemas.dataset import TrainingExampleV2
 from src.schemas.inference import (
     GenerationSettings,
     GroundedOutreachOutput,
@@ -16,6 +17,7 @@ from src.schemas.inference import (
 from src.schemas.quality_benchmark import (
     Phase6BenchmarkCase,
     Phase6BenchmarkManifest,
+    Phase6BenchmarkPromptInput,
 )
 
 
@@ -113,7 +115,11 @@ class Phase6V2ComparisonReport(StrictModel):
 
 
 def build_phase6_v2_prompt(case: Phase6BenchmarkCase) -> str:
-    prompt_input = case.prompt_input().model_dump(mode="json")
+    return render_v2_prompt(case.prompt_input())
+
+
+def render_v2_prompt(prompt_input: Phase6BenchmarkPromptInput) -> str:
+    prompt_input_payload = prompt_input.model_dump(mode="json")
     draft_sentences = (
         "The supplied source describes a relevant operational workflow.",
         "The product supports one capability listed in the approved claims.",
@@ -185,8 +191,52 @@ def build_phase6_v2_prompt(case: Phase6BenchmarkCase) -> str:
             "Non-draft JSON shape example:",
             json.dumps(non_draft_example, ensure_ascii=False, sort_keys=True),
             "Input:",
-            json.dumps(prompt_input, ensure_ascii=False, sort_keys=True),
+            json.dumps(prompt_input_payload, ensure_ascii=False, sort_keys=True),
         )
+    )
+
+
+def training_prompt_input(example: TrainingExampleV2) -> Phase6BenchmarkPromptInput:
+    return Phase6BenchmarkPromptInput(
+        task_type=example.task_type,
+        scenario_kind=example.scenario_kind,
+        product_name=example.product_name,
+        target_role=example.input.target_role,
+        approved_claims=[
+            {"claim_id": claim.claim_id, "text": claim.text}
+            for claim in example.input.approved_claims
+        ],
+        prospect_evidence=[
+            {
+                "evidence_id": evidence.evidence_id,
+                "text": evidence.text,
+                "source_url": evidence.source_url,
+                "collected_at": evidence.collected_at,
+            }
+            for evidence in example.input.prospect_evidence
+        ],
+        pain_hypotheses=example.input.pain_hypotheses,
+        constraints=example.input.constraints,
+    )
+
+
+def build_chat_messages(
+    prompt: str, assistant_json: str | None = None
+) -> list[dict[str, str]]:
+    messages = [
+        {"role": "system", "content": "Return strict JSON only."},
+        {"role": "user", "content": prompt},
+    ]
+    if assistant_json is not None:
+        messages.append({"role": "assistant", "content": assistant_json})
+    return messages
+
+
+def training_target_json(example: TrainingExampleV2) -> str:
+    return json.dumps(
+        example.approved_output.model_dump(mode="json"),
+        ensure_ascii=False,
+        sort_keys=True,
     )
 
 

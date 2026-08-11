@@ -78,6 +78,8 @@ def reviewed_example(**updates: object) -> TrainingExampleV2:
         "schema_version": "2.0",
         "split": "train",
         "task_type": "outreach_generation",
+        "scenario_kind": "initial_outreach",
+        "product_name": "FlowReport",
         "identity_groups": IdentityGroups(
             product_group="product-reporting",
             icp_group="regulated_operations",
