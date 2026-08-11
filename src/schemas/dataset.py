@@ -6,6 +6,7 @@ from typing import Any, Literal, Self
 
 from pydantic import AwareDatetime, Field, HttpUrl, model_validator
 
+from src.evaluation.phase6_quality import GroundedQualityReport
 from src.schemas.base import StrictModel
 from src.schemas.inference import (
     GroundedOutreachOutput,
@@ -256,6 +257,73 @@ class TrainingProvenanceV2(StrictModel):
         return self
 
 
+class TrainingProvenanceCandidateV2(StrictModel):
+    source_kind: str = Field(min_length=1, max_length=80)
+    source_reference: str = Field(min_length=1, max_length=500)
+    license_kind: LicenseKind = Field(strict=False)
+    license_basis: str = Field(min_length=1, max_length=500)
+    license_url: HttpUrl | None = None
+    generation_method: GenerationMethod = Field(strict=False)
+
+    @model_validator(mode="after")
+    def public_source_has_license_url(self) -> Self:
+        if self.license_kind is LicenseKind.PUBLIC_DATASET and self.license_url is None:
+            raise ValueError("public dataset provenance requires a license URL")
+        return self
+
+
+class TrainingExampleCandidateV2(StrictModel):
+    example_id: str = Field(pattern=r"^dataset-example-[a-z0-9-]{4,64}$")
+    schema_version: Literal["2.0"]
+    task_type: Literal["outreach_generation"]
+    intended_split: Literal["train", "validation"]
+    scenario_kind: ScenarioKind
+    product_name: str = Field(min_length=1, max_length=120)
+    identity_groups: IdentityGroups
+    prompt_template_version: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{3,63}$")
+    input: TrainingInputV2
+    proposed_output: GroundedOutreachOutput
+    provenance: TrainingProvenanceCandidateV2
+    gate_report: GroundedQualityReport
+    content_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def content_hash_is_valid(self) -> Self:
+        expected_hash = self.content_sha256_for_audit()
+        if self.content_sha256 is None:
+            object.__setattr__(self, "content_sha256", expected_hash)
+        elif self.content_sha256 != expected_hash:
+            raise ValueError("content_sha256 does not match candidate example content")
+        return self
+
+    def content_sha256_for_audit(self) -> str:
+        content = self.model_dump(mode="json", exclude={"content_sha256"})
+        content.pop("example_id")
+        return _content_digest_v2(content)
+
+
+class DatasetCandidateManifestV2(StrictModel):
+    dataset_id: str = Field(pattern=r"^dataset-[a-z0-9-]{4,64}$")
+    dataset_version: str = Field(pattern=r"^\d+\.\d+$")
+    lifecycle_status: Literal["pending_review"]
+    examples: list[TrainingExampleCandidateV2] = Field(min_length=1, max_length=2_000)
+    content_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def content_hash_is_valid(self) -> Self:
+        expected_hash = self.content_sha256_for_audit()
+        if self.content_sha256 is None:
+            object.__setattr__(self, "content_sha256", expected_hash)
+        elif self.content_sha256 != expected_hash:
+            raise ValueError("content_sha256 does not match candidate manifest")
+        return self
+
+    def content_sha256_for_audit(self) -> str:
+        return _content_digest_v2(
+            self.model_dump(mode="json", exclude={"content_sha256"})
+        )
+
+
 class HumanRubricScores(StrictModel):
     personalization: int = Field(ge=1, le=5)
     grounding: int = Field(ge=1, le=5)
@@ -266,16 +334,19 @@ class HumanRubricScores(StrictModel):
 
     @property
     def average(self) -> float:
-        return sum(
-            (
-                self.personalization,
-                self.grounding,
-                self.clarity,
-                self.differentiation,
-                self.cta_quality,
-                self.brand_fit,
+        return (
+            sum(
+                (
+                    self.personalization,
+                    self.grounding,
+                    self.clarity,
+                    self.differentiation,
+                    self.cta_quality,
+                    self.brand_fit,
+                )
             )
-        ) / 6
+            / 6
+        )
 
 
 class TrainingReviewV2(StrictModel):
@@ -306,9 +377,7 @@ class TrainingExampleV2(StrictModel):
     scenario_kind: "ScenarioKind"
     product_name: str = Field(min_length=1, max_length=120)
     identity_groups: IdentityGroups
-    prompt_template_version: str = Field(
-        pattern=r"^[a-z0-9][a-z0-9-]{3,63}$"
-    )
+    prompt_template_version: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{3,63}$")
     input: TrainingInputV2
     approved_output: GroundedOutreachOutput
     provenance: TrainingProvenanceV2
