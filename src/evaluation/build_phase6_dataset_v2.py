@@ -9,7 +9,7 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 
@@ -34,7 +34,8 @@ from src.schemas.inference import (
 
 OUTPUT_PATH = Path("configs/phase6/dataset-v2.candidate.json")
 BENCHMARK_PATH = Path("configs/phase6/benchmark-v2.json")
-COLLECTED_AT = datetime(2026, 8, 1, 12, 0, tzinfo=UTC)
+REFERENCE_DATE = datetime(2026, 8, 10, 12, 0, tzinfo=UTC)
+COLLECTED_AT = REFERENCE_DATE
 
 STATUS_COUNTS = {
     "train": {
@@ -287,6 +288,66 @@ OPENING_FORMS = (
     "I found a useful public signal about {signal} at {company}.",
     "The published workflow at {company} has a visible thread around {signal}.",
 )
+
+BOUND_RATIONALES = {
+    "absent": (
+        "No usable prospect evidence was found, so a grounded message would be speculative.",
+        "This row has no usable evidence for a responsible outreach decision.",
+        "No evidence supports a specific observation about this prospect.",
+        "A grounded message is not possible because usable evidence is absent.",
+        "There is no usable prospect evidence to support personalization here.",
+        "Without usable evidence, this outreach decision should remain on hold.",
+        "No prospect evidence is available for a defensible outreach message.",
+        "This row lacks usable evidence for a fact-based introduction.",
+        "A responsible draft cannot be grounded because no usable evidence was found.",
+        "The input contains no usable prospect evidence for this workflow.",
+        "No usable evidence connects this prospect to a specific outreach observation.",
+        "This message should remain empty because the prospect has no usable evidence.",
+    ),
+    "stale": (
+        "The available evidence is more than twelve months old, so the current workflow is uncertain.",
+        "Evidence older than twelve months cannot establish the prospect's present priority.",
+        "The evidence has aged beyond twelve months and needs current confirmation.",
+        "A message should wait because the available evidence is more than twelve months old.",
+        "The current situation is unclear because every available item is at least twelve months old.",
+        "Evidence age exceeds twelve months, which makes a current personalization claim unsafe.",
+        "The prospect signal needs refreshing because the evidence is more than twelve months old.",
+        "A current source is needed because the available evidence is at least twelve months old.",
+        "The evidence is too old to support a confident message about the present workflow.",
+        "More recent evidence is required because the available material is beyond twelve months old.",
+        "The row remains unresolved while its evidence is more than twelve months out of date.",
+        "The evidence age prevents a reliable current observation for outreach.",
+    ),
+    "conflicting": (
+        "Two sources disagree about team ownership, so a human should reconcile them first.",
+        "The evidence describes different owners for the workflow and needs reconciliation.",
+        "Conflicting evidence prevents a reliable statement about who runs this process.",
+        "The sources point to different responsibilities, so the current owner is uncertain.",
+        "A human should resolve the disagreement between the available workflow descriptions.",
+        "The evidence does not agree on ownership and cannot yet support personalization.",
+        "Different source descriptions leave the responsible team unresolved.",
+        "The ownership conflict needs review before an outreach observation is drafted.",
+        "The available sources disagree about the workflow boundary.",
+        "A grounded message should wait until the conflicting responsibilities are reconciled.",
+        "The evidence gives incompatible descriptions of who owns this work.",
+        "The row needs review because its sources do not describe one consistent owner.",
+    ),
+    "weak": (
+        "The available evidence is thin and indirect, so it does not support a confident message.",
+        "Only an indirect role signal is available, which is not enough for personalization.",
+        "The evidence is a light operational hint rather than a confirmed current priority.",
+        "A single indirect reference does not establish who owns this workflow.",
+        "The prospect signal is too thin to support a specific observation.",
+        "The available detail suggests involvement but does not confirm an active need.",
+        "A weak role signal needs corroboration before it can ground outreach.",
+        "The evidence is limited to indirect assistance language and needs confirmation.",
+        "The current input is suggestive but too thin for a responsible draft.",
+        "An indirect mention is not enough to establish a current workflow problem.",
+        "The available evidence hints at involvement without proving ownership or urgency.",
+        "More direct evidence is needed because the present signal is too limited.",
+    ),
+}
+
 
 PRODUCT_CLAIM_FORMS = (
     "{product} {claim}.",
@@ -692,6 +753,8 @@ def _evidence(
             f"{company}'s architecture note describes an exclusively on-premise estate.",
             f"{company}'s profile shows no in-house software engineering team.",
             f"{company}'s customer records remain with distributors rather than this sales team.",
+            f"{company}'s operating model assigns all reporting decisions to an external parent team.",
+            f"{company}'s service model leaves no internal owner for the proposed workflow.",
         )
         selected_texts = [texts[index % len(texts)]]
     elif status == "opted_out":
@@ -702,6 +765,8 @@ def _evidence(
             f"{company}'s preference center lists this contact as opted out of sales outreach.",
             f"A previous message from {company} requests no further contact from vendors.",
             f"{company}'s communication record blocks promotional email to this prospect.",
+            f"The consent history for {company} records a direct request to stop sales messages.",
+            f"{company}'s contact record rejects further vendor outreach by email.",
         )
         selected_texts = [texts[index % len(texts)]]
     elif condition == "absent":
@@ -715,7 +780,8 @@ def _evidence(
                 f"{company}'s operating guide names one owner, but a later team brief gives regional groups responsibility.",
             ),
             "stale": (
-                f"An archived {company} process note collected fourteen months ago described recurring review activity.",
+                f"An archived {company} process note describes recurring review activity from an earlier operating period.",
+                f"A prior operating record from {company} documented recurring review activity during an earlier period.",
             ),
         }[condition]
         evidence_count = 3 if condition == "strong" else 2
@@ -734,7 +800,7 @@ def _evidence(
             evidence_id=f"evidence-candidate-{index:03d}-{position + 1:02d}",
             text=text,
             source_url=f"https://example.com/candidate/source-{index:03d}-{position + 1:02d}",
-            collected_at=datetime(2022, 1, 15, tzinfo=UTC)
+            collected_at=REFERENCE_DATE - timedelta(days=420)
             if condition == "stale"
             else COLLECTED_AT,
             content_sha256=sha256(text.encode("utf-8")).hexdigest(),
@@ -1076,9 +1142,24 @@ def _output(
 ) -> GroundedOutreachOutput:
     if status == "drafted":
         return _draft_clean(profile, claims, evidence, index, company, condition)
-    rationale = ABSTENTION_RATIONALES[status][
-        index % len(ABSTENTION_RATIONALES[status])
-    ]
+    if status == "needs_more_evidence":
+        if condition == "strong":
+            raise AssertionError("needs_more_evidence cannot use strong evidence")
+        rationale = BOUND_RATIONALES[condition][
+            index % len(BOUND_RATIONALES[condition])
+        ]
+    elif status == "disqualified":
+        fact = evidence[0].text
+        clause = fact.rstrip(".")
+        if not any(clause.startswith(company) for company in COMPANIES):
+            clause = clause[0].lower() + clause[1:]
+        rationale = "The disqualifying fact is that " + clause + "."
+    else:
+        fact = evidence[0].text
+        clause = fact.rstrip(".")
+        if not any(clause.startswith(company) for company in COMPANIES):
+            clause = clause[0].lower() + clause[1:]
+        rationale = "The opt-out record states that " + clause + "."
     return GroundedOutreachOutput(
         generation_status=status,
         subject="",
@@ -1114,6 +1195,29 @@ def _normalized_sentence(sentence: str) -> str:
     return re.sub(r"[^a-z0-9<>\s]", "", normalized).strip()
 
 
+def _row_condition(row: TrainingExampleCandidateV2) -> str:
+    evidence = row.input.prospect_evidence
+    if not evidence:
+        return "absent"
+    if any(
+        REFERENCE_DATE - item.collected_at >= timedelta(days=365)
+        for item in evidence
+    ):
+        return "stale"
+    combined = " ".join(item.text.casefold() for item in evidence)
+    if any(
+        marker in combined
+        for marker in ("while", "but a later", "disagree", "different")
+    ):
+        return "conflicting"
+    if any(
+        marker in combined
+        for marker in ("assisting", "assist", "briefly references support")
+    ):
+        return "weak"
+    return "strong"
+
+
 def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     outputs = [row.proposed_output for row in rows]
     drafted = [output for output in outputs if output.generation_status == "drafted"]
@@ -1129,6 +1233,106 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     ):
         raise AssertionError("subject or uncertainty note contains a digit")
     for row in rows:
+        condition = _row_condition(row)
+        status = row.proposed_output.generation_status
+        notes = " ".join(row.proposed_output.uncertainty_notes).casefold()
+        if status == "needs_more_evidence" and condition == "strong":
+            raise AssertionError("needs_more_evidence cannot use strong evidence")
+        if status != "drafted" and condition == "absent":
+            if row.input.prospect_evidence:
+                raise AssertionError("absent condition has evidence")
+            if not any(
+                phrase in notes
+                for phrase in (
+                    "no usable prospect evidence",
+                    "no usable evidence",
+                    "no evidence",
+                    "without usable evidence",
+                    "lacks usable evidence",
+                    "no prospect evidence",
+                    "evidence is absent",
+                )
+            ):
+                raise AssertionError("absent rationale is not in the no-evidence family")
+            if any(
+                marker in notes
+                for marker in (
+                    "source",
+                    "signal",
+                    "role",
+                    "month",
+                    "year",
+                    "old",
+                    "ownership",
+                    "disagree",
+                )
+            ):
+                raise AssertionError("absent rationale names an unavailable signal")
+        elif status != "drafted" and condition == "stale":
+            if not row.input.prospect_evidence or any(
+                REFERENCE_DATE - item.collected_at < timedelta(days=365)
+                for item in row.input.prospect_evidence
+            ):
+                raise AssertionError("stale evidence is less than twelve months old")
+            if not any(marker in notes for marker in ("old", "age", "earlier", "year", "recent", "date")):
+                raise AssertionError(
+                    f"stale rationale does not cite recency: {row.example_id} {notes}"
+                )
+        elif status != "drafted" and condition == "conflicting":
+            if len(row.input.prospect_evidence) < 2:
+                raise AssertionError("conflicting condition needs multiple evidence items")
+            if not any(
+                marker in notes
+                for marker in ("disagree", "conflict", "different", "incompatible", "responsib", "agree")
+            ):
+                raise AssertionError("conflicting rationale does not cite disagreement")
+        elif status != "drafted" and condition == "weak":
+            if not row.input.prospect_evidence or not any(
+                marker in notes
+                for marker in ("thin", "indirect", "limited", "hint", "assist", "suggest", "weak")
+            ):
+                raise AssertionError(
+                    f"weak rationale does not cite thin evidence: {row.example_id} {notes}"
+                )
+            if any(marker in notes for marker in ("old", "year", "disagree", "conflict")):
+                raise AssertionError("weak rationale cites another evidence condition")
+        if status in {"disqualified", "opted_out"}:
+            evidence_words = set(
+                re.findall(
+                    r"[a-z]{5,}",
+                    " ".join(item.text.casefold() for item in row.input.prospect_evidence),
+                )
+            )
+            note_words = set(re.findall(r"[a-z]{5,}", notes))
+            if not evidence_words & note_words:
+                raise AssertionError("abstention rationale is not grounded in evidence")
+        duration = re.search(
+            r"\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve|fourteen|\d+)\s+months?\b",
+            notes,
+        )
+        if duration:
+            month_words = {
+                "one": 1,
+                "two": 2,
+                "three": 3,
+                "four": 4,
+                "five": 5,
+                "six": 6,
+                "seven": 7,
+                "eight": 8,
+                "nine": 9,
+                "ten": 10,
+                "twelve": 12,
+                "fourteen": 14,
+            }
+            months = month_words.get(duration.group(1))
+            if months is None:
+                months = int(duration.group(1))
+            if condition != "stale" or any(
+                REFERENCE_DATE - item.collected_at < timedelta(days=months * 30)
+                for item in row.input.prospect_evidence
+            ):
+                raise AssertionError("rationale states an inaccurate evidence duration")
         evidence_by_id = {
             item.evidence_id: item.text for item in row.input.prospect_evidence
         }
@@ -1224,7 +1428,8 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     if len(rationale_counts) < 30 or max(rationale_counts.values(), default=0) > 4:
         raise AssertionError(
             "abstention rationale diversity threshold failed: "
-            f"distinct={len(rationale_counts)}, max_reuse={max(rationale_counts.values(), default=0)}"
+            f"distinct={len(rationale_counts)}, max_reuse={max(rationale_counts.values(), default=0)}, "
+            f"examples={rationale_counts.most_common(5)}"
         )
     shapes = Counter(
         tuple(entry.role for entry in output.support_map) for output in drafted
@@ -1395,6 +1600,8 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
                 ]
                 if status == "drafted":
                     condition = "strong" if index % 2 else "weak"
+                if status == "needs_more_evidence":
+                    condition = ("weak", "conflicting", "stale", "absent")[index % 4]
                 if status == "disqualified":
                     condition = "strong"
                 if status == "opted_out":

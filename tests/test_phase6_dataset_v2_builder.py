@@ -3,11 +3,13 @@
 import json
 import re
 from collections import Counter, defaultdict
+from datetime import timedelta
 from pathlib import Path
 
 from src.evaluation.build_phase6_dataset_v2 import (
     COMPANIES,
     OUTPUT_PATH,
+    REFERENCE_DATE,
     _normalized_sentence,
     build_candidate_manifest,
 )
@@ -68,13 +70,13 @@ def _condition(row):
     if not evidence:
         return "absent"
     text = evidence[0].text.casefold()
-    if evidence[0].collected_at.year < 2026:
+    if any(REFERENCE_DATE - item.collected_at >= timedelta(days=365) for item in evidence):
         return "stale"
-    if any(marker in text for marker in ("while", "disagree", "different", "conflict")):
+    if any(marker in text for marker in ("while", "but a later", "disagree", "different", "conflict")):
         return "conflicting"
     if any(
         marker in text
-        for marker in ("assistance", "support for", "exposure", "light involvement")
+        for marker in ("assistance", "assisting", "assist", "support for", "exposure", "light involvement")
     ):
         return "weak"
     return "strong"
@@ -253,6 +255,111 @@ def test_gate_and_content_quality_thresholds():
     }
     assert len(found_companies) >= 40
     assert len({row.input.target_role for row in rows}) >= 20
+
+
+def test_abstention_conditions_and_rationales_are_bound_to_input():
+    rows = _manifest().examples
+    for row in rows:
+        condition = _condition(row)
+        status = row.proposed_output.generation_status
+        notes = " ".join(row.proposed_output.uncertainty_notes).casefold()
+        if status == "needs_more_evidence":
+            assert condition != "strong"
+        if status == "drafted":
+            continue
+        if condition == "absent":
+            assert row.input.prospect_evidence == []
+            assert any(
+                phrase in notes
+                for phrase in (
+                    "no usable prospect evidence",
+                    "no usable evidence",
+                    "no evidence",
+                    "without usable evidence",
+                    "lacks usable evidence",
+                    "no prospect evidence",
+                    "evidence is absent",
+                )
+            )
+            assert not any(
+                marker in notes
+                for marker in (
+                    "source",
+                    "signal",
+                    "role",
+                    "month",
+                    "year",
+                    "old",
+                    "ownership",
+                    "disagree",
+                )
+            )
+        elif condition == "stale":
+            assert row.input.prospect_evidence
+            assert all(
+                REFERENCE_DATE - item.collected_at >= timedelta(days=365)
+                for item in row.input.prospect_evidence
+            )
+            assert any(
+                marker in notes
+                for marker in ("old", "age", "earlier", "year", "recent", "date")
+            )
+        elif condition == "conflicting":
+            assert len(row.input.prospect_evidence) >= 2
+            assert any(
+                marker in notes
+                for marker in (
+                    "disagree",
+                    "conflict",
+                    "different",
+                    "incompatible",
+                    "responsib",
+                    "agree",
+                )
+            )
+        elif condition == "weak":
+            assert row.input.prospect_evidence
+            assert any(
+                marker in notes
+                for marker in ("thin", "indirect", "limited", "hint", "assist", "suggest", "weak")
+            )
+            assert not any(
+                marker in notes for marker in ("old", "year", "disagree", "conflict")
+            )
+        if status in {"disqualified", "opted_out"}:
+            evidence_words = set(
+                re.findall(
+                    r"[a-z]{5,}",
+                    " ".join(item.text.casefold() for item in row.input.prospect_evidence),
+                )
+            )
+            note_words = set(re.findall(r"[a-z]{5,}", notes))
+            assert evidence_words & note_words
+        duration = re.search(
+            r"\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve|fourteen|\d+)\s+months?\b",
+            notes,
+        )
+        if duration:
+            month_words = {
+                "one": 1,
+                "two": 2,
+                "three": 3,
+                "four": 4,
+                "five": 5,
+                "six": 6,
+                "seven": 7,
+                "eight": 8,
+                "nine": 9,
+                "ten": 10,
+                "twelve": 12,
+                "fourteen": 14,
+            }
+            months = month_words.get(duration.group(1), int(duration.group(1))) if duration.group(1).isdigit() else month_words[duration.group(1)]
+            assert condition == "stale"
+            assert all(
+                REFERENCE_DATE - item.collected_at >= timedelta(days=months * 30)
+                for item in row.input.prospect_evidence
+            )
 
 
 def test_identity_disjointness_and_split_boundary():
