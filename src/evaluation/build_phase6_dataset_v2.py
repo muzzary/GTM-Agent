@@ -78,16 +78,16 @@ class DatasetReviewRecord(StrictModel):
 
 STATUS_COUNTS = {
     "train": {
-        "drafted": 40,
-        "needs_more_evidence": 24,
-        "disqualified": 18,
-        "opted_out": 18,
+        "drafted": 65,
+        "needs_more_evidence": 15,
+        "disqualified": 10,
+        "opted_out": 10,
     },
     "validation": {
-        "drafted": 10,
-        "needs_more_evidence": 6,
-        "disqualified": 4,
-        "opted_out": 4,
+        "drafted": 15,
+        "needs_more_evidence": 4,
+        "disqualified": 3,
+        "opted_out": 2,
     },
 }
 STATUSES = ("drafted", "needs_more_evidence", "disqualified", "opted_out")
@@ -130,6 +130,12 @@ PRODUCTS = (
             "The reporting queue could grow faster than the team can validate its inputs.",
             "A new reporting stakeholder may add another layer to the review calendar.",
             "The team might spend more time explaining variance than acting on it.",
+            "A changing scorecard scope may make recurring commentary harder to standardize.",
+            "Reporting handoffs could leave analysts reconciling context before sign-off.",
+            "Leaders may need a clearer exception view when several packs arrive together.",
+            "A denser review cycle could make source checks less visible to each owner.",
+            "The reporting team might revisit the same variance across separate meetings.",
+            "More operating requests could make timely report assembly less predictable.",
         ),
     ),
     ProductProfile(
@@ -158,6 +164,12 @@ PRODUCTS = (
             "Security teams could lose time deciding which account should answer an asset question.",
             "A larger inventory may make ownership exceptions harder to resolve quickly.",
             "The control process could become reactive when new resources arrive between reviews.",
+            "A varied cloud estate may make comparable asset checks harder to sustain.",
+            "Security reviews could revisit the same resource when account boundaries shift.",
+            "A broader service footprint may leave observation context uneven across assets.",
+            "The inventory team might need a clearer exception path for newly connected accounts.",
+            "More frequent resource changes could make evidence handoffs harder to keep current.",
+            "Security leaders may want a consistent triage view before expanding account coverage.",
         ),
     ),
     ProductProfile(
@@ -186,6 +198,12 @@ PRODUCTS = (
             "Platform leaders could need a clearer view before investing in another CI improvement.",
             "A broader repository estate may make failure trends harder to compare consistently.",
             "The engineering team could spend valuable focus separating repeated defects from one-offs.",
+            "A changing release mix may make comparable build signals harder to maintain.",
+            "Platform reviews could revisit the same failure when repository ownership shifts.",
+            "A wider delivery surface may leave failure context uneven across teams.",
+            "The triage group might need a clearer exception path for recurring build noise.",
+            "More frequent deployments could make failure handoffs harder to keep current.",
+            "Engineering leaders may want a consistent signal before expanding repository coverage.",
         ),
     ),
     ProductProfile(
@@ -214,6 +232,12 @@ PRODUCTS = (
             "A broader service catalog could make knowledge ownership harder to keep visible.",
             "Support managers may need a more reliable signal before changing article priorities.",
             "A growing set of customer questions could make informal knowledge sharing fragile.",
+            "A changing service mix may make comparable answer checks harder to sustain.",
+            "Support reviews could revisit the same question when article ownership shifts.",
+            "A wider help catalog may leave source context uneven across service groups.",
+            "The enablement team might need a clearer exception path for recurring answer gaps.",
+            "More frequent guidance changes could make source handoffs harder to keep current.",
+            "Support leaders may want a consistent signal before expanding article coverage.",
         ),
     ),
     ProductProfile(
@@ -242,6 +266,12 @@ PRODUCTS = (
             "Revenue leaders could hesitate to trust a forecast built on unresolved record issues.",
             "A more complex territory model may increase the cost of resolving record exceptions.",
             "The operations team could lose reporting time when cleanup decisions remain ambiguous.",
+            "A changing account mix may make comparable field checks harder to sustain.",
+            "Forecast reviews could revisit the same record when ownership shifts across teams.",
+            "A wider sales process may leave exception context uneven across territories.",
+            "The systems group might need a clearer path for recurring record-quality issues.",
+            "More frequent updates could make data handoffs harder to keep current.",
+            "Revenue leaders may want a consistent signal before expanding validation coverage.",
         ),
     ),
 )
@@ -433,6 +463,21 @@ PRODUCT_CLAIM_FORMS = (
     "{product} {claim} across the team handoff.",
     "{product} {claim} when source context matters.",
     "{product} {claim} as part of a repeatable review.",
+    "{product} {claim} while teams compare the current signal.",
+    "{product} {claim} before exceptions reach the next owner.",
+    "{product} {claim} with a compact operating record.",
+    "{product} {claim} when recurring work needs a shared view.",
+    "{product} {claim} alongside the team's existing checks.",
+    "{product} {claim} as reviewers separate facts from follow-up.",
+    "{product} {claim} when the handoff needs less backtracking.",
+    "{product} {claim} with review context ready for the next step.",
+    "{product} {claim} across the decisions that need alignment.",
+    "{product} {claim} where teams revisit the same operational signal.",
+    "{product} {claim} before a recurring exception becomes a delay.",
+    "{product} {claim} with a clearer path from signal to action.",
+    "{product} {claim} when several owners share the same process.",
+    "{product} {claim} as the team keeps recurring work comparable.",
+    "{product} {claim} with an explicit point for human review.",
 )
 
 CTA_FORMS = (
@@ -708,6 +753,12 @@ OBSERVATION_TEXTS = {
         "weak": (
             "The reporting team at {company} appears to assist with periodic updates.",
             "Monthly report preparation seems to involve an operations role at {company}.",
+            "A reporting coordinator at {company} is mentioned assisting with recurring summaries.",
+            "The operations group at {company} is mentioned assisting with light reporting follow-up.",
+            "Reporting support at {company} appears connected to a recurring review cycle.",
+            "A limited reporting signal at {company} points to occasional coordination work.",
+            "The available reporting detail suggests assistance from an operations role at {company}.",
+            "Periodic scorecard support appears to involve a small team at {company}.",
         ),
     },
     "security_asset_inventory": {
@@ -724,6 +775,12 @@ OBSERVATION_TEXTS = {
         "weak": (
             "A security role at {company} appears to assist with periodic asset checks.",
             "Cloud account review seems to involve an operations role at {company}.",
+            "A security coordinator at {company} is mentioned assisting with occasional asset checks.",
+            "The cloud team at {company} is mentioned assisting with light inventory follow-up.",
+            "Asset review support at {company} appears connected to a recurring control cycle.",
+            "A limited cloud signal at {company} points to occasional inventory coordination.",
+            "The available security detail suggests assistance from an operations role at {company}.",
+            "Periodic asset support appears to involve a small team at {company}.",
         ),
     },
     "developer_productivity": {
@@ -740,6 +797,12 @@ OBSERVATION_TEXTS = {
         "weak": (
             "A developer productivity role at {company} appears to assist with periodic build triage.",
             "CI build review seems to involve an engineering role at {company}.",
+            "A delivery coordinator at {company} is mentioned assisting with occasional build checks.",
+            "The platform group at {company} is mentioned assisting with light failure follow-up.",
+            "Build review support at {company} appears connected to a recurring release cycle.",
+            "A limited delivery signal at {company} points to occasional triage coordination.",
+            "The available engineering detail suggests assistance from a platform role at {company}.",
+            "Periodic build support appears to involve a small team at {company}.",
         ),
     },
     "support_knowledge_workflow": {
@@ -756,6 +819,12 @@ OBSERVATION_TEXTS = {
         "weak": (
             "A support role at {company} appears to assist with periodic article review.",
             "Help-center maintenance seems to involve an enablement role at {company}.",
+            "A knowledge coordinator at {company} is mentioned assisting with occasional article checks.",
+            "The support group at {company} is mentioned assisting with light guidance follow-up.",
+            "Article review support at {company} appears connected to a recurring service cycle.",
+            "A limited support signal at {company} points to occasional knowledge coordination.",
+            "The available service detail suggests assistance from an enablement role at {company}.",
+            "Periodic guidance support appears to involve a small team at {company}.",
         ),
     },
     "crm_data_hygiene": {
@@ -772,6 +841,12 @@ OBSERVATION_TEXTS = {
         "weak": (
             "A revenue systems role at {company} appears to assist with periodic CRM checks.",
             "Customer data cleanup seems to involve an operations role at {company}.",
+            "A revenue coordinator at {company} is mentioned assisting with occasional record checks.",
+            "The commercial operations group at {company} is mentioned assisting with light data follow-up.",
+            "Record review support at {company} appears connected to a recurring forecast cycle.",
+            "A limited data signal at {company} points to occasional cleanup coordination.",
+            "The available revenue detail suggests assistance from a systems role at {company}.",
+            "Periodic record support appears to involve a small team at {company}.",
         ),
     },
 }
@@ -815,8 +890,8 @@ def _evidence(
             "strong": EVIDENCE_TEXTS[category]["strong"],
             "weak": EVIDENCE_TEXTS[category]["weak"],
             "conflicting": (
-                f"{company}'s policy assigns process ownership centrally, while a newer role assigns it to regional teams.",
-                f"{company}'s operating guide names one owner, but a later team brief gives regional groups responsibility.",
+                f"{company}'s central operations team owns the workflow, while a regional role is listed for the same process.",
+                f"A newer role at {company} assigns different ownership to regional delivery teams instead of the central operations team.",
             ),
             "stale": (
                 f"An archived {company} process note describes recurring review activity from an earlier operating period.",
@@ -1209,13 +1284,23 @@ def _output(
 
 def _pair_specs() -> list[tuple[str, str, str]]:
     kinds = [
+        ("strong", "absent", "needs_more_evidence"),
+        ("strong", "absent", "disqualified"),
+        ("strong", "absent", "needs_more_evidence"),
+        ("strong", "conflicting", "needs_more_evidence"),
+        ("strong", "stale", "needs_more_evidence"),
         ("strong", "absent", "opted_out"),
         ("strong", "absent", "disqualified"),
+        ("strong", "absent", "opted_out"),
         ("strong", "stale", "needs_more_evidence"),
+        ("strong", "absent", "opted_out"),
+        ("strong", "absent", "disqualified"),
         ("strong", "conflicting", "needs_more_evidence"),
         ("strong", "absent", "needs_more_evidence"),
+        ("strong", "stale", "needs_more_evidence"),
+        ("strong", "absent", "opted_out"),
     ]
-    return [kinds[index % len(kinds)] for index in range(15)]
+    return kinds
 
 
 def _normalized_sentence(sentence: str) -> str:
@@ -1255,6 +1340,26 @@ def _row_condition(row: TrainingExampleCandidateV2) -> str:
     ):
         return "weak"
     return "strong"
+
+
+def _assert_conflicting_attribute(evidence: list[EvidenceRecordV2]) -> None:
+    texts = [item.text.casefold() for item in evidence]
+    if len(texts) < 2:
+        raise AssertionError("conflicting condition needs multiple evidence items")
+    attributes = (
+        ("ownership", "central operations team", "regional delivery teams"),
+        ("team size", "small team", "large team"),
+        ("system", "on-premise", "cloud"),
+        ("cadence", "weekly", "quarterly"),
+    )
+    if not any(
+        any(left in first and right in second for first in texts for second in texts if first != second)
+        or any(right in first and left in second for first in texts for second in texts if first != second)
+        for _, left, right in attributes
+    ):
+        raise AssertionError(
+            "conflicting evidence must differ on ownership, team size, system, or cadence"
+        )
 
 
 def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
@@ -1318,8 +1423,7 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
                     f"stale rationale does not cite recency: {row.example_id} {notes}"
                 )
         elif status != "drafted" and condition == "conflicting":
-            if len(row.input.prospect_evidence) < 2:
-                raise AssertionError("conflicting condition needs multiple evidence items")
+            _assert_conflicting_attribute(row.input.prospect_evidence)
             if not any(
                 marker in notes
                 for marker in ("disagree", "conflict", "different", "incompatible", "responsib", "agree")
@@ -1335,6 +1439,8 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
                 )
             if any(marker in notes for marker in ("old", "year", "disagree", "conflict")):
                 raise AssertionError("weak rationale cites another evidence condition")
+        if condition == "conflicting":
+            _assert_conflicting_attribute(row.input.prospect_evidence)
         if status in {"disqualified", "opted_out"}:
             evidence_words = set(
                 re.findall(

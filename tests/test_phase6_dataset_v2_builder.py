@@ -13,6 +13,7 @@ from src.evaluation.build_phase6_dataset_v2 import (
     OUTPUT_PATH,
     OUTPUT_REVIEWED_PATH,
     REFERENCE_DATE,
+    _assert_conflicting_attribute,
     _normalized_sentence,
     apply_review,
     build_candidate_manifest,
@@ -24,16 +25,16 @@ from src.training.dataset import validate_dataset_v2
 BENCHMARK_PATH = Path("configs/phase6/benchmark-v2.json")
 EXPECTED = {
     "train": {
-        "drafted": 40,
-        "needs_more_evidence": 24,
-        "disqualified": 18,
-        "opted_out": 18,
+        "drafted": 65,
+        "needs_more_evidence": 15,
+        "disqualified": 10,
+        "opted_out": 10,
     },
     "validation": {
-        "drafted": 10,
-        "needs_more_evidence": 6,
-        "disqualified": 4,
-        "opted_out": 4,
+        "drafted": 15,
+        "needs_more_evidence": 4,
+        "disqualified": 3,
+        "opted_out": 2,
     },
 }
 ROLE_TIERS = {
@@ -142,7 +143,7 @@ def test_gate_and_content_quality_thresholds():
     abstentions = [
         output for output in outputs if output.generation_status != "drafted"
     ]
-    assert len(drafted) == 50
+    assert len(drafted) == 80
     assert all(
         not any(character.isdigit() for character in output.subject)
         for output in outputs
@@ -311,6 +312,7 @@ def test_abstention_conditions_and_rationales_are_bound_to_input():
                 for marker in ("old", "age", "earlier", "year", "recent", "date")
             )
         elif condition == "conflicting":
+            _assert_conflicting_attribute(row.input.prospect_evidence)
             assert len(row.input.prospect_evidence) >= 2
             assert any(
                 marker in notes
