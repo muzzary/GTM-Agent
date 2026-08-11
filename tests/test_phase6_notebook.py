@@ -172,13 +172,13 @@ def test_phase6_v2_training_json_matches_the_training_contract() -> None:
     assert config.config_version == "2.0"
     assert config.adapter_id == "gtm-agent-outreach-v2"
     assert config.max_length == 1536
-    assert config.epochs == 3
+    assert config.epochs == 4
     assert config.learning_rate == 0.0001
     assert config.lora_rank == 16
     assert config.lora_alpha == 32
     assert config.lora_dropout == 0.05
     assert config.target_modules == "all-linear"
-    assert config.gradient_accumulation_steps == 8
+    assert config.gradient_accumulation_steps == 4
     assert config.max_steps == 0
 
 
@@ -194,6 +194,15 @@ def test_phase6_v2_training_notebook_is_scoped_and_masks_assistant_loss() -> Non
         "training_target_json",
         "build_chat_messages",
         "apply_chat_template",
+        "emitted_status_counts",
+        "outputs_with_support_map",
+        "parsed_ok",
+        "status_match",
+        "model.gradient_checkpointing_disable()",
+        "model.gradient_checkpointing_enable()",
+        "model.config.use_cache = True",
+        "model.config.use_cache = False",
+        "add_generation_prompt=True",
         "labels = input_ids.clone()",
         "labels[:, :prompt_length] = -100",
         "validation_loss",
