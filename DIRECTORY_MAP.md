@@ -40,6 +40,8 @@ introduced.
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `src/evaluation/phase6_benchmark.py` | Frozen Phase 6 benchmark loading, coverage, identity-leakage, duplicate, and protected-adversarial auditing. |
 | `src/evaluation/build_phase6_benchmark.py` | Deterministic builder for the controlled 60-case Phase 6 benchmark candidate. |
+| `src/evaluation/build_phase6_dataset_v2.py` | Deterministic 124-row v2 candidate builder, review application, and strict-manifest emission. |
+| `src/evaluation/review_sheet_phase6_dataset_v2.py` | Human-readable review-sheet renderer for the v2 candidate dataset. |
 | `src/evaluation/phase6_v2.py` | Leakage-safe v2 prompt construction, deterministic case scoring, fail-closed report generation, and base/adapter comparison. |
 | `src/schemas/quality_benchmark.py` | Strict Phase 6 benchmark case, lifecycle, prompt-projection, hash, and audit contracts. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
@@ -57,6 +59,7 @@ introduced.
 | `tests/` | Backend unit, fixture-based, integration, and regression tests. |
 | `notebooks/phase1_colab_feasibility.ipynb` | Pinned Colab benchmark, QLoRA smoke test, environment capture, and real result-bundle export. |
 | `notebooks/phase6_outreach_adapter.ipynb` | Private Colab LoRA/QLoRA pilot scaffold with dataset validation and artifact metadata export. |
+| `notebooks/phase6_outreach_adapter_v2.ipynb` | Private Colab v2 training path with chat-template parity and assistant-span loss masking. |
 | `notebooks/phase6_v2_evaluation.ipynb` | Evaluation-only Colab handoff for the frozen 60-case benchmark and saved adapter. |
 | `docs/PHASE2_API_RUNBOOK.md` | Manual PowerShell walkthrough for the deterministic campaign API. |
 | `docs/PHASE3_RUNBOOK.md` | Browser walkthrough and two-product manual acceptance gate for onboarding and claim review. |
@@ -74,6 +77,10 @@ introduced.
 | `docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md` | Phase 6 pilot disposition, fine-tuning dataset decisions, outreach research, and proposed tightened rubric. |
 | `configs/phase6/pilot.json` | Reviewed synthetic Phase 6 training, validation, and held-out examples with provenance and quality labels. |
 | `configs/phase6/training.json` | Pinned Phase 6 base revision and bounded LoRA training configuration. |
+| `configs/phase6/training-v2.json` | Pinned v2 base revision and full-epoch LoRA training configuration. |
+| `configs/phase6/dataset-v2.candidate.json` | Pending-review deterministic 124-row v2 candidate dataset. |
+| `configs/phase6/dataset-v2.review.json` | Fixed cross-model review record approving the v2 candidate rows. |
+| `configs/phase6/dataset-v2.json` | Reviewed strict v2 training manifest emitted from the candidate and review record. |
 | `configs/phase6/benchmark-v2.json` | Frozen 60-case grounded-outreach evaluation benchmark; never training data. |
 | `docs/PHASE6_BENCHMARK_REVIEW.md` | Benchmark coverage summary, protected-set rules, and manual freeze checklist. |
 | `docs/PHASE6_BENCHMARK_BUILD_LOG.md` | Recoverable benchmark-build issues, diagnoses, and fixes. |

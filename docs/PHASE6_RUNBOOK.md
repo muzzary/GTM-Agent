@@ -44,6 +44,24 @@ status, acceptable and required output IDs, adversarial tags, protected-set
 membership, hashes, identity groups, and reviewer metadata are withheld from
 the model.
 
+## V2 training run
+
+Open `notebooks/phase6_outreach_adapter_v2.ipynb` in a private Colab GPU
+runtime. It consumes `configs/phase6/training-v2.json`,
+`configs/phase6/dataset-v2.json`, and `configs/phase6/benchmark-v2.json`.
+Before loading the training model, it validates the reviewed
+`DatasetManifestV2` with `validate_dataset_v2` and asserts a passing audit with
+100 train rows and 24 validation rows.
+
+The notebook runs three configured epochs with gradient accumulation and prints
+mean `train_loss` and `validation_loss` after each epoch. It saves the adapter,
+tokenizer, and `adapter-metadata.json` under the private Drive path
+`MyDrive/gtm-agent-phase6/gtm-agent-outreach-v2/`.
+
+After training, run `notebooks/phase6_v2_evaluation.ipynb`. That notebook
+evaluates the saved adapter against the unchanged frozen v2 benchmark and
+writes the base, adapter, and comparison reports to private Drive.
+
 ## Legacy technical-pilot evaluation
 
 Phase 6 evaluates the saved LoRA adapter against the unchanged Phase 1/5

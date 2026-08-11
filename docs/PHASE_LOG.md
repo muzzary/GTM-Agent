@@ -871,3 +871,50 @@
   Colab GPU.
 - Even a fully deterministic pass advances only to blind semantic review; it
   does not accept Phase 6 quality.
+
+### Phase 6 v2 reviewed dataset and training path
+
+**Status:** Reviewed v2 training dataset and training path ready; Phase 6
+model-quality gate still UNACCEPTED
+
+**Changed:**
+
+- Recorded the failed v2 adapter-run causes: training tokenized with raw
+  `tokenizer(...)` while evaluation uses `apply_chat_template`; no v2 training
+  path existed, so the adapter was trained on three v1 sendable-email rows;
+  and the training budget was a six-step smoke test.
+- Added v2 prompt-parity helpers: `render_v2_prompt`,
+  `training_prompt_input`, `build_chat_messages`, and
+  `training_target_json`.
+- Added `DatasetManifestV2` and `validate_dataset_v2` with frozen-benchmark
+  leakage checks, the deterministic 124-row candidate builder, the review
+  record and apply-review pass, `configs/phase6/training-v2.json`, and the v2
+  training notebook with assistant-span label masking.
+- The four review rounds found: (1) uniqueness was satisfied by injecting row
+  numbers into one template; (2) 26 of 50 drafts cited the same evidence ID
+  more than once to pad to a word count; (3) body sentences announced their
+  own sourcing; and (4) abstention rationales were not bound to row evidence.
+  The fourth round found two rows asserting a fourteen-month-old source when
+  the evidence was ten days old, one row asserting no evidence existed when it
+  had two evidence items, and seven rows pairing `needs_more_evidence` with
+  strong evidence, which the frozen benchmark contract explicitly forbids.
+- The rows are deterministically template-composed. They target deterministic
+  gates for contract structure, the four-way status decision, and support-map
+  discipline; they are not expected on their own to produce top-rubric prose.
+
+**Verification:**
+
+- Dataset audit passes with zero frozen-benchmark identity or content overlap.
+- Train: 100 rows (40 drafted, 24 needs_more_evidence, 18 disqualified,
+  18 opted_out). Validation: 24 rows (10 drafted, 6 needs_more_evidence,
+  4 disqualified, 4 opted_out).
+- All 124 rows pass the real hard gates through `TrainingExampleV2`
+  construction.
+- Targeted notebook tests: 9 passed.
+- Ruff: clean.
+
+**Gate:**
+
+- Actual training and benchmark execution are pending on the user's private
+  Colab GPU. A deterministic pass advances only to blind semantic review; it
+  does not accept Phase 6 quality.
