@@ -155,11 +155,27 @@ def test_gate_and_content_quality_thresholds():
     )
     for row in rows:
         evidence = {item.evidence_id: item.text for item in row.input.prospect_evidence}
+        evidence_refs = [
+            evidence_id
+            for entry in row.proposed_output.support_map
+            for evidence_id in entry.evidence_ids
+        ]
+        claim_refs = [
+            claim_id
+            for entry in row.proposed_output.support_map
+            for claim_id in entry.claim_ids
+        ]
+        assert len(evidence_refs) == len(set(evidence_refs))
+        assert all(claim_refs.count(claim_id) <= 2 for claim_id in set(claim_refs))
+        assert all(re.search(r"[.!?]$", item.text) for item in row.input.prospect_evidence)
         for entry in row.proposed_output.support_map:
             cited = " ".join(
                 evidence.get(evidence_id, "") for evidence_id in entry.evidence_ids
             )
             assert all(digit in cited for digit in re.findall(r"\d+", entry.sentence))
+        if row.proposed_output.generation_status == "drafted":
+            assert 1 <= len(row.input.prospect_evidence) <= 3
+            assert 3 <= len(row.proposed_output.support_map) <= 6
     normalized_sentences = Counter(
         _normalized_sentence(entry.sentence)
         for output in drafted
@@ -187,15 +203,53 @@ def test_gate_and_content_quality_thresholds():
     assert len(shapes) >= 6
     assert max(shapes.values()) <= len(drafted) * 0.4
     body_counts = [len(re.findall(r"\b[\w'-]+\b", output.body)) for output in drafted]
-    assert sum(50 <= count <= 100 for count in body_counts) >= 20
-    assert sum(count > 100 for count in body_counts) >= 6
-    assert min(body_counts) <= 25
-    assert max(body_counts) >= 130
+    assert all(40 <= count <= 95 for count in body_counts)
+    frame_counts = Counter()
+    for row in rows:
+        claims_by_id = {claim.claim_id: claim.text for claim in row.input.approved_claims}
+        for entry in row.proposed_output.support_map:
+            if entry.role == "product_claim":
+                frame_counts[entry.sentence.replace(claims_by_id[entry.claim_ids[0]].rstrip("."), "<claim>")] += 1
+    assert max(frame_counts.values()) <= 3
+    company_prefixed_notes = sum(
+        any(note.startswith(f"{company}:") for company in COMPANIES)
+        for output in abstentions
+        for note in output.uncertainty_notes
+    )
+    assert company_prefixed_notes <= len(abstentions) * 0.3
+    output_text = json.dumps([output.model_dump(mode="json") for output in outputs])
+    assert not re.search(r"\b(Crm|Ci)\b", output_text)
+    banned_support_phrases = (
+        "public evidence",
+        "public record",
+        "the source",
+        "according to",
+        "the approved product profile",
+        "operating guide",
+        "careers page",
+        "hiring page",
+        "annual report",
+        "job post",
+        "public materials",
+        "team page",
+        "operations page",
+        "process note",
+        "role brief",
+        "role details",
+        "published workflow",
+    )
+    for output in outputs:
+        for entry in output.support_map:
+            lowered = entry.sentence.casefold()
+            assert not any(phrase in lowered for phrase in banned_support_phrases)
+            assert ":" not in entry.sentence
+        for note in output.uncertainty_notes:
+            assert not re.match(r"^\s*[A-Za-z][A-Za-z -]*:", note)
     found_companies = {
         name
-        for output in outputs
+        for row in rows
         for name in COMPANIES
-        if name in json.dumps(output.model_dump(mode="json"))
+        if name in json.dumps(row.model_dump(mode="json"))
     }
     assert len(found_companies) >= 40
     assert len({row.input.target_role for row in rows}) >= 20

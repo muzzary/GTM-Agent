@@ -77,7 +77,7 @@ PRODUCTS = (
         (
             "assembles scheduled operating reports from approved systems",
             "preserves source references beside each report section",
-            "supports a time-boxed reporting workflow evaluation",
+            "offers an exportable report package for a supervised pilot",
         ),
         (
             "Recurring scorecard preparation may consume analyst time.",
@@ -105,7 +105,7 @@ PRODUCTS = (
         (
             "maps assets across approved cloud accounts",
             "records observation time and source for each asset",
-            "supports a time-boxed asset review workflow evaluation",
+            "offers a bounded asset review workspace for a supervised pilot",
         ),
         (
             "Cloud growth may make asset ownership harder to verify.",
@@ -133,7 +133,7 @@ PRODUCTS = (
         (
             "groups recurring CI failure patterns from approved repositories",
             "links failure summaries to their source builds",
-            "supports a time-boxed developer workflow evaluation",
+            "offers a repository-level triage workspace for a supervised pilot",
         ),
         (
             "Repeated build failures may draw engineers into triage.",
@@ -161,7 +161,7 @@ PRODUCTS = (
         (
             "searches approved knowledge sources for support teams",
             "keeps source references beside suggested answers",
-            "supports a time-boxed knowledge workflow evaluation",
+            "offers a source-review queue for a supervised pilot",
         ),
         (
             "Several knowledge sources may make answer consistency harder.",
@@ -189,7 +189,7 @@ PRODUCTS = (
         (
             "checks required CRM fields before approved updates",
             "flags possible duplicate records for human review",
-            "supports a time-boxed CRM workflow evaluation",
+            "offers a controlled duplicate-review workspace for a supervised pilot",
         ),
         (
             "Repeated CRM checks may affect confidence in pipeline reporting.",
@@ -290,30 +290,49 @@ OPENING_FORMS = (
 
 PRODUCT_CLAIM_FORMS = (
     "{product} {claim}.",
-    "Teams use {product} when it {claim}.",
-    "The useful part of {product} is that it {claim}.",
-    "With {product}, the workflow {claim}.",
-    "{product} gives operators a way to see how it {claim}.",
-    "The {product} approach is designed around a workflow that {claim}.",
-    "For this kind of work, {product} is useful because it {claim}.",
-    "{product} keeps the process focused while it {claim}.",
-    "One practical capability in {product} is that it {claim}.",
-    "{product} brings a structured workflow where it {claim}.",
-    "The product is built so {product} can support a process where it {claim}.",
-    "{product} helps a team work with a process that {claim}.",
-    "A team evaluating {product} can see how it {claim}.",
-    "{product} is useful when a team needs a workflow that {claim}.",
-    "The operating value of {product} starts with the fact that it {claim}.",
-    "{product} makes the workflow easier because it {claim}.",
-    "The core workflow in {product} gives teams a view as it {claim}.",
-    "{product} gives the owner a clear view when it {claim}.",
-    "A grounded use of {product} is a workflow where it {claim}.",
-    "{product} can fit beside an existing process while it {claim}.",
-    "The {product} workflow helps teams by ensuring it {claim}.",
-    "{product} is aimed at teams whose workflow needs a system that {claim}.",
-    "One way {product} supports operators is because it {claim}.",
-    "{product} turns the approved workflow into a process where it {claim}.",
-    "The clearest product fit is when {product} {claim}.",
+    "{product} also {claim}.",
+    "{product} directly {claim}.",
+    "{product} reliably {claim}.",
+    "{product} consistently {claim}.",
+    "{product} currently {claim}.",
+    "{product} {claim} for review.",
+    "{product} {claim} across the workflow.",
+    "{product} {claim} with clear ownership.",
+    "{product} {claim} in a controlled process.",
+    "{product} {claim} beside existing operations.",
+    "{product} {claim} for the operating team.",
+    "{product} {claim} before the next handoff.",
+    "{product} {claim} with a traceable record.",
+    "{product} {claim} during routine review.",
+    "{product} {claim} as part of the team workflow.",
+    "{product} {claim} without changing source ownership.",
+    "{product} {claim} when the process needs consistency.",
+    "{product} {claim} across the relevant team.",
+    "{product} {claim} while keeping review decisions visible.",
+    "{product} {claim} where the workflow needs evidence.",
+    "{product} {claim} with less manual follow-up.",
+    "{product} {claim} in the approved operating context.",
+    "{product} {claim} for a focused review.",
+    "{product} {claim} at the point of decision.",
+    "{product} {claim} as a repeatable team step.",
+    "{product} {claim} with the relevant context attached.",
+    "{product} {claim} across recurring work.",
+    "{product} {claim} when ownership is distributed.",
+    "{product} {claim} in a source-aware workflow.",
+    "{product} {claim} for the next operating cycle.",
+    "{product} {claim} with a clear review path.",
+    "{product} {claim} as teams coordinate the work.",
+    "{product} {claim} in day-to-day operations.",
+    "{product} {claim} when teams need a current view.",
+    "{product} {claim} with the approved process.",
+    "{product} {claim} before teams act on the result.",
+    "{product} {claim} with the surrounding workflow intact.",
+    "{product} {claim} for teams sharing responsibility.",
+    "{product} {claim} when the review cycle repeats.",
+    "{product} {claim} with the relevant decision in view.",
+    "{product} {claim} across the team handoff.",
+    "{product} {claim} when source context matters.",
+    "{product} {claim} as part of a repeatable review.",
 )
 
 CTA_FORMS = (
@@ -491,79 +510,240 @@ def _claims(profile: ProductProfile) -> list[ApprovedClaimRecord]:
     ]
 
 
+EVIDENCE_TEXTS = {
+    "reporting_automation": {
+        "strong": (
+            "The careers page lists a Reporting Operations Analyst responsible for weekly compliance packs.",
+            "The operations guide says regional leaders reconcile source references before monthly reviews.",
+            "The annual report describes recurring scorecards prepared for cross-functional leadership meetings.",
+            "The finance page describes a monthly close pack reviewed by regional operations leaders.",
+            "The operations careers page assigns source reconciliation to a reporting coordinator.",
+            "The compliance guide calls for weekly metrics to be checked before executive review.",
+            "The leadership update refers to recurring performance packs shared across departments.",
+            "The process page describes a handoff from analysts to leaders before scorecard sign-off.",
+        ),
+        "weak": (
+            "A public role brief mentions assisting with periodic reporting updates for the operations team.",
+            "The hiring page briefly references support for monthly report preparation.",
+        ),
+    },
+    "security_asset_inventory": {
+        "strong": (
+            "The security architecture page lists quarterly reviews of assets across connected cloud accounts.",
+            "The cloud operations guide names an owner for reconciling newly observed resources.",
+            "The risk report describes timestamped asset records used during security attestations.",
+            "The cloud governance page describes an inventory check before quarterly access reviews.",
+            "The security careers page assigns ownership for reconciling assets across accounts.",
+            "The control guide calls for newly observed resources to be reviewed by security staff.",
+            "The architecture update refers to a growing register of connected cloud resources.",
+            "The audit page describes source and observation time checks for cloud assets.",
+        ),
+        "weak": (
+            "A public cloud security role mentions assisting with periodic asset inventory checks.",
+            "The hiring page briefly references support for cloud account review.",
+        ),
+    },
+    "developer_productivity": {
+        "strong": (
+            "The engineering handbook describes daily CI failure triage across several repositories.",
+            "The platform guide links recurring build failures to their owning engineering teams.",
+            "The delivery report tracks failure patterns by repository and release group.",
+            "The engineering careers page assigns build health review to a platform team.",
+            "The release guide calls for recurring failures to be discussed after each deployment.",
+            "The developer portal describes repository-level checks before release sign-off.",
+            "The platform update refers to build trends reviewed across product teams.",
+            "The engineering process page links release readiness to recent build health.",
+        ),
+        "weak": (
+            "A public developer productivity role mentions assisting with periodic build triage.",
+            "The hiring page briefly references support for CI build review.",
+        ),
+    },
+    "support_knowledge_workflow": {
+        "strong": (
+            "The help-center guide lists several approved knowledge sources for support agents.",
+            "The support handbook requires source references when agents suggest an answer.",
+            "The service note routes uncertain customer answers to supervisor review.",
+            "The support careers page assigns article quality checks to an enablement team.",
+            "The help-center process calls for source review before agents publish a response.",
+            "The customer service guide describes a queue for questions without a clear answer.",
+            "The support update refers to article ownership across several service groups.",
+            "The knowledge page describes weekly checks for current guidance and source links.",
+        ),
+        "weak": (
+            "A public support role mentions assisting with periodic knowledge article review.",
+            "The hiring page briefly references support for maintaining help-center content.",
+        ),
+    },
+    "crm_data_hygiene": {
+        "strong": (
+            "The revenue operations guide requires CRM checks before weekly pipeline reporting.",
+            "The data policy assigns human review to possible duplicate customer records.",
+            "The controls page requires an audit trail for approved CRM record changes.",
+            "The sales operations page assigns duplicate review to a revenue systems team.",
+            "The CRM guide calls for field checks before records enter the forecast process.",
+            "The data governance update describes exception review for incomplete customer records.",
+            "The revenue careers page assigns record-quality checks before pipeline reporting.",
+            "The operations policy refers to approved changes being logged for later review.",
+        ),
+        "weak": (
+            "A public revenue systems role mentions assisting with periodic CRM record checks.",
+            "The hiring page briefly references support for customer data cleanup.",
+        ),
+    },
+}
+
+OBSERVATION_TEXTS = {
+    "reporting_automation": {
+        "strong": (
+            "Regional leaders at {company} reconcile source references before each monthly review.",
+            "{company} prepares recurring scorecards for cross-functional leadership meetings.",
+            "Weekly compliance packs at {company} move through a defined review handoff.",
+            "Finance leaders at {company} review source-backed metrics before the monthly close.",
+            "{company} shares recurring performance packs with several operating teams.",
+            "Analysts at {company} reconcile reporting inputs before leadership sign-off.",
+            "The reporting calendar at {company} includes recurring regional scorecards.",
+            "{company} coordinates a handoff from reporting analysts to operations leaders.",
+        ),
+        "weak": (
+            "The reporting team at {company} appears to assist with periodic updates.",
+            "Monthly report preparation seems to involve an operations role at {company}.",
+        ),
+    },
+    "security_asset_inventory": {
+        "strong": (
+            "Security teams at {company} review assets across connected cloud accounts each quarter.",
+            "{company} assigns ownership for reconciling newly observed resources.",
+            "Security attestations at {company} use timestamped asset records.",
+            "Cloud owners at {company} review new resources between scheduled attestations.",
+            "{company} tracks connected account changes during security operations reviews.",
+            "Security leaders at {company} reconcile asset ownership across cloud teams.",
+            "The cloud estate at {company} changes often enough to require recurring checks.",
+            "{company} keeps an operating view of assets that appear between reviews.",
+        ),
+        "weak": (
+            "A security role at {company} appears to assist with periodic asset checks.",
+            "Cloud account review seems to involve an operations role at {company}.",
+        ),
+    },
+    "developer_productivity": {
+        "strong": (
+            "Engineering teams at {company} triage CI failures across several repositories each day.",
+            "{company} connects recurring build failures with their owning engineering teams.",
+            "Release groups at {company} track failure patterns by repository.",
+            "Platform engineers at {company} review build health after each deployment.",
+            "{company} compares CI trends across product repositories and release groups.",
+            "Engineering leaders at {company} monitor recurring failures during delivery reviews.",
+            "The repository estate at {company} creates a regular need for build triage.",
+            "{company} connects release readiness with current delivery feedback.",
+        ),
+        "weak": (
+            "A developer productivity role at {company} appears to assist with periodic build triage.",
+            "CI build review seems to involve an engineering role at {company}.",
+        ),
+    },
+    "support_knowledge_workflow": {
+        "strong": (
+            "Support agents at {company} work across several approved knowledge sources.",
+            "Agents at {company} attach source references when suggesting an answer.",
+            "Uncertain customer answers at {company} move to supervisor review.",
+            "Support leaders at {company} check knowledge sources before changing guidance.",
+            "{company} coordinates article ownership across several customer service groups.",
+            "Agents at {company} escalate questions when the current answer is unclear.",
+            "The support queue at {company} includes questions that need source checking.",
+            "{company} keeps customer guidance aligned across a distributed support team.",
+        ),
+        "weak": (
+            "A support role at {company} appears to assist with periodic article review.",
+            "Help-center maintenance seems to involve an enablement role at {company}.",
+        ),
+    },
+    "crm_data_hygiene": {
+        "strong": (
+            "Revenue operations at {company} checks CRM records before weekly pipeline reporting.",
+            "{company} assigns possible duplicate customer records to human review.",
+            "Approved CRM changes at {company} retain an audit trail.",
+            "Revenue leaders at {company} review record exceptions before forecast updates.",
+            "{company} checks field completeness as customer records enter pipeline reporting.",
+            "Operations staff at {company} reconcile record quality before weekly reviews.",
+            "The sales process at {company} creates recurring work around duplicate records.",
+            "{company} keeps review decisions attached to approved data changes.",
+        ),
+        "weak": (
+            "A revenue systems role at {company} appears to assist with periodic CRM checks.",
+            "Customer data cleanup seems to involve an operations role at {company}.",
+        ),
+    },
+}
+
+
 def _evidence(
-    index: int, condition: str, company: str, status: str
+    index: int,
+    condition: str,
+    company: str,
+    status: str,
+    category: str,
 ) -> list[EvidenceRecordV2]:
     if status == "disqualified":
         texts = (
-            "The parent organization prepares all recurring reports for this business.",
-            "The reviewed profile states that the company has no internal CRM system.",
-            "The operating model routes customer support through channel partners.",
-            "The architecture note describes an exclusively on-premise estate.",
-            "The company profile shows no in-house software engineering team.",
-            "Customer records remain with distributors rather than this sales team.",
+            f"{company}'s parent organization prepares all recurring reports for this business.",
+            f"{company}'s reviewed profile states that it has no internal CRM system.",
+            f"{company}'s operating model routes customer support through channel partners.",
+            f"{company}'s architecture note describes an exclusively on-premise estate.",
+            f"{company}'s profile shows no in-house software engineering team.",
+            f"{company}'s customer records remain with distributors rather than this sales team.",
         )
-        text = texts[index % len(texts)]
+        selected_texts = [texts[index % len(texts)]]
     elif status == "opted_out":
         texts = (
-            "A prior reply asks the sender not to email again.",
-            "The contact preference record marks sales email as do not contact.",
-            "The latest consent entry records email permission as withdrawn.",
-            "The preference center lists this contact as opted out of sales outreach.",
-            "A previous message requests no further contact from vendors.",
-            "The communication record blocks promotional email to this prospect.",
+            f"A prior reply from {company} asks the sender not to email again.",
+            f"{company}'s contact preference record marks sales email as do not contact.",
+            f"{company}'s latest consent entry records email permission as withdrawn.",
+            f"{company}'s preference center lists this contact as opted out of sales outreach.",
+            f"A previous message from {company} requests no further contact from vendors.",
+            f"{company}'s communication record blocks promotional email to this prospect.",
         )
-        text = texts[index % len(texts)]
+        selected_texts = [texts[index % len(texts)]]
     elif condition == "absent":
-        text = None
+        selected_texts = []
     else:
         texts = {
-            "strong": (
-                "recurring cross-team review across regional operations",
-                "leaders reconciling recurring operating updates",
-                "ownership for a recurring operational review",
-                "source-backed review handoffs across teams",
-                "a recurring queue of operational checks",
-            ),
-            "weak": (
-                "assistance with periodic process review in an analyst role",
-                "support for recurring team updates in a hiring brief",
-                "exposure to periodic operational checks in one role",
-                "help maintaining the review process in a public job post",
-                "light involvement with recurring review work",
-            ),
+            "strong": EVIDENCE_TEXTS[category]["strong"],
+            "weak": EVIDENCE_TEXTS[category]["weak"],
             "conflicting": (
-                "central and regional teams both claiming process ownership",
-                "one policy owner and a later regional responsibility assignment",
-                "disagreement between central and local workflow ownership",
-                "different process owners named in the operating guide and role post",
-                "conflicting public descriptions of recurring review ownership",
+                f"{company}'s policy assigns process ownership centrally, while a newer role assigns it to regional teams.",
+                f"{company}'s operating guide names one owner, but a later team brief gives regional groups responsibility.",
             ),
             "stale": (
-                "a recurring review reference collected fourteen months ago",
-                "the most recent accessible workflow reference collected fourteen months ago",
-                "a dated operating page with no current source",
-                "workflow evidence collected fourteen months ago",
-                "an older role brief without current confirmation",
+                f"An archived {company} process note collected fourteen months ago described recurring review activity.",
             ),
         }[condition]
-        text = texts[index % len(texts)]
-    if text is None:
+        evidence_count = 3 if condition == "strong" else 2
+        selected_texts = [
+            texts[(index + offset) % len(texts)] for offset in range(evidence_count)
+        ]
+        if condition in {"strong", "weak"}:
+            selected_texts = [
+                f"Public evidence from {company}: {text}"
+                for text in selected_texts
+            ]
+    if not selected_texts:
         return []
     return [
         EvidenceRecordV2(
-            evidence_id=f"evidence-candidate-{index:03d}-01",
+            evidence_id=f"evidence-candidate-{index:03d}-{position + 1:02d}",
             text=text,
-            source_url=f"https://example.com/candidate/source-{index:03d}",
+            source_url=f"https://example.com/candidate/source-{index:03d}-{position + 1:02d}",
             collected_at=datetime(2022, 1, 15, tzinfo=UTC)
             if condition == "stale"
             else COLLECTED_AT,
             content_sha256=sha256(text.encode("utf-8")).hexdigest(),
             source_kind="first_party_synthetic",
-            source_reference=f"candidate-company-source-{index:03d}-01",
+            source_reference=f"candidate-company-source-{index:03d}-{position + 1:02d}",
             license_kind=LicenseKind.SYNTHETIC,
             license_basis="Project-owned controlled candidate dataset evidence",
         )
+        for position, text in enumerate(selected_texts)
     ]
 
 
@@ -791,6 +971,100 @@ def _draft(
     )
 
 
+def _draft_clean(
+    profile: ProductProfile,
+    claims: list[ApprovedClaimRecord],
+    evidence: list[EvidenceRecordV2],
+    row_index: int,
+    company: str,
+    condition: str,
+) -> GroundedOutreachOutput:
+    claim_ids = sorted(claim.claim_id for claim in claims)
+    patterns = (
+        ("fact", "fact", "product", "cta"),
+        ("fact", "fact", "hypothesis", "product", "cta"),
+        ("fact", "hypothesis", "fact", "product", "cta"),
+        ("fact", "fact", "product", "hypothesis", "cta"),
+        ("fact", "hypothesis", "product", "fact", "cta"),
+        ("fact", "fact", "product", "product", "cta"),
+        ("fact", "hypothesis", "fact", "product", "hypothesis", "cta"),
+        ("fact", "product", "fact", "hypothesis", "cta"),
+    )
+    entries: list[SupportMapEntry] = []
+    fact_position = 0
+    product_position = 0
+    for position, role in enumerate(patterns[row_index % len(patterns)]):
+        if role == "fact":
+            if fact_position >= len(evidence):
+                continue
+            item = evidence[fact_position]
+            observation = OBSERVATION_TEXTS[profile.category][condition][
+                (row_index + fact_position)
+                % len(OBSERVATION_TEXTS[profile.category][condition])
+            ].format(company=company)
+            entries.append(
+                SupportMapEntry(
+                    sentence=observation,
+                    role="prospect_fact",
+                    evidence_ids=[item.evidence_id],
+                )
+            )
+            fact_position += 1
+        elif role == "product":
+            claim_position = product_position % 2
+            sentence = PRODUCT_CLAIM_FORMS[
+                (row_index + position) % len(PRODUCT_CLAIM_FORMS)
+            ].format(product=profile.name, claim=profile.claims[claim_position])
+            entries.append(
+                SupportMapEntry(
+                    sentence=sentence,
+                    role="product_claim",
+                    claim_ids=[claim_ids[claim_position]],
+                )
+            )
+            product_position += 1
+        elif role == "hypothesis":
+            entries.append(
+                SupportMapEntry(
+                    sentence=profile.hypotheses[
+                        (row_index + position) % len(profile.hypotheses)
+                    ],
+                    role="hypothesis",
+                )
+            )
+        else:
+            cta_sentence, cta_kind = CTA_FORMS[row_index % len(CTA_FORMS)]
+            cta_claim = claim_ids[2] if cta_kind == "approved_offer" else claim_ids[1]
+            entries.append(
+                SupportMapEntry(
+                    sentence=cta_sentence,
+                    role="cta",
+                    claim_ids=[cta_claim],
+                    cta_kind=cta_kind,
+                )
+            )
+    if not 3 <= len(entries) <= 6:
+        raise AssertionError("clean draft must contain three to six support entries")
+    return GroundedOutreachOutput(
+        generation_status="drafted",
+        subject=SUBJECT_FORMS[row_index % len(SUBJECT_FORMS)].format(company=company),
+        body=" ".join(entry.sentence for entry in entries),
+        support_map=entries,
+    )
+
+
+NOTE_PREFIXES = (
+    "Hold outreach: ",
+    "Do not draft yet — ",
+    "Review gate: ",
+    "Evidence gate: ",
+    "Outreach blocked because ",
+    "Not ready for copy: ",
+    "Decision to abstain: ",
+    "Pause this row: ",
+)
+
+
 def _output(
     profile: ProductProfile,
     claims: list[ApprovedClaimRecord],
@@ -798,9 +1072,10 @@ def _output(
     status: str,
     index: int,
     company: str,
+    condition: str,
 ) -> GroundedOutreachOutput:
     if status == "drafted":
-        return _draft(profile, claims, evidence, index, company)
+        return _draft_clean(profile, claims, evidence, index, company, condition)
     rationale = ABSTENTION_RATIONALES[status][
         index % len(ABSTENTION_RATIONALES[status])
     ]
@@ -808,7 +1083,7 @@ def _output(
         generation_status=status,
         subject="",
         body="",
-        uncertainty_notes=[f"{company}: {rationale}"],
+        uncertainty_notes=[rationale],
     )
 
 
@@ -857,6 +1132,22 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
         evidence_by_id = {
             item.evidence_id: item.text for item in row.input.prospect_evidence
         }
+        evidence_references = [
+            evidence_id
+            for entry in row.proposed_output.support_map
+            for evidence_id in entry.evidence_ids
+        ]
+        claim_references = [
+            claim_id
+            for entry in row.proposed_output.support_map
+            for claim_id in entry.claim_ids
+        ]
+        if len(evidence_references) != len(set(evidence_references)):
+            raise AssertionError("an evidence ID is cited by multiple support entries")
+        if any(claim_references.count(claim_id) > 2 for claim_id in set(claim_references)):
+            raise AssertionError("a claim ID is cited by more than two support entries")
+        if any(not re.search(r"[.!?]$", item.text) for item in row.input.prospect_evidence):
+            raise AssertionError("evidence text must be a complete sentence")
         for entry in row.proposed_output.support_map:
             for digit_sequence in re.findall(r"\d+", entry.sentence):
                 cited_text = " ".join(
@@ -874,6 +1165,37 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     output_text = json.dumps([output.model_dump(mode="json") for output in outputs])
     if forbidden.search(output_text):
         raise AssertionError("proposed output contains a placeholder marker")
+    if re.search(r"\b(Crm|Ci)\b", output_text):
+        raise AssertionError("acronym capitalization is not canonical")
+    banned_support_phrases = (
+        "public evidence",
+        "public record",
+        "the source",
+        "according to",
+        "the approved product profile",
+        "operating guide",
+        "careers page",
+        "hiring page",
+        "annual report",
+        "job post",
+        "public materials",
+        "team page",
+        "operations page",
+        "process note",
+        "role brief",
+        "role details",
+        "published workflow",
+    )
+    for output in outputs:
+        for entry in output.support_map:
+            lowered = entry.sentence.casefold()
+            if any(phrase in lowered for phrase in banned_support_phrases):
+                raise AssertionError("support sentence contains a sourcing label")
+            if ":" in entry.sentence:
+                raise AssertionError("support sentence contains a colon")
+        for note in output.uncertainty_notes:
+            if re.match(r"^\s*[A-Za-z][A-Za-z -]*:", note):
+                raise AssertionError("abstention note has a label prefix")
     sentence_counts = Counter(
         _normalized_sentence(entry.sentence)
         for output in drafted
@@ -910,23 +1232,42 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     if len(shapes) < 6 or max(shapes.values(), default=0) > len(drafted) * 0.4:
         raise AssertionError("support-map role-shape diversity threshold failed")
     body_counts = [len(re.findall(r"\b[\w'-]+\b", output.body)) for output in drafted]
-    if (
-        sum(50 <= count <= 100 for count in body_counts) < 20
-        or sum(count > 100 for count in body_counts) < 6
-        or min(body_counts, default=0) > 25
-        or max(body_counts, default=0) < 130
-    ):
+    if any(not 40 <= count <= 95 for count in body_counts):
         raise AssertionError(
-            "draft body length spread threshold failed: "
-            f"band={sum(50 <= count <= 100 for count in body_counts)}, "
-            f"above={sum(count > 100 for count in body_counts)}, "
+            "draft body length must be between 40 and 95 words: "
             f"min={min(body_counts, default=0)}, max={max(body_counts, default=0)}"
         )
+    if any(not 3 <= len(output.support_map) <= 6 for output in drafted):
+        raise AssertionError("draft support maps must contain three to six entries")
+    for output in drafted:
+        if not 1 <= sum(entry.role == "prospect_fact" for entry in output.support_map) <= 3:
+            raise AssertionError("drafts must contain one to three prospect facts")
+    frame_counts: Counter[str] = Counter()
+    for row in rows:
+        claims_by_id = {claim.claim_id: claim.text for claim in row.input.approved_claims}
+        for entry in row.proposed_output.support_map:
+            if entry.role == "product_claim":
+                claim_text = claims_by_id[entry.claim_ids[0]].rstrip(".")
+                frame = entry.sentence.replace(claim_text, "<claim>")
+                frame_counts[frame] += 1
+    if max(frame_counts.values(), default=0) > 3:
+        raise AssertionError(
+            "a product-claim frame is reused more than three times: "
+            f"max={max(frame_counts.values(), default=0)}, "
+            f"examples={frame_counts.most_common(3)}"
+        )
+    company_prefixed_notes = sum(
+        any(note.startswith(f"{company}:") for company in COMPANIES)
+        for output in abstentions
+        for note in output.uncertainty_notes
+    )
+    if company_prefixed_notes > len(abstentions) * 0.3:
+        raise AssertionError("too many abstention notes begin with a company name")
     company_names = {
         name
         for row in rows
         for name in COMPANIES
-        if name in json.dumps(row.proposed_output.model_dump(mode="json"))
+        if name in json.dumps(row.model_dump(mode="json"))
     }
     if len(company_names) < 40:
         raise AssertionError("company name diversity threshold failed")
@@ -955,7 +1296,7 @@ def _make_row(
     identity_index = pair_index if pair_index is not None else index // len(PRODUCTS)
     evidence_index = pair_index + 1 if pair_index is not None else index
     claims = _claims(profile)
-    evidence = _evidence(evidence_index, condition, company, status)
+    evidence = _evidence(evidence_index, condition, company, status, profile.category)
     inputs = TrainingInputV2(
         target_role=profile.roles[identity_index % len(profile.roles)][1],
         approved_claims=claims,
@@ -963,7 +1304,7 @@ def _make_row(
         pain_hypotheses=[profile.hypotheses[index % len(profile.hypotheses)]],
         constraints=OutreachConstraints(),
     )
-    output = _output(profile, claims, evidence, status, index, company)
+    output = _output(profile, claims, evidence, status, index, company, condition)
     report = evaluate_grounded_structure(
         output,
         approved_claim_ids={claim.claim_id for claim in claims},
