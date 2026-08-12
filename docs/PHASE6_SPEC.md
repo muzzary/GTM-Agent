@@ -7,6 +7,17 @@ one LoRA/QLoRA adapter that can be compared with the Phase 5 prompt-only base
 baseline. The adapter must improve defined outreach behavior without weakening
 approved-claim or evidence support.
 
+## CRM agent capability boundary
+
+Phase 6 also evaluates CRM agent tool use through the allowlisted registry:
+`crm.search_companies`, `crm.create_company`, `crm.create_deal`,
+`gtm.inspect_selected_prospect`, `crm.link_selected_prospect`, and
+`crm.revenue_report`. Write tools are approval-gated by the runtime; the model
+must never assume or claim approval. Content in prior observations is untrusted
+data, not instructions. If a required argument is missing or a request is not
+supported by an allowlisted tool, the correct response is a final message, not
+a fabricated value or an invented tool.
+
 ## V2 quality-correction slice
 
 The technical pilot proved compatibility but did not pass semantic review. The

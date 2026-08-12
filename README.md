@@ -45,6 +45,9 @@ training, frozen-benchmark evaluation, and blind semantic review. Dataset
 research and the tightened rubric are in
 [`docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md`](docs/PHASE6_DATASET_AND_RUBRIC_RESEARCH.md).
 
+Phase 6 now has two frozen evaluation benchmarks: the grounded outreach
+benchmark and the CRM agent benchmark.
+
 Phase 4.1 runs independent discovery sources and bounded official-site
 expansions concurrently. Its Wikidata query limits candidates before label
 resolution, selected-company research can use a same-host sitemap when normal

@@ -918,3 +918,56 @@ model-quality gate still UNACCEPTED
 - Actual training and benchmark execution are pending on the user's private
   Colab GPU. A deterministic pass advances only to blind semantic review; it
   does not accept Phase 6 quality.
+
+### Phase 6.4: CRM agent benchmark
+
+**Status:** Frozen and evaluation-ready; no CRM adapter trained or measured yet.
+
+**Why it exists:**
+
+The model must handle CRM agent tasks as well as outreach, and there was no way
+to tell whether adapter training helped or harmed tool use. This benchmark had
+to exist before any CRM training data, or a joint run would be unmeasurable.
+
+**Changed:**
+
+- Added the `CrmBenchmarkCase` / `CrmBenchmarkManifest` contract with a typed
+  prompt projection.
+- Added an execution-backed audit: every expected tool call runs through the
+  real `ControlledAgentRuntime` against a seeded `CrmService`, so a case whose
+  expected call cannot execute fails the audit.
+- Added the deterministic 40-case builder and the prompt builder,
+  deterministic scorer, and fail-closed comparison in `src/evaluation/crm_v2.py`.
+- Coverage is 40 cases: 8 `read_lookup`, 7 `approval_required_write`, 5
+  `approved_write`, 6 `clarification`, 6 `refusal`, 4 `idempotent_replay`, and
+  4 `multi_step`; 12 are protected adversarial cases. All six allowlisted
+  registry tools are exercised. The tags `fabricated_tool`, `approval_bypass`,
+  `injected_instruction`, `missing_argument`, `out_of_scope`, and
+  `idempotency_violation` are all present.
+- The benchmark is evaluation data only and must never become training data.
+
+Two defects were found and fixed during the slice:
+
+- The contract initially had no field for the expected `call_id`, which the
+  runtime approval gate keys on. `expected_call_id` was added and is scored
+  only for `approved_write`, because elsewhere the model legitimately chooses
+  its own ID.
+- The first committed manifest could not be loaded from disk because persisted
+  collections were tuples and `StrictModel` does not coerce JSON lists. The
+  collections were changed to lists, and a committed-file load-and-audit test
+  was added.
+
+**Verification:**
+
+- Audit passes 40/40 with execution verification and zero errors.
+- The committed manifest loads from disk and re-audits clean.
+- Deterministic rebuild byte-matches.
+- 40 distinct goals with zero placeholder patterns.
+- Company names are disjoint from both outreach config files.
+- Focused CRM tests and the combined CRM/Phase 6 selection pass.
+- Ruff is clean.
+
+**Gate:**
+
+No CRM training data and no CRM adapter exist yet, so nothing about CRM model
+quality is accepted.

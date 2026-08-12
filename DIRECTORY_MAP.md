@@ -40,10 +40,14 @@ introduced.
 | `src/evaluation/` | Rubrics, metrics, regression checks, and comparison reports. |
 | `src/evaluation/phase6_benchmark.py` | Frozen Phase 6 benchmark loading, coverage, identity-leakage, duplicate, and protected-adversarial auditing. |
 | `src/evaluation/build_phase6_benchmark.py` | Deterministic builder for the controlled 60-case Phase 6 benchmark candidate. |
+| `src/evaluation/crm_benchmark.py` | Execution-backed CRM benchmark auditing against seeded CRM services and the controlled agent runtime. |
+| `src/evaluation/build_crm_benchmark.py` | Deterministic builder for the frozen 40-case CRM agent benchmark. |
+| `src/evaluation/crm_v2.py` | CRM benchmark prompt construction, deterministic scoring, evaluation reports, and fail-closed comparison. |
 | `src/evaluation/build_phase6_dataset_v2.py` | Deterministic 124-row v2 candidate builder, review application, and strict-manifest emission. |
 | `src/evaluation/review_sheet_phase6_dataset_v2.py` | Human-readable review-sheet renderer for the v2 candidate dataset. |
 | `src/evaluation/phase6_v2.py` | Leakage-safe v2 prompt construction, deterministic case scoring, fail-closed report generation, and base/adapter comparison. |
 | `src/schemas/quality_benchmark.py` | Strict Phase 6 benchmark case, lifecycle, prompt-projection, hash, and audit contracts. |
+| `src/schemas/crm_benchmark.py` | Strict CRM agent benchmark cases, manifests, seed records, prompt projection, hashes, and audit report contracts. |
 | `configs/phase1/benchmark.json` | Fixed candidate revisions, generation settings, hard gates, rubric, and 3×3 benchmark matrix. |
 | `src/schemas/base.py` | Shared strict, immutable Pydantic model configuration. |
 | `src/schemas/campaign.py` | Campaign inputs, immutable claims, authorized reviewed wording, provenance, outreach, evaluation, and trace contracts. |
@@ -82,6 +86,7 @@ introduced.
 | `configs/phase6/dataset-v2.review.json` | Fixed cross-model review record approving the v2 candidate rows. |
 | `configs/phase6/dataset-v2.json` | Reviewed strict v2 training manifest emitted from the candidate and review record. |
 | `configs/phase6/benchmark-v2.json` | Frozen 60-case grounded-outreach evaluation benchmark; never training data. |
+| `configs/phase6/crm-benchmark.json` | Frozen 40-case CRM agent evaluation benchmark; never training data. |
 | `docs/PHASE6_BENCHMARK_REVIEW.md` | Benchmark coverage summary, protected-set rules, and manual freeze checklist. |
 | `docs/PHASE6_BENCHMARK_BUILD_LOG.md` | Recoverable benchmark-build issues, diagnoses, and fixes. |
 | `docs/PHASE6_CLAUDE_OPUS_REVIEW.md` | Independent Opus 4.8 all-case semantic review, verified findings, and benchmark disposition. |
