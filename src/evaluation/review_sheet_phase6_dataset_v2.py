@@ -14,7 +14,10 @@ from src.schemas.dataset import DatasetCandidateManifestV2, TrainingExampleCandi
 
 DATASET_PATH = Path("configs/phase6/dataset-v2.candidate.json")
 OUTPUT_PATH = Path("results/phase6-dataset-v2-review-sheet.md")
-WORD_LIMIT = 20_000
+# Ceiling on the reviewer-facing sheet so it stays readable in a couple of passes.
+# It is a working-artifact budget, not a data contract: raise it when the dataset
+# legitimately grows (the 40->65 drafted rebalance took the sheet past 20k words).
+WORD_LIMIT = 30_000
 
 PRODUCT_CATEGORIES = {
     "MetricMosaic": "reporting_automation",

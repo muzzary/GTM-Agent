@@ -2,6 +2,7 @@ from pathlib import Path
 
 from src.evaluation.review_sheet_phase6_dataset_v2 import (
     OUTPUT_PATH,
+    WORD_LIMIT,
     build_review_sheet,
     write_review_sheet,
 )
@@ -21,5 +22,5 @@ def test_review_sheet_contains_all_rows_and_fifteen_pairs(tmp_path: Path):
     )
     summary = sheet.split("## train", maxsplit=1)[0]
     assert summary.count(" <-> ") == 15
-    assert len(sheet.split()) < 20_000
+    assert len(sheet.split()) <= WORD_LIMIT
     assert build_review_sheet().splitlines() == sheet.splitlines()
