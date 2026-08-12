@@ -6,8 +6,11 @@ from src.agent.runtime import ControlledAgentRuntime
 from src.agent.tools import CrmToolRegistry
 from src.crm.service import CrmService
 from src.data.crm_repository import CrmRepository
-from src.schemas.crm import Pipeline, PipelineStage
-from src.schemas.crm_benchmark import CrmBenchmarkAuditReport, CrmBenchmarkManifest
+from src.schemas.crm import Company, Deal, Pipeline, PipelineStage
+from src.schemas.crm_benchmark import (
+    CrmBenchmarkAuditReport,
+    CrmBenchmarkManifest,
+)
 
 
 class _ExpectedCallModel:
@@ -40,7 +43,7 @@ def audit_crm_benchmark(
                 Path(".tmp") / f"crm-benchmark-{case.case_id}.sqlite3"
             )
             _seed(repository, case)
-            registry = CrmToolRegistry(CrmService(repository))
+            registry = _registry(repository)
             if case.expected_tool_name not in case.available_tools:
                 raise ValueError("expected tool is not allowlisted")
             spec = registry.get(case.expected_tool_name or "")
@@ -104,24 +107,49 @@ def audit_crm_benchmark(
 
 def _seed(repository: CrmRepository, case: CrmBenchmarkManifest | object) -> None:
     for company in case.seed_companies:  # type: ignore[union-attr]
-        repository.save_company(company)
+        company_data = company.model_dump()
+        company_data["source_evidence_ids"] = tuple(company.source_evidence_ids)
+        repository.save_company(
+            Company(**company_data)
+        )
     for deal in case.seed_deals:  # type: ignore[union-attr]
+        saved_deal = Deal(**deal.model_dump())
         repository.save_pipeline(
             Pipeline(
-                pipeline_id=deal.pipeline_id,
-                tenant_id=deal.tenant_id,
+                pipeline_id=saved_deal.pipeline_id,
+                tenant_id=saved_deal.tenant_id,
                 name="Benchmark pipeline",
                 stages=(PipelineStage(
-                    stage_id=deal.stage_id,
-                    pipeline_id=deal.pipeline_id,
-                    tenant_id=deal.tenant_id,
+                    stage_id=saved_deal.stage_id,
+                    pipeline_id=saved_deal.pipeline_id,
+                    tenant_id=saved_deal.tenant_id,
                     name="Benchmark stage",
                     position=1,
                     probability=0.5,
                 ),),
             )
         )
-        repository.save_deal(deal, idempotency_key=f"seed-{deal.deal_id}")
+        repository.save_deal(saved_deal, idempotency_key=f"seed-{saved_deal.deal_id}")
+
+
+def _registry(repository: CrmRepository) -> CrmToolRegistry:
+    return CrmToolRegistry(
+        CrmService(repository),
+        prospect_reader=lambda _tenant, campaign: {
+            "campaign_id": campaign,
+            "status": "inspected",
+        },
+        prospect_linker=lambda _tenant, campaign, key: {
+            "campaign_id": campaign,
+            "idempotency_key": key,
+            "status": "linked",
+        },
+        revenue_reporter=lambda _tenant, as_of, currency: {
+            "as_of": as_of.isoformat(),
+            "currency": currency,
+            "total_minor": 0,
+        },
+    )
 
 
 def _duplicates(values: list[str]) -> list[str]:

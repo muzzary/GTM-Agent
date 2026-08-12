@@ -10,7 +10,7 @@ from src.agent.tools import CrmToolRegistry
 from src.crm.service import CrmService
 from src.data.crm_repository import CrmRepository
 from src.schemas.base import StrictModel
-from src.schemas.crm import Company, Deal
+from src.schemas.crm import DealStatus
 
 CrmCategory = Literal[
     "read_lookup", "approval_required_write", "approved_write", "clarification",
@@ -28,6 +28,38 @@ class CrmPriorObservation(StrictModel):
     result: dict[str, object]
 
 
+class CrmBenchmarkSeedCompany(StrictModel):
+    company_id: str
+    tenant_id: str
+    name: str
+    normalized_domain: str | None = None
+    website: str | None = None
+    industry: str | None = None
+    region: str | None = None
+    custom_fields: dict[str, str] = {}
+    source_prospect_id: str | None = None
+    source_campaign_id: str | None = None
+    source_evidence_ids: list[str] = []
+    created_at: AwareDatetime = Field(strict=False)
+    updated_at: AwareDatetime = Field(strict=False)
+
+
+class CrmBenchmarkSeedDeal(StrictModel):
+    deal_id: str
+    company_id: str
+    contact_id: str | None = None
+    pipeline_id: str
+    stage_id: str
+    tenant_id: str
+    name: str
+    status: DealStatus = Field(strict=False)
+    amount_minor: int
+    currency: str
+    custom_fields: dict[str, str] = {}
+    created_at: AwareDatetime = Field(strict=False)
+    updated_at: AwareDatetime = Field(strict=False)
+
+
 class CrmBenchmarkPromptTool(StrictModel):
     name: str
     requires_approval: bool
@@ -38,14 +70,30 @@ class CrmBenchmarkPromptInput(StrictModel):
     task_type: Literal["crm_tool_use"]
     tenant_id: str
     goal: str
-    prior_observations: tuple[CrmPriorObservation, ...]
-    approved_call_ids: tuple[str, ...]
-    tool_catalog: tuple[CrmBenchmarkPromptTool, ...]
+    prior_observations: list[CrmPriorObservation]
+    approved_call_ids: list[str]
+    tool_catalog: list[CrmBenchmarkPromptTool]
 
 
 def _registry() -> CrmToolRegistry:
     repository = CrmRepository(Path(".tmp") / "crm-benchmark-schema.sqlite3")
-    return CrmToolRegistry(CrmService(repository))
+    return CrmToolRegistry(
+        CrmService(repository),
+        prospect_reader=lambda _tenant, campaign: {
+            "campaign_id": campaign,
+            "status": "inspected",
+        },
+        prospect_linker=lambda _tenant, campaign, key: {
+            "campaign_id": campaign,
+            "idempotency_key": key,
+            "status": "linked",
+        },
+        revenue_reporter=lambda _tenant, as_of, currency: {
+            "as_of": as_of.isoformat(),
+            "currency": currency,
+            "total_minor": 0,
+        },
+    )
 
 
 class CrmBenchmarkCase(StrictModel):
@@ -55,9 +103,9 @@ class CrmBenchmarkCase(StrictModel):
     category: CrmCategory
     tenant_id: str = Field(pattern=r"^tenant-[a-z0-9-]{4,64}$")
     goal: str = Field(min_length=1, max_length=2_000)
-    prior_observations: tuple[CrmPriorObservation, ...] = Field(max_length=32)
-    seed_companies: tuple[Company, ...] = Field(max_length=32)
-    seed_deals: tuple[Deal, ...] = Field(max_length=32)
+    prior_observations: list[CrmPriorObservation] = Field(max_length=32)
+    seed_companies: list[CrmBenchmarkSeedCompany] = Field(max_length=32)
+    seed_deals: list[CrmBenchmarkSeedDeal] = Field(max_length=32)
     available_tools: list[str] = Field(min_length=1, max_length=16)
     approved_call_ids: list[str] = Field(default_factory=list, max_length=16)
     expected_action: Literal["tool_call", "final"]
@@ -152,15 +200,15 @@ class CrmBenchmarkCase(StrictModel):
             tenant_id=self.tenant_id,
             goal=self.goal,
             prior_observations=self.prior_observations,
-            approved_call_ids=tuple(self.approved_call_ids),
-            tool_catalog=tuple(
+            approved_call_ids=list(self.approved_call_ids),
+            tool_catalog=[
                 CrmBenchmarkPromptTool(
                     name=name,
                     requires_approval=registry.get(name).requires_approval,
                     argument_schema=registry.get(name).argument_model.model_json_schema(),
                 )
                 for name in self.available_tools
-            ),
+            ],
         )
 
     def content_sha256_for_audit(self) -> str:
