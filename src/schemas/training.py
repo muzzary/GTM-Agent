@@ -47,5 +47,6 @@ class AdapterArtifactMetadata(StrictModel):
     dataset_id: str = Field(pattern=r"^dataset-[a-z0-9-]{4,64}$")
     dataset_version: str = Field(pattern=r"^\d+\.\d+$")
     train_examples: int = Field(gt=0, le=2_000)
+    epochs_completed: int | None = Field(default=None, gt=0, le=10)
     trained_steps: int = Field(gt=0, le=1000)
     created_at: AwareDatetime = Field(strict=False)

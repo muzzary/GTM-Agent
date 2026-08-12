@@ -172,7 +172,7 @@ def test_phase6_v2_training_json_matches_the_training_contract() -> None:
     assert config.config_version == "2.0"
     assert config.adapter_id == "gtm-agent-outreach-v2"
     assert config.max_length == 1536
-    assert config.epochs == 4
+    assert config.epochs == 8
     assert config.learning_rate == 0.0001
     assert config.lora_rank == 16
     assert config.lora_alpha == 32
@@ -209,6 +209,14 @@ def test_phase6_v2_training_notebook_is_scoped_and_masks_assistant_loss() -> Non
         '"dataset_id": dataset.dataset_id',
         '"dataset_version": dataset.dataset_version',
         '"adapter-metadata.json"',
+        "run-",
+        "exist_ok=False",
+        "run-info.json",
+        "checkpoints",
+        "epochs_completed",
+        '"adapter-metadata.json").write_text',
+        "shutil.rmtree",
+        "relative_to(destination)",
     ):
         assert required in source
     assert not re.search(r"(?<!\.)\btokenizer\(", source)
@@ -216,6 +224,27 @@ def test_phase6_v2_training_notebook_is_scoped_and_masks_assistant_loss() -> Non
     assert "configs/phase6/training.json" not in source
     assert "cloudflared" not in source.lower()
     assert "ngrok" not in source.lower()
+
+
+def test_phase6_v2_training_notebook_marks_and_retains_checkpoints() -> None:
+    source = v2_training_notebook_source()
+
+    save_position = source.index("model.save_pretrained(destination")
+    metadata_position = source.index('"adapter-metadata.json").write_text')
+    cleanup_position = source.index("shutil.rmtree")
+    assert save_position < metadata_position < cleanup_position
+    assert "checkpoint_dirs[:-2]" in source
+    assert 'CHECKPOINTS_DIR / f"epoch-{epoch + 1:02d}"' in source
+
+
+def test_phase6_v2_evaluation_notebook_resolves_run_and_checkpoint_adapter() -> None:
+    source = v2_evaluation_notebook_source()
+
+    assert "RUN_DIR_NAME = None" in source
+    assert 'checkpoints_dir.glob("epoch-*")' in source
+    assert "adapter-metadata.json" in source
+    assert "epochs_completed" in source
+    assert "evaluation" in source
 
 
 def test_phase6_v2_training_notebook_code_cells_compile() -> None:
