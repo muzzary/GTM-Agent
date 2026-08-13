@@ -93,6 +93,16 @@ STATUS_COUNTS = {
 STATUSES = ("drafted", "needs_more_evidence", "disqualified", "opted_out")
 ROLE_TIERS = ("individual_contributor", "manager", "director", "vp", "c_level")
 
+# These quotas preserve the benchmark-shaped one-signal draft population while
+# keeping count from identifying draft versus abstention. The five zero-item
+# rows are the existing absent-evidence needs-more-evidence cases.
+EVIDENCE_COUNT_QUOTAS = {
+    "drafted": {1: 48, 2: 16, 3: 16},
+    "needs_more_evidence": {0: 5, 1: 5, 2: 5, 3: 4},
+    "disqualified": {1: 4, 2: 5, 3: 4},
+    "opted_out": {1: 4, 2: 4, 3: 4},
+}
+
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -858,7 +868,10 @@ def _evidence(
     company: str,
     status: str,
     category: str,
+    evidence_count: int,
 ) -> list[EvidenceRecordV2]:
+    if evidence_count not in range(4):
+        raise AssertionError("evidence count must be between zero and three")
     if status == "disqualified":
         texts = (
             f"{company}'s parent organization prepares all recurring reports for this business.",
@@ -870,7 +883,10 @@ def _evidence(
             f"{company}'s operating model assigns all reporting decisions to an external parent team.",
             f"{company}'s service model leaves no internal owner for the proposed workflow.",
         )
-        selected_texts = [texts[index % len(texts)]]
+        selected_texts = [texts[index % len(texts)]] + [
+            f"{company} reviews adjacent workflow context with its operating partners."
+            for _ in range(evidence_count - 1)
+        ]
     elif status == "opted_out":
         texts = (
             f"A prior reply from {company} asks the sender not to email again.",
@@ -882,7 +898,10 @@ def _evidence(
             f"The consent history for {company} records a direct request to stop sales messages.",
             f"{company}'s contact record rejects further vendor outreach by email.",
         )
-        selected_texts = [texts[index % len(texts)]]
+        selected_texts = [texts[index % len(texts)]] + [
+            f"{company} reviews adjacent workflow context with its operating partners."
+            for _ in range(evidence_count - 1)
+        ]
     elif condition == "absent":
         selected_texts = []
     else:
@@ -892,16 +911,22 @@ def _evidence(
             "conflicting": (
                 f"{company}'s central operations team owns the workflow, while a regional role is listed for the same process.",
                 f"A newer role at {company} assigns different ownership to regional delivery teams instead of the central operations team.",
+                f"{company} reviews the workflow during a recurring operating cadence.",
             ),
             "stale": (
                 f"An archived {company} process note describes recurring review activity from an earlier operating period.",
                 f"A prior operating record from {company} documented recurring review activity during an earlier period.",
             ),
         }[condition]
-        evidence_count = 3 if condition == "strong" else 2
-        selected_texts = [
-            texts[(index + offset) % len(texts)] for offset in range(evidence_count)
-        ]
+        if condition == "conflicting":
+            selected_texts = [texts[index % 2], texts[(index + 1) % 2]]
+            if evidence_count == 3:
+                selected_texts.append(texts[2])
+        else:
+            selected_texts = [
+                texts[(index + offset) % len(texts)]
+                for offset in range(evidence_count)
+            ]
         if condition in {"strong", "weak"}:
             selected_texts = [
                 f"Public evidence from {company}: {text}"
@@ -1223,6 +1248,19 @@ def _draft_clean(
                     cta_kind=cta_kind,
                 )
             )
+    hypothesis_offset = 0
+    while (
+        len(re.findall(r"\b[\w'-]+\b", " ".join(entry.sentence for entry in entries))) < 40
+        and len(entries) < 6
+    ):
+        hypothesis = profile.hypotheses[(row_index + hypothesis_offset) % len(profile.hypotheses)]
+        hypothesis_offset += 1
+        if any(entry.sentence == hypothesis for entry in entries):
+            continue
+        entries.insert(
+            -1,
+            SupportMapEntry(sentence=hypothesis, role="hypothesis"),
+        )
     if not 3 <= len(entries) <= 6:
         raise AssertionError("clean draft must contain three to six support entries")
     return GroundedOutreachOutput(
@@ -1634,6 +1672,7 @@ def _make_row(
     status: str,
     profile: ProductProfile,
     condition: str,
+    evidence_count: int,
     *,
     pair_index: int | None = None,
 ) -> TrainingExampleCandidateV2:
@@ -1646,7 +1685,9 @@ def _make_row(
     identity_index = pair_index if pair_index is not None else index // len(PRODUCTS)
     evidence_index = pair_index + 1 if pair_index is not None else index
     claims = _claims(profile)
-    evidence = _evidence(evidence_index, condition, company, status, profile.category)
+    evidence = _evidence(
+        evidence_index, condition, company, status, profile.category, evidence_count
+    )
     inputs = TrainingInputV2(
         target_role=profile.roles[identity_index % len(profile.roles)][1],
         approved_claims=claims,
@@ -1706,6 +1747,22 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
     }
     rows: list[TrainingExampleCandidateV2] = []
     index = 1
+    count_seen: Counter[tuple[str, int]] = Counter()
+
+    def allocate_count(status: str, condition: str) -> int:
+        if status == "needs_more_evidence" and condition == "absent":
+            evidence_count = 0
+        else:
+            minimum_count = 2 if condition == "conflicting" else 1
+            evidence_count = next(
+                count
+                for count in sorted(EVIDENCE_COUNT_QUOTAS[status])
+                if count >= minimum_count
+                and count_seen[(status, count)] < EVIDENCE_COUNT_QUOTAS[status][count]
+            )
+        count_seen[(status, evidence_count)] += 1
+        return evidence_count
+
     pair_specs = _pair_specs()
     for pair_index, (left_condition, right_condition, non_draft_status) in enumerate(
         pair_specs
@@ -1715,6 +1772,7 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
         rows.append(
             _make_row(
                 index, split, "drafted", profile, left_condition, pair_index=pair_index
+                , evidence_count=allocate_count("drafted", left_condition)
             )
         )
         index += 1
@@ -1726,6 +1784,7 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
                 profile,
                 right_condition,
                 pair_index=pair_index,
+                evidence_count=allocate_count(non_draft_status, right_condition),
             )
         )
         index += 1
@@ -1751,7 +1810,16 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
                     condition = "strong"
                 if status == "opted_out":
                     condition = "strong" if index % 2 else "absent"
-                rows.append(_make_row(index, split, status, profile, condition))
+                rows.append(
+                    _make_row(
+                        index,
+                        split,
+                        status,
+                        profile,
+                        condition,
+                        evidence_count=allocate_count(status, condition),
+                    )
+                )
                 index += 1
         if (
             len([row for row in rows if row.intended_split == split])
@@ -1777,6 +1845,44 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
     }
     if distribution != STATUS_COUNTS:
         raise AssertionError(f"unexpected candidate distribution: {distribution}")
+    if count_seen != Counter(
+        {
+            (status, count): quantity
+            for status, quotas in EVIDENCE_COUNT_QUOTAS.items()
+            for count, quantity in quotas.items()
+        }
+    ):
+        raise AssertionError(f"unexpected evidence-count allocation: {count_seen}")
+    overall_drafted_share = distribution["train"]["drafted"] + distribution["validation"]["drafted"]
+    overall_drafted_share /= len(rows)
+    bucket_statuses: dict[int, Counter[str]] = {
+        count: Counter(
+            row.proposed_output.generation_status
+            for row in rows
+            if len(row.input.prospect_evidence) == count
+        )
+        for count in (0, 1, 2, 3)
+    }
+    if set(bucket_statuses[0]) != {"needs_more_evidence"}:
+        raise AssertionError("zero-evidence rows must be needs_more_evidence")
+    for count in (1, 2, 3):
+        bucket = bucket_statuses[count]
+        if set(bucket) != set(STATUSES):
+            raise AssertionError(f"evidence bucket {count} lacks a status: {bucket}")
+        drafted_share = bucket["drafted"] / sum(bucket.values())
+        if abs(drafted_share - overall_drafted_share) > 0.15:
+            raise AssertionError(
+                f"evidence bucket {count} draft share is out of range: "
+                f"{drafted_share:.4f} vs overall {overall_drafted_share:.4f}"
+            )
+    drafted_single_share = bucket_statuses[1]["drafted"] / (
+        distribution["train"]["drafted"] + distribution["validation"]["drafted"]
+    )
+    if drafted_single_share < 0.60:
+        raise AssertionError("fewer than sixty percent of drafts have one evidence item")
+    for status in ("disqualified", "opted_out"):
+        if any(bucket_statuses[count][status] == 0 for count in (2, 3)):
+            raise AssertionError(f"{status} lacks a two- or three-item variant")
     if len(rows) != 124:
         raise AssertionError(f"expected 124 rows, got {len(rows)}")
     identities = [

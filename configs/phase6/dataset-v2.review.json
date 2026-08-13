@@ -1,7 +1,7 @@
 {
   "reviewer_reference": "claude-opus-5 cross-model review, user-authorized",
   "reviewed_at": "2026-08-11T00:00:00+00:00",
-  "candidate_manifest_sha256": "444ac7773763bb50b8e4debd355de436fa094479d6cdd2c3dd69e8804d7dfaa5",
+  "candidate_manifest_sha256": "6ee793d38cc388a90e87f6861e2f73a483ee5fb0dcf0d2a52c204747f58dde3b",
   "review_scope": "contract structure, status-vs-signal correctness, citation binding, rationale-to-evidence binding, prose bans, and diversity thresholds",
   "entries": [
     {

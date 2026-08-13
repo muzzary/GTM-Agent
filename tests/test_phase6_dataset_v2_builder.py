@@ -134,6 +134,30 @@ def test_exact_distribution_and_coverage():
     }
 
 
+def test_evidence_count_buckets_match_overall_status_shape():
+    rows = _manifest().examples
+    statuses = tuple(EXPECTED["train"])
+    buckets = {
+        count: Counter(
+            row.proposed_output.generation_status
+            for row in rows
+            if len(row.input.prospect_evidence) == count
+        )
+        for count in range(4)
+    }
+    table = {count: dict(bucket) for count, bucket in buckets.items()}
+    overall = Counter(row.proposed_output.generation_status for row in rows)
+    overall_drafted_share = overall["drafted"] / len(rows)
+
+    assert set(buckets[0]) == {"needs_more_evidence"}, table
+    for count in (1, 2, 3):
+        assert set(buckets[count]) == set(statuses), table
+        drafted_share = buckets[count]["drafted"] / sum(buckets[count].values())
+        assert abs(drafted_share - overall_drafted_share) <= 0.15, table
+    assert buckets[1]["drafted"] / overall["drafted"] >= 0.60, table
+    assert all(buckets[count][status] for count in (2, 3) for status in ("disqualified", "opted_out")), table
+
+
 def test_gate_and_content_quality_thresholds():
     rows = _manifest().examples
     assert all(row.gate_report.passed for row in rows)
