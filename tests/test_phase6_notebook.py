@@ -7,6 +7,9 @@ from src.schemas.training import TrainingConfig, TrainingConfigV2
 
 NOTEBOOK_PATH = Path("notebooks/phase6_outreach_adapter.ipynb")
 V2_EVALUATION_NOTEBOOK_PATH = Path("notebooks/phase6_v2_evaluation.ipynb")
+KAGGLE_V2_EVALUATION_NOTEBOOK_PATH = Path(
+    "notebooks/phase6_v2_evaluation_kaggle.ipynb"
+)
 V2_TRAINING_NOTEBOOK_PATH = Path("notebooks/phase6_outreach_adapter_v2.ipynb")
 PILOT_PATH = Path("configs/phase6/pilot.json")
 
@@ -33,6 +36,18 @@ def v2_evaluation_notebook_source() -> str:
 
 def v2_training_notebook_source() -> str:
     notebook = json.loads(V2_TRAINING_NOTEBOOK_PATH.read_text(encoding="utf-8"))
+    assert notebook["nbformat"] == 4
+    assert all(cell.get("outputs", []) == [] for cell in notebook["cells"])
+    assert all(cell.get("execution_count") is None for cell in notebook["cells"])
+    return "\n".join(
+        "".join(cell.get("source", [])) for cell in notebook["cells"]
+    )
+
+
+def kaggle_v2_evaluation_notebook_source() -> str:
+    notebook = json.loads(
+        KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
     assert notebook["nbformat"] == 4
     assert all(cell.get("outputs", []) == [] for cell in notebook["cells"])
     assert all(cell.get("execution_count") is None for cell in notebook["cells"])
@@ -145,6 +160,69 @@ def test_phase6_v2_evaluation_notebook_code_cells_compile() -> None:
             line for line in cell["source"] if not line.lstrip().startswith("%")
         )
         compile(source, f"{V2_EVALUATION_NOTEBOOK_PATH}:cell-{index}", "exec")
+
+
+def test_phase6_v2_kaggle_evaluation_notebook_matches_kaggle_contract() -> None:
+    source = kaggle_v2_evaluation_notebook_source()
+
+    for required in (
+        'ADAPTER_DIR_OVERRIDE = None',
+        'BASE_REPORT_PATH_OVERRIDE = None',
+        'Path("/kaggle/input")',
+        'KAGGLE_WORKING_ROOT = Path("/kaggle/working")',
+        'EVALUATION_DIR = KAGGLE_WORKING_ROOT / "evaluation"',
+        "adapter-metadata.json",
+        "phase6-v2-base-report.json",
+        "Ambiguous adapter discovery",
+        "No adapter metadata found",
+        "Ambiguous base report discovery",
+        "No base report found",
+        "base_report.benchmark_id == v2_benchmark.benchmark_id",
+        "base_report.benchmark_manifest_sha256 == v2_benchmark.content_sha256",
+        "base_report.generation == GENERATION_SETTINGS",
+        "base_report.model.model_id == BASE_IDENTITY.model_id",
+        "base_report.model.model_revision == BASE_IDENTITY.model_revision",
+        "base_report.model.adapter_id is None",
+        "base_report.model.adapter_revision is None",
+        "[case.case_id for case in base_report.cases] == [",
+        "base_report.total_cases == len(v2_benchmark.cases)",
+        "metadata.adapter_id == config.adapter_id",
+        "metadata.dataset_id == v2_dataset.dataset_id",
+        "metadata.dataset_version == v2_dataset.dataset_version",
+        "metadata.base_model_id == config.base_model_id",
+        "metadata.base_model_revision == config.base_model_revision",
+        "importlib.metadata.version",
+        "PeftModel.from_pretrained",
+        "epochs_completed",
+        "phase6-v2-adapter-report.json",
+        "phase6-v2-comparison.json",
+    ):
+        assert required in source
+
+    assert "google.colab" not in source
+    assert "drive.mount" not in source
+    assert "/content/drive" not in source
+
+
+def test_phase6_v2_kaggle_evaluation_notebook_code_cells_compile() -> None:
+    notebook = json.loads(
+        KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
+
+    for index, cell in enumerate(notebook["cells"]):
+        if cell["cell_type"] != "code":
+            continue
+        cell_source = cell["source"]
+        if isinstance(cell_source, str):
+            cell_source = cell_source.splitlines(keepends=True)
+        source = "".join(
+            line for line in cell_source if not line.lstrip().startswith("%")
+        )
+        compile(
+            source,
+            f"{KAGGLE_V2_EVALUATION_NOTEBOOK_PATH}:cell-{index}",
+            "exec",
+        )
 
 
 def test_phase6_pilot_json_matches_the_dataset_contract() -> None:
