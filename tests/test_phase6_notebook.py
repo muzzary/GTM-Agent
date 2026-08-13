@@ -241,10 +241,49 @@ def test_phase6_v2_evaluation_notebook_resolves_run_and_checkpoint_adapter() -> 
     source = v2_evaluation_notebook_source()
 
     assert "RUN_DIR_NAME = None" in source
+    assert "BASE_REPORT_PATH = None" in source
     assert 'checkpoints_dir.glob("epoch-*")' in source
     assert "adapter-metadata.json" in source
     assert "epochs_completed" in source
     assert "evaluation" in source
+
+
+def test_phase6_v2_evaluation_notebook_reuses_base_report_fail_closed() -> None:
+    source = v2_evaluation_notebook_source()
+
+    for required in (
+        "Phase6V2EvaluationReport.model_validate_json",
+        "base_report.benchmark_id == v2_benchmark.benchmark_id",
+        "base_report.benchmark_manifest_sha256 == v2_benchmark.content_sha256",
+        "base_report.generation == GENERATION_SETTINGS",
+        "base_report.model.model_id == BASE_IDENTITY.model_id",
+        "base_report.model.model_revision == BASE_IDENTITY.model_revision",
+        "base_report.model.adapter_id is None",
+        "base_report.model.adapter_revision is None",
+        "[case.case_id for case in base_report.cases] == [",
+        "base_report.total_cases == len(v2_benchmark.cases)",
+        "reused base report benchmark identity mismatch",
+        "reused base report generation settings mismatch",
+        "reused base report model identity mismatch",
+        "reused base report case IDs mismatch",
+        "reused base report total_cases mismatch",
+        '"base_report_mode": "regenerated"',
+        '"base_report_mode": "reused"',
+        '"base_report_source": str(base_report_source)',
+        "BASE_REPORT_DESTINATION.write_text",
+    ):
+        assert required in source
+
+    for required in (
+        "metadata.adapter_id == config.adapter_id",
+        "metadata.dataset_id == v2_dataset.dataset_id",
+        "metadata.dataset_version == v2_dataset.dataset_version",
+        "metadata.base_model_id == config.base_model_id",
+        "metadata.base_model_revision == config.base_model_revision",
+        "if has_completed_adapter(adapter_dir)",
+        "return checkpoint_dirs[0] if checkpoint_dirs else None",
+    ):
+        assert required in source
 
 
 def test_phase6_v2_training_notebook_code_cells_compile() -> None:
