@@ -10,6 +10,9 @@ V2_EVALUATION_NOTEBOOK_PATH = Path("notebooks/phase6_v2_evaluation.ipynb")
 KAGGLE_V2_EVALUATION_NOTEBOOK_PATH = Path(
     "notebooks/phase6_v2_evaluation_kaggle.ipynb"
 )
+KAGGLE_V2_TRAINING_NOTEBOOK_PATH = Path(
+    "notebooks/phase6_outreach_adapter_v2_kaggle.ipynb"
+)
 V2_TRAINING_NOTEBOOK_PATH = Path("notebooks/phase6_outreach_adapter_v2.ipynb")
 PILOT_PATH = Path("configs/phase6/pilot.json")
 
@@ -47,6 +50,18 @@ def v2_training_notebook_source() -> str:
 def kaggle_v2_evaluation_notebook_source() -> str:
     notebook = json.loads(
         KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
+    assert notebook["nbformat"] == 4
+    assert all(cell.get("outputs", []) == [] for cell in notebook["cells"])
+    assert all(cell.get("execution_count") is None for cell in notebook["cells"])
+    return "\n".join(
+        "".join(cell.get("source", [])) for cell in notebook["cells"]
+    )
+
+
+def kaggle_v2_training_notebook_source() -> str:
+    notebook = json.loads(
+        KAGGLE_V2_TRAINING_NOTEBOOK_PATH.read_text(encoding="utf-8")
     )
     assert notebook["nbformat"] == 4
     assert all(cell.get("outputs", []) == [] for cell in notebook["cells"])
@@ -268,6 +283,110 @@ def test_phase6_v2_kaggle_evaluation_notebook_code_cells_compile() -> None:
         compile(
             source,
             f"{KAGGLE_V2_EVALUATION_NOTEBOOK_PATH}:cell-{index}",
+            "exec",
+        )
+
+
+def test_phase6_v2_kaggle_training_notebook_matches_training_contract() -> None:
+    source = kaggle_v2_training_notebook_source()
+
+    for required in (
+        'Path("/kaggle/working")',
+        'RUN_DIR = KAGGLE_WORKING_ROOT / "run"',
+        'CHECKPOINTS_DIR = RUN_DIR / "checkpoints"',
+        'ADAPTER_DIR = RUN_DIR / "adapter"',
+        "socket.create_connection",
+        "pypi.org",
+        "/proc/driver/nvidia/version",
+        "nvidia-smi",
+        "failures = []",
+        "enable Internet in the notebook sidebar",
+        "phone verification at kaggle.com/settings",
+        "set Accelerator to GPU T4 x2 in the sidebar",
+        "Preflight passed:",
+        "PINNED_VERSIONS",
+        "importlib.metadata.version",
+        "configs/phase6/training-v2.json",
+        "configs/phase6/dataset-v2.json",
+        "configs/phase6/benchmark-v2.json",
+        "TrainingConfigV2",
+        "DatasetManifestV2",
+        "validate_dataset_v2",
+        'assert audit.split_counts["train"] == 100',
+        'assert audit.split_counts["validation"] == 24',
+        "render_v2_prompt",
+        "training_prompt_input",
+        "training_target_json",
+        "build_chat_messages",
+        "apply_chat_template",
+        "labels[:, :prompt_length] = -100",
+        "assert torch.equal(prompt_ids[0], input_ids[0, :prompt_length])",
+        "group_size = accumulation_group_size(",
+        "loss / group_size",
+        "was_use_cache = model.config.use_cache",
+        "was_gradient_checkpointing = model.is_gradient_checkpointing",
+        "model.config.use_cache = was_use_cache",
+        "model.train(was_training)",
+        "emitted_status_counts",
+        "outputs_with_support_map",
+        "parsed_ok",
+        "status_match",
+        'CHECKPOINTS_DIR / f"epoch-{epoch + 1:02d}"',
+        '"adapter-metadata.json").write_text',
+        "checkpoint_dirs[:-2]",
+        '"epochs_completed": epochs_completed',
+        "relative_to(destination)",
+        "Save Version",
+        "Save & Run All (Commit)",
+        "Add Input → Notebook Output",
+    ):
+        assert required in source
+
+    first_code_index = next(
+        index
+        for index, cell in enumerate(
+            json.loads(
+                KAGGLE_V2_TRAINING_NOTEBOOK_PATH.read_text(encoding="utf-8")
+            )["cells"]
+        )
+        if cell["cell_type"] == "code"
+    )
+    notebook = json.loads(
+        KAGGLE_V2_TRAINING_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
+    preflight = "".join(notebook["cells"][first_code_index]["source"])
+    assert first_code_index > 0
+    assert "import torch" not in preflight
+    assert "import transformers" not in preflight
+    assert "import peft" not in preflight
+    assert "from src" not in preflight
+    assert 'Path("/kaggle/input")' not in source
+    assert "google.colab" not in source
+    assert "drive.mount" not in source
+    assert "/content/drive" not in source
+    assert "run_pattern" not in source
+    assert not re.search(r"run-\\d", source)
+    assert not re.search(r"(?<!\.)\btokenizer\(", source)
+
+    validate_position = source.index("validate_dataset_v2")
+    model_position = source.index("AutoModelForCausalLM.from_pretrained")
+    assert validate_position < model_position
+
+
+def test_phase6_v2_kaggle_training_notebook_code_cells_compile() -> None:
+    notebook = json.loads(
+        KAGGLE_V2_TRAINING_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
+
+    for index, cell in enumerate(notebook["cells"]):
+        if cell["cell_type"] != "code":
+            continue
+        source = "".join(
+            line for line in cell["source"] if not line.lstrip().startswith("%")
+        )
+        compile(
+            source,
+            f"{KAGGLE_V2_TRAINING_NOTEBOOK_PATH}:cell-{index}",
             "exec",
         )
 
