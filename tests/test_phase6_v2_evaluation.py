@@ -9,6 +9,7 @@ from src.evaluation.phase6_v2 import (
     compare_phase6_v2_reports,
     evaluate_phase6_v2_case,
     run_phase6_v2_evaluation,
+    validate_phase6_v2_report_prompt_hashes,
 )
 from src.schemas.inference import (
     GroundedOutreachOutput,
@@ -215,6 +216,39 @@ def test_comparison_rejects_mismatched_case_order() -> None:
 
     with pytest.raises(ValueError, match="cases do not match"):
         compare_phase6_v2_reports(base, adapter)
+
+
+def test_comparison_rejects_mismatched_prompt_hashes() -> None:
+    manifest = benchmark().model_copy(update={"cases": benchmark().cases[:2]})
+    base = run_phase6_v2_evaluation(
+        manifest, BASE_MODEL, lambda request: valid_output(manifest.cases[0])
+    )
+    adapter = run_phase6_v2_evaluation(
+        manifest, ADAPTER_MODEL, lambda request: valid_output(manifest.cases[0])
+    )
+    mismatched_case = adapter.cases[0].model_copy(
+        update={"prompt_sha256": "0" * 64}
+    )
+    adapter = adapter.model_copy(
+        update={"cases": [mismatched_case, adapter.cases[1]]}
+    )
+
+    with pytest.raises(ValueError, match="prompt hashes do not match.*case"):
+        compare_phase6_v2_reports(base, adapter)
+
+
+def test_reused_report_rejects_prompt_hashes_stale_against_benchmark() -> None:
+    manifest = benchmark().model_copy(update={"cases": benchmark().cases[:2]})
+    report = run_phase6_v2_evaluation(
+        manifest, BASE_MODEL, lambda request: valid_output(manifest.cases[0])
+    )
+    stale_case = report.cases[0].model_copy(update={"prompt_sha256": "0" * 64})
+    stale_report = report.model_copy(
+        update={"cases": [stale_case, report.cases[1]]}
+    )
+
+    with pytest.raises(ValueError, match="prompt hash mismatch.*case"):
+        validate_phase6_v2_report_prompt_hashes(stale_report, manifest)
 
 
 def test_comparison_rejects_invalid_threshold_and_adapter_labeled_base() -> None:

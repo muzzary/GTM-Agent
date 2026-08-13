@@ -242,6 +242,31 @@ def training_target_json(example: TrainingExampleV2) -> str:
     )
 
 
+def validate_phase6_v2_report_prompt_hashes(
+    report: Phase6V2EvaluationReport,
+    benchmark: Phase6BenchmarkManifest,
+) -> None:
+    """Reject a report whose recorded prompts differ from the current benchmark."""
+    if report.benchmark_id != benchmark.benchmark_id:
+        raise ValueError("report benchmark identity does not match current benchmark")
+    if report.benchmark_manifest_sha256 != benchmark.content_sha256:
+        raise ValueError("report benchmark hash does not match current benchmark")
+    if [case.case_id for case in report.cases] != [
+        case.case_id for case in benchmark.cases
+    ]:
+        raise ValueError("report cases do not match current benchmark")
+    for report_case, benchmark_case in zip(report.cases, benchmark.cases, strict=True):
+        current_prompt_sha256 = sha256(
+            build_phase6_v2_prompt(benchmark_case).encode("utf-8")
+        ).hexdigest()
+        if report_case.prompt_sha256 != current_prompt_sha256:
+            raise ValueError(
+                "report prompt hash mismatch for case "
+                f"{benchmark_case.case_id}: report={report_case.prompt_sha256}, "
+                f"current={current_prompt_sha256}"
+            )
+
+
 def evaluate_phase6_v2_case(
     case: Phase6BenchmarkCase,
     output: GroundedOutreachOutput,
@@ -425,6 +450,13 @@ def _validate_report_pair(
         case.case_id for case in adapter.cases
     ]:
         raise ValueError("base and adapter cases do not match")
+    for base_case, adapter_case in zip(base.cases, adapter.cases, strict=True):
+        if base_case.prompt_sha256 != adapter_case.prompt_sha256:
+            raise ValueError(
+                "base and adapter prompt hashes do not match for case "
+                f"{base_case.case_id}: base={base_case.prompt_sha256}, "
+                f"adapter={adapter_case.prompt_sha256}"
+            )
 
 
 def _bounded_excerpt(error: Exception) -> str | None:
