@@ -266,6 +266,58 @@ def test_phase6_v2_kaggle_notebook_starts_with_standard_library_preflight() -> N
     assert "Save & Run All" in markdown_before_preflight
 
 
+def test_phase6_v2_kaggle_evaluation_shares_fail_closed_discovery_helpers() -> None:
+    notebook = json.loads(
+        KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
+    first_code_index = next(
+        index for index, cell in enumerate(notebook["cells"])
+        if cell["cell_type"] == "code"
+    )
+    preflight = "".join(notebook["cells"][first_code_index]["source"])
+    source = kaggle_v2_evaluation_notebook_source()
+
+    for required in (
+        "def _input_files(filename):",
+        "def resolve_adapter_dir():",
+        "def resolve_base_report_path():",
+        "completed_run_adapters",
+        "epoch_candidates",
+        "run_roots",
+        "adapter-metadata.json",
+        "epoch-(\\d+)",
+        "epochs_completed",
+        "Candidates found:",
+        "Candidates found: none",
+        "adapter={adapter_path}",
+        "epochs_completed={adapter_epochs_completed}",
+    ):
+        assert required in preflight
+
+    assert source.count("def resolve_adapter_dir():") == 1
+    assert source.count("def resolve_base_report_path():") == 1
+    assert "ADAPTER_DIR = resolve_adapter_dir()" in source
+    assert "BASE_REPORT_PATH = resolve_base_report_path()" in source
+    assert "len(candidates) != 1" not in preflight
+    assert "len(adapter_candidates) != 1" not in preflight
+
+
+def test_phase6_v2_kaggle_evaluation_discovery_contract_covers_preference_and_ambiguity() -> None:  # noqa: E501
+    source = kaggle_v2_evaluation_notebook_source()
+
+    assert 'path.name == "adapter"' in source
+    assert 'path.parent / "checkpoints"' in source
+    assert 'epoch_pattern = re.compile(r"^epoch-(\\d+)$")' in source
+    assert "max(epoch_candidates" in source
+    assert "distinct completed training runs" in source
+    assert "Ambiguous adapter discovery" in source
+    assert "No adapter metadata found" in source
+    assert "Ambiguous base report discovery" in source
+    assert "No base report found" in source
+    assert "str(path) for path in candidates" in source
+    assert "_candidate_lines" in source
+
+
 def test_phase6_v2_kaggle_evaluation_notebook_code_cells_compile() -> None:
     notebook = json.loads(
         KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
