@@ -204,6 +204,53 @@ def test_phase6_v2_kaggle_evaluation_notebook_matches_kaggle_contract() -> None:
     assert "/content/drive" not in source
 
 
+def test_phase6_v2_kaggle_notebook_starts_with_standard_library_preflight() -> None:
+    notebook = json.loads(
+        KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
+    )
+    first_code_index = next(
+        index for index, cell in enumerate(notebook["cells"])
+        if cell["cell_type"] == "code"
+    )
+    first_code = notebook["cells"][first_code_index]
+    preflight = "".join(first_code["source"])
+    assert first_code_index > 0
+    assert notebook["cells"][first_code_index - 1]["cell_type"] == "markdown"
+
+    for required in (
+        "/kaggle/input",
+        "adapter-metadata.json",
+        "phase6-v2-base-report.json",
+        "socket.create_connection",
+        "pypi.org",
+        "/proc/driver/nvidia/version",
+        "nvidia-smi",
+        "ADAPTER_DIR_OVERRIDE",
+        "BASE_REPORT_PATH_OVERRIDE",
+        "failures = []",
+        "+ Add Input in the notebook sidebar",
+        "enable Internet in the notebook sidebar",
+        "phone verification at kaggle.com/settings",
+        "set Accelerator to GPU T4 x2 in the sidebar",
+        "will cost roughly double the GPU time",
+        "Preflight passed:",
+    ):
+        assert required in preflight
+
+    assert "import torch" not in preflight
+    assert "import transformers" not in preflight
+    assert "import peft" not in preflight
+    assert "from src" not in preflight
+    assert "raise RuntimeError" in preflight
+    assert "failures.append" in preflight
+
+    markdown_before_preflight = "".join(
+        notebook["cells"][first_code_index - 1]["source"]
+    )
+    assert "Run All" in markdown_before_preflight
+    assert "Save & Run All" in markdown_before_preflight
+
+
 def test_phase6_v2_kaggle_evaluation_notebook_code_cells_compile() -> None:
     notebook = json.loads(
         KAGGLE_V2_EVALUATION_NOTEBOOK_PATH.read_text(encoding="utf-8")
