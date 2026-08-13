@@ -99,8 +99,8 @@ ROLE_TIERS = ("individual_contributor", "manager", "director", "vp", "c_level")
 EVIDENCE_COUNT_QUOTAS = {
     "drafted": {1: 48, 2: 16, 3: 16},
     "needs_more_evidence": {0: 5, 1: 5, 2: 5, 3: 4},
-    "disqualified": {1: 4, 2: 5, 3: 4},
-    "opted_out": {1: 4, 2: 4, 3: 4},
+    "disqualified": {1: 9, 2: 3, 3: 1},
+    "opted_out": {1: 8, 2: 2, 3: 2},
 }
 
 
@@ -869,10 +869,18 @@ def _evidence(
     status: str,
     category: str,
     evidence_count: int,
+    *,
+    shared_context: tuple[str, ...] | None = None,
+    additional_signal: str | None = None,
+    collected_at_override: datetime | None = None,
 ) -> list[EvidenceRecordV2]:
     if evidence_count not in range(4):
         raise AssertionError("evidence count must be between zero and three")
-    if status == "disqualified":
+    if shared_context is not None:
+        selected_texts = list(shared_context)
+        if additional_signal is not None:
+            selected_texts.append(additional_signal)
+    elif status == "disqualified":
         texts = (
             f"{company}'s parent organization prepares all recurring reports for this business.",
             f"{company}'s reviewed profile states that it has no internal CRM system.",
@@ -927,11 +935,8 @@ def _evidence(
                 texts[(index + offset) % len(texts)]
                 for offset in range(evidence_count)
             ]
-        if condition in {"strong", "weak"}:
-            selected_texts = [
-                f"Public evidence from {company}: {text}"
-                for text in selected_texts
-            ]
+        selected_texts = [_fit_evidence_text(text) for text in selected_texts]
+    selected_texts = [_fit_evidence_text(text) for text in selected_texts]
     if not selected_texts:
         return []
     return [
@@ -939,9 +944,14 @@ def _evidence(
             evidence_id=f"evidence-candidate-{index:03d}-{position + 1:02d}",
             text=text,
             source_url=f"https://example.com/candidate/source-{index:03d}-{position + 1:02d}",
-            collected_at=REFERENCE_DATE - timedelta(days=420)
-            if condition == "stale"
-            else COLLECTED_AT,
+            collected_at=(
+                collected_at_override
+                or (
+                    datetime(2022 + index % 4, 6, 15, tzinfo=UTC)
+                    if condition == "stale"
+                    else COLLECTED_AT
+                )
+            ),
             content_sha256=sha256(text.encode("utf-8")).hexdigest(),
             source_kind="first_party_synthetic",
             source_reference=f"candidate-company-source-{index:03d}-{position + 1:02d}",
@@ -950,6 +960,14 @@ def _evidence(
         )
         for position, text in enumerate(selected_texts)
     ]
+
+
+def _fit_evidence_text(text: str) -> str:
+    if len(text) < 71:
+        text = text.rstrip(".") + " for the current team workflow."
+    if len(text) <= 120:
+        return text
+    return text[:119].rsplit(" ", 1)[0].rstrip(" .,;:") + "."
 
 
 SUBJECT_FORMS = (
@@ -1320,25 +1338,116 @@ def _output(
     )
 
 
-def _pair_specs() -> list[tuple[str, str, str]]:
-    kinds = [
-        ("strong", "absent", "needs_more_evidence"),
-        ("strong", "absent", "disqualified"),
-        ("strong", "absent", "needs_more_evidence"),
-        ("strong", "conflicting", "needs_more_evidence"),
-        ("strong", "stale", "needs_more_evidence"),
-        ("strong", "absent", "opted_out"),
-        ("strong", "absent", "disqualified"),
-        ("strong", "absent", "opted_out"),
-        ("strong", "stale", "needs_more_evidence"),
-        ("strong", "absent", "opted_out"),
-        ("strong", "absent", "disqualified"),
-        ("strong", "conflicting", "needs_more_evidence"),
-        ("strong", "absent", "needs_more_evidence"),
-        ("strong", "stale", "needs_more_evidence"),
-        ("strong", "absent", "opted_out"),
+def _pair_specs() -> list[tuple[str, str]]:
+    return [
+        *(('conflicting', 'needs_more_evidence') for _ in range(3)),
+        ('stale', 'needs_more_evidence'),
+        ('opted_out', 'opted_out'),
+        ('opted_out', 'opted_out'),
+        ('disqualified', 'disqualified'),
+        ('disqualified', 'disqualified'),
+        ('stale', 'needs_more_evidence'),
+        ('stale', 'needs_more_evidence'),
+        ('stale', 'needs_more_evidence'),
+        ('opted_out', 'opted_out'),
+        ('opted_out', 'opted_out'),
+        ('disqualified', 'disqualified'),
+        ('disqualified', 'disqualified'),
     ]
-    return kinds
+
+
+def _pair_evidence(
+    pair_index: int,
+    shape: str,
+    company: str,
+    category: str,
+    draft_count: int,
+    status: str,
+) -> list[EvidenceRecordV2]:
+    if shape == "conflicting":
+        context = (
+            f"The {company} operations handbook assigns recurring workflow reviews to the central operations team.",
+        )
+        additional = (
+            f"A later {company} operations note gives a different owner through regional delivery teams."
+            if status == "needs_more_evidence"
+            else None
+        )
+        return _evidence(
+            pair_index + 1,
+            "conflicting" if additional else "strong",
+            company,
+            status,
+            category,
+            draft_count + (1 if additional else 0),
+            shared_context=context,
+            additional_signal=additional,
+        )
+    context = tuple(
+        _fit_evidence_text(text)
+        for text in EVIDENCE_TEXTS[category]["strong"][:draft_count]
+    )
+    if shape in {"opted_out", "disqualified"}:
+        extra = (
+            f"A recorded {shape.replace('_', ' ')} instruction applies to {company}'s sales email channel."
+            if status != "drafted"
+            else None
+        )
+        return _evidence(
+            pair_index + 1,
+            "strong",
+            company,
+            status,
+            category,
+            draft_count + (1 if extra else 0),
+            shared_context=context,
+            additional_signal=extra,
+        )
+    stale_at = datetime(2022 + pair_index % 4, 6, 15, tzinfo=UTC)
+    return _evidence(
+        pair_index + 1,
+        "stale" if status == "needs_more_evidence" else "strong",
+        company,
+        status,
+        category,
+        draft_count,
+        shared_context=context,
+        collected_at_override=stale_at if status == "needs_more_evidence" else COLLECTED_AT,
+    )
+
+
+def _assert_minimal_pairs(rows: list[TrainingExampleCandidateV2]) -> None:
+    by_identity: dict[str, list[TrainingExampleCandidateV2]] = {}
+    for row in rows[:30]:
+        by_identity.setdefault(row.identity_groups.company_group, []).append(row)
+    pairs = list(by_identity.values())
+    if len(pairs) != 15 or any(len(pair) != 2 for pair in pairs):
+        raise AssertionError("expected exactly fifteen two-row minimal pairs")
+    for left, right in pairs:
+        left_texts = [item.text for item in left.input.prospect_evidence]
+        right_texts = [item.text for item in right.input.prospect_evidence]
+        shared = set(left_texts) & set(right_texts)
+        if not shared:
+            raise AssertionError("minimal pair has no byte-identical evidence text")
+        statuses = {left.proposed_output.generation_status, right.proposed_output.generation_status}
+        if statuses in ({"drafted", "opted_out"}, {"drafted", "disqualified"}):
+            abstention = right if right.proposed_output.generation_status != "drafted" else left
+            if len(abstention.input.prospect_evidence) != len(shared) + 1:
+                raise AssertionError("opt-out/disqualified pair must add one evidence item")
+        elif statuses == {"drafted", "needs_more_evidence"}:
+            abstention = right if right.proposed_output.generation_status != "drafted" else left
+            draft = left if left.proposed_output.generation_status == "drafted" else right
+            if len(abstention.input.prospect_evidence) == len(shared):
+                for item in abstention.input.prospect_evidence:
+                    matching = next(other for other in draft.input.prospect_evidence if other.text == item.text)
+                    if item.collected_at == matching.collected_at:
+                        raise AssertionError("stale pair must differ by collection time")
+            elif len(abstention.input.prospect_evidence) == len(shared) + 1:
+                _assert_conflicting_attribute(abstention.input.prospect_evidence)
+            else:
+                raise AssertionError("abstaining pair evidence count is invalid")
+        else:
+            raise AssertionError("unexpected minimal pair statuses")
 
 
 def _normalized_sentence(sentence: str) -> str:
@@ -1415,11 +1524,16 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     ):
         raise AssertionError("subject or uncertainty note contains a digit")
     for row in rows:
+        for item in row.input.prospect_evidence:
+            if not 71 <= len(item.text) <= 120:
+                raise AssertionError("evidence text length is outside the target range")
+            if ":" in item.text or re.match(r"^\s*[A-Za-z][A-Za-z -]*:", item.text):
+                raise AssertionError("evidence text contains a label or colon")
         condition = _row_condition(row)
         status = row.proposed_output.generation_status
         notes = " ".join(row.proposed_output.uncertainty_notes).casefold()
         if status == "needs_more_evidence" and condition == "strong":
-            raise AssertionError("needs_more_evidence cannot use strong evidence")
+            raise AssertionError(f"needs_more_evidence cannot use strong evidence: {row.example_id}")
         if status != "drafted" and condition == "absent":
             if row.input.prospect_evidence:
                 raise AssertionError("absent condition has evidence")
@@ -1675,6 +1789,7 @@ def _make_row(
     evidence_count: int,
     *,
     pair_index: int | None = None,
+    evidence_override: list[EvidenceRecordV2] | None = None,
 ) -> TrainingExampleCandidateV2:
     company_number = (
         f"{pair_index + 1:02d}" if pair_index is not None else f"{index:03d}"
@@ -1685,7 +1800,7 @@ def _make_row(
     identity_index = pair_index if pair_index is not None else index // len(PRODUCTS)
     evidence_index = pair_index + 1 if pair_index is not None else index
     claims = _claims(profile)
-    evidence = _evidence(
+    evidence = evidence_override or _evidence(
         evidence_index, condition, company, status, profile.category, evidence_count
     )
     inputs = TrainingInputV2(
@@ -1749,42 +1864,70 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
     index = 1
     count_seen: Counter[tuple[str, int]] = Counter()
 
-    def allocate_count(status: str, condition: str) -> int:
+    def allocate_count(
+        status: str, condition: str, requested: int | None = None
+    ) -> int:
         if status == "needs_more_evidence" and condition == "absent":
             evidence_count = 0
         else:
             minimum_count = 2 if condition == "conflicting" else 1
-            evidence_count = next(
-                count
-                for count in sorted(EVIDENCE_COUNT_QUOTAS[status])
-                if count >= minimum_count
-                and count_seen[(status, count)] < EVIDENCE_COUNT_QUOTAS[status][count]
-            )
+            if requested is not None:
+                if requested < minimum_count or count_seen[(status, requested)] >= EVIDENCE_COUNT_QUOTAS[status][requested]:
+                    raise AssertionError(f"pair evidence quota cannot reserve {status}/{requested}")
+                evidence_count = requested
+            else:
+                try:
+                    evidence_count = next(
+                        count
+                        for count in sorted(EVIDENCE_COUNT_QUOTAS[status])
+                        if count >= minimum_count
+                        and count_seen[(status, count)] < EVIDENCE_COUNT_QUOTAS[status][count]
+                    )
+                except StopIteration as error:
+                    raise AssertionError(f"quota exhausted for {status}/{condition}: {count_seen}") from error
         count_seen[(status, evidence_count)] += 1
         return evidence_count
 
     pair_specs = _pair_specs()
-    for pair_index, (left_condition, right_condition, non_draft_status) in enumerate(
+    pair_counts = (1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 2, 1, 1)
+    for pair_index, (shape, non_draft_status) in enumerate(
         pair_specs
     ):
         split = "train" if pair_index < 8 else "validation"
         profile = PRODUCTS[pair_index % len(PRODUCTS)]
+        company = COMPANIES[pair_index]
+        draft_count = pair_counts[pair_index] if shape != "conflicting" else 1
+        draft_count = allocate_count("drafted", "strong", draft_count)
         rows.append(
             _make_row(
-                index, split, "drafted", profile, left_condition, pair_index=pair_index
-                , evidence_count=allocate_count("drafted", left_condition)
+                index, split, "drafted", profile, "strong", pair_index=pair_index,
+                evidence_count=draft_count,
+                evidence_override=_pair_evidence(
+                    pair_index, shape, company, profile.category, draft_count, "drafted"
+                ),
             )
         )
         index += 1
+        abstention_count = (
+            draft_count + 1 if shape in {"opted_out", "disqualified"} else 2 if shape == "conflicting" else draft_count
+        )
+        abstention_count = allocate_count(
+            non_draft_status,
+            "conflicting" if shape == "conflicting" else "strong" if shape in {"opted_out", "disqualified"} else "stale",
+            abstention_count,
+        )
         rows.append(
             _make_row(
                 index,
                 split,
                 non_draft_status,
                 profile,
-                right_condition,
+                "conflicting" if shape == "conflicting" else "stale" if shape == "stale" else "strong",
                 pair_index=pair_index,
-                evidence_count=allocate_count(non_draft_status, right_condition),
+                evidence_count=abstention_count,
+                evidence_override=_pair_evidence(
+                    pair_index, shape, company, profile.category, draft_count, non_draft_status
+                ),
             )
         )
         index += 1
@@ -1810,6 +1953,24 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
                     condition = "strong"
                 if status == "opted_out":
                     condition = "strong" if index % 2 else "absent"
+                if (
+                    status == "needs_more_evidence"
+                    and condition == "conflicting"
+                    and not any(
+                        count_seen[(status, count)] < EVIDENCE_COUNT_QUOTAS[status][count]
+                        for count in (2, 3)
+                    )
+                ):
+                    condition = "weak"
+                if (
+                    status == "needs_more_evidence"
+                    and condition != "absent"
+                    and not any(
+                        count_seen[(status, count)] < EVIDENCE_COUNT_QUOTAS[status][count]
+                        for count in (1, 2, 3)
+                    )
+                ):
+                    condition = "absent"
                 rows.append(
                     _make_row(
                         index,
@@ -1885,6 +2046,7 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
             raise AssertionError(f"{status} lacks a two- or three-item variant")
     if len(rows) != 124:
         raise AssertionError(f"expected 124 rows, got {len(rows)}")
+    _assert_minimal_pairs(rows)
     identities = [
         group for row in rows for group in row.identity_groups.model_dump().values()
     ]

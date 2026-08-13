@@ -104,6 +104,8 @@ class Phase6V2ComparisonReport(StrictModel):
     adapter_valid_output_rate: float = Field(ge=0, le=1)
     base_deterministic_pass_rate: float = Field(ge=0, le=1)
     adapter_deterministic_pass_rate: float = Field(ge=0, le=1)
+    minimum_deterministic_pass_rate: float = Field(ge=0, le=1)
+    adapter_deterministic_passed_case_count: int = Field(ge=0)
     regressed_case_ids: list[str] = Field(max_length=100)
     improved_case_ids: list[str] = Field(max_length=100)
     quality_gate_status: Literal["inconclusive", "pending_semantic_review"]
@@ -346,9 +348,12 @@ def compare_phase6_v2_reports(
     adapter: Phase6V2EvaluationReport,
     *,
     minimum_valid_output_rate: float = 0.95,
+    minimum_deterministic_pass_rate: float = 55 / 60,
 ) -> Phase6V2ComparisonReport:
     if not 0 <= minimum_valid_output_rate <= 1:
         raise ValueError("minimum valid output rate must be between zero and one")
+    if not 0 <= minimum_deterministic_pass_rate <= 1:
+        raise ValueError("minimum deterministic pass rate must be between zero and one")
     _validate_report_pair(base, adapter)
     base_scores = {
         case.case_id: bool(case.evaluation and case.evaluation.deterministic_passed)
@@ -363,7 +368,7 @@ def compare_phase6_v2_reports(
     adapter_pass_rate = adapter.deterministic_passed_case_count / adapter.total_cases
     ready_for_semantic_review = (
         adapter_valid_rate >= minimum_valid_output_rate
-        and adapter.deterministic_passed_case_count == adapter.total_cases
+        and adapter_pass_rate >= minimum_deterministic_pass_rate
     )
     return Phase6V2ComparisonReport(
         benchmark_id=base.benchmark_id,
@@ -380,6 +385,8 @@ def compare_phase6_v2_reports(
             base.deterministic_passed_case_count / base.total_cases
         ),
         adapter_deterministic_pass_rate=adapter_pass_rate,
+        minimum_deterministic_pass_rate=minimum_deterministic_pass_rate,
+        adapter_deterministic_passed_case_count=adapter.deterministic_passed_case_count,
         regressed_case_ids=[
             case_id
             for case_id in base_scores

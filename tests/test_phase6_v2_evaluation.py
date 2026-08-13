@@ -233,9 +233,86 @@ def test_comparison_rejects_invalid_threshold_and_adapter_labeled_base() -> None
     with pytest.raises(ValueError, match="between zero and one"):
         compare_phase6_v2_reports(base, adapter, minimum_valid_output_rate=1.1)
 
+    with pytest.raises(ValueError, match="between zero and one"):
+        compare_phase6_v2_reports(base, adapter, minimum_deterministic_pass_rate=-0.1)
+
     mislabeled_base = base.model_copy(update={"model": ADAPTER_MODEL})
     with pytest.raises(ValueError, match="base report cannot include an adapter"):
         compare_phase6_v2_reports(mislabeled_base, adapter)
+
+
+@pytest.mark.parametrize(
+    ("passed_count", "expected_status"),
+    [(55, "pending_semantic_review"), (54, "inconclusive")],
+)
+def test_comparison_uses_rate_for_deterministic_pass_gate(
+    passed_count: int, expected_status: str
+) -> None:
+    manifest = benchmark()
+    base = run_phase6_v2_evaluation(
+        manifest,
+        BASE_MODEL,
+        lambda request: valid_output(
+            manifest.cases[int(request.request_id[-4:]) - 1]
+        ),
+    )
+    adapter = run_phase6_v2_evaluation(
+        manifest,
+        ADAPTER_MODEL,
+        lambda request: valid_output(
+            manifest.cases[int(request.request_id[-4:]) - 1]
+        ),
+    )
+    cases = [
+        case.model_copy(
+            update={
+                "evaluation": case.evaluation.model_copy(
+                    update={"deterministic_passed": index < passed_count}
+                )
+            }
+        )
+        for index, case in enumerate(adapter.cases)
+    ]
+    comparison = compare_phase6_v2_reports(
+        base, adapter.model_copy(update={"cases": cases})
+    )
+
+    assert comparison.adapter_deterministic_passed_case_count == passed_count
+    assert comparison.minimum_deterministic_pass_rate == 55 / 60
+    assert comparison.quality_gate_status == expected_status
+
+
+def test_low_valid_output_rate_overrides_deterministic_pass_count() -> None:
+    manifest = benchmark()
+    base = run_phase6_v2_evaluation(
+        manifest,
+        BASE_MODEL,
+        lambda request: valid_output(
+            manifest.cases[int(request.request_id[-4:]) - 1]
+        ),
+    )
+    adapter = run_phase6_v2_evaluation(
+        manifest,
+        ADAPTER_MODEL,
+        lambda request: valid_output(
+            manifest.cases[int(request.request_id[-4:]) - 1]
+        ),
+    )
+    failed_cases = [
+        case.model_copy(
+            update={"output": None, "evaluation": None, "failure": "invalid"}
+        )
+        if index >= 55
+        else case
+        for index, case in enumerate(adapter.cases)
+    ]
+    comparison = compare_phase6_v2_reports(
+        base, adapter.model_copy(update={"cases": failed_cases})
+    )
+
+    assert comparison.adapter_deterministic_passed_case_count == 55
+    assert comparison.adapter_valid_output_rate < 0.95
+    assert comparison.quality_gate_status == "inconclusive"
 
 
 def test_report_rejects_duplicate_case_ids() -> None:

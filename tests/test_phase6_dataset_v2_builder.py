@@ -5,6 +5,7 @@ import re
 from collections import Counter, defaultdict
 from datetime import timedelta
 from pathlib import Path
+from statistics import median
 
 import pytest
 
@@ -76,7 +77,7 @@ def _condition(row):
     evidence = row.input.prospect_evidence
     if not evidence:
         return "absent"
-    text = evidence[0].text.casefold()
+    text = " ".join(item.text for item in evidence).casefold()
     if any(REFERENCE_DATE - item.collected_at >= timedelta(days=365) for item in evidence):
         return "stale"
     if any(marker in text for marker in ("while", "but a later", "disagree", "different", "conflict")):
@@ -423,6 +424,86 @@ def test_fifteen_contrastive_pairs_share_identity_and_split():
         != pair[1].proposed_output.generation_status
         for pair in pairs
     )
+
+
+def test_minimal_pairs_share_context_and_only_flip_the_deciding_signal():
+    rows = _manifest().examples
+    by_identity = defaultdict(list)
+    for row in rows[:30]:
+        by_identity[row.identity_groups.company_group].append(row)
+
+    shared_pair_count = 0
+    shape_counts = Counter()
+    for pair in by_identity.values():
+        left, right = pair
+        left_evidence = {item.text: item for item in left.input.prospect_evidence}
+        right_evidence = {item.text: item for item in right.input.prospect_evidence}
+        shared = set(left_evidence) & set(right_evidence)
+        assert shared
+        shared_pair_count += 1
+        statuses = {
+            left.proposed_output.generation_status,
+            right.proposed_output.generation_status,
+        }
+        abstention = right if right.proposed_output.generation_status != "drafted" else left
+        if statuses == {"drafted", "opted_out"}:
+            shape_counts["opted_out"] += 1
+            assert len(abstention.input.prospect_evidence) == len(shared) + 1
+        elif statuses == {"drafted", "disqualified"}:
+            shape_counts["disqualified"] += 1
+            assert len(abstention.input.prospect_evidence) == len(shared) + 1
+        else:
+            assert statuses == {"drafted", "needs_more_evidence"}
+            if len(abstention.input.prospect_evidence) == len(shared):
+                shape_counts["stale"] += 1
+                assert all(
+                    item.collected_at != left_evidence[text].collected_at
+                    for text, item in right_evidence.items()
+                    if text in shared
+                )
+            else:
+                shape_counts["conflicting"] += 1
+                assert len(abstention.input.prospect_evidence) == len(shared) + 1
+                _assert_conflicting_attribute(abstention.input.prospect_evidence)
+
+    assert shared_pair_count == 15
+    assert shape_counts == {
+        "opted_out": 4,
+        "disqualified": 4,
+        "stale": 4,
+        "conflicting": 3,
+    }
+
+
+def test_evidence_text_shape_and_stale_year_diversity():
+    rows = _manifest().examples
+    lengths = [
+        len(item.text)
+        for row in rows
+        for item in row.input.prospect_evidence
+    ]
+    assert min(lengths) >= 71
+    assert median(lengths) <= 100
+    assert max(lengths) <= 120
+    assert all(
+        not item.text.startswith("Public evidence from ")
+        for row in rows
+        for item in row.input.prospect_evidence
+    )
+    assert all(
+        ":" not in item.text
+        and not re.match(r"^\s*[A-Za-z][A-Za-z -]*:", item.text)
+        for row in rows
+        for item in row.input.prospect_evidence
+    )
+    stale_years = {
+        item.collected_at.year
+        for row in rows
+        if _condition(row) == "stale"
+        for item in row.input.prospect_evidence
+    }
+    assert stale_years >= {2022, 2023, 2024}
+    assert stale_years <= {2022, 2023, 2024, 2025}
 
 
 def test_apply_review_is_deterministic_and_matches_committed_manifest():
