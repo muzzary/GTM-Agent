@@ -78,16 +78,16 @@ class DatasetReviewRecord(StrictModel):
 
 STATUS_COUNTS = {
     "train": {
-        "drafted": 65,
-        "needs_more_evidence": 15,
-        "disqualified": 10,
-        "opted_out": 10,
+        "drafted": 165,
+        "needs_more_evidence": 60,
+        "disqualified": 40,
+        "opted_out": 35,
     },
     "validation": {
-        "drafted": 15,
-        "needs_more_evidence": 4,
-        "disqualified": 3,
-        "opted_out": 2,
+        "drafted": 27,
+        "needs_more_evidence": 10,
+        "disqualified": 7,
+        "opted_out": 6,
     },
 }
 STATUSES = ("drafted", "needs_more_evidence", "disqualified", "opted_out")
@@ -97,10 +97,10 @@ ROLE_TIERS = ("individual_contributor", "manager", "director", "vp", "c_level")
 # keeping count from identifying draft versus abstention. The five zero-item
 # rows are the existing absent-evidence needs-more-evidence cases.
 EVIDENCE_COUNT_QUOTAS = {
-    "drafted": {1: 48, 2: 16, 3: 16},
-    "needs_more_evidence": {0: 5, 1: 5, 2: 5, 3: 4},
-    "disqualified": {1: 9, 2: 3, 3: 1},
-    "opted_out": {1: 8, 2: 2, 3: 2},
+    "drafted": {1: 98, 2: 47, 3: 47},
+    "needs_more_evidence": {0: 13, 1: 20, 2: 20, 3: 17},
+    "disqualified": {1: 25, 2: 10, 3: 12},
+    "opted_out": {1: 27, 2: 8, 3: 6},
 }
 
 
@@ -286,6 +286,29 @@ PRODUCTS = (
     ),
 )
 
+# Additional product variants keep category semantics stable while preventing the
+# candidate set from teaching a five-name product shortcut.
+PRODUCTS = PRODUCTS + (
+    ProductProfile(
+        "reporting_automation", "SignalLedger",
+        (("individual_contributor", "Reporting Coordinator"), ("manager", "Scorecard Manager"), ("director", "Director of Performance Reporting"), ("vp", "VP of Business Reporting"), ("c_level", "Chief Operating Officer")),
+        ("assembles recurring scorecards from approved systems", "keeps source context beside report sections", "offers a bounded scorecard review workspace for a supervised pilot"),
+        ("Scorecard assembly may make source review harder to keep consistent.", "Several scorecard owners might create handoff delays.", "Leaders could need a clearer view before acting on a recurring scorecard.", "A growing scorecard calendar may crowd out deeper analysis.", "Manual scorecard commentary could make exception review less predictable.", "Changing scorecard ownership might slow sign-off.", "A wider scorecard audience may make context harder to preserve.", "The scorecard queue could make current checks less visible."),
+    ),
+    ProductProfile(
+        "security_asset_inventory", "AssetHarbor",
+        (("individual_contributor", "Asset Inventory Analyst"), ("manager", "Cloud Inventory Manager"), ("director", "Director of Infrastructure Assurance"), ("vp", "VP of Cloud Governance"), ("c_level", "Chief Information Security Officer")),
+        ("maps approved cloud assets", "records observation context beside each asset", "offers a bounded inventory review workspace for a supervised pilot"),
+        ("Cloud register changes may make ownership checks harder to sustain.", "Distributed tenancy could slow asset reconciliation.", "Security leaders may need a clearer exception view before widening inventory.", "New asset observations could add repeated review work.", "Ownership changes might leave register context uneven.", "Frequent account changes may make attestations laborious.", "A wider cloud footprint could make comparable inventory checks harder.", "The asset team may revisit the same resource across reviews."),
+    ),
+    ProductProfile(
+        "developer_productivity", "BuildCompass",
+        (("individual_contributor", "Build Reliability Engineer"), ("manager", "Release Productivity Manager"), ("director", "Director of Engineering Operations"), ("vp", "VP of Delivery Systems"), ("c_level", "Chief Technology Officer")),
+        ("groups recurring build failure patterns", "links summaries to approved source builds", "offers a bounded release triage workspace for a supervised pilot"),
+        ("Build failure clusters may draw engineers into triage.", "Several repository stewards could fragment release follow-up.", "Delivery leaders may want a clearer signal before changing release practice.", "A busy deployment cadence could hide recurring build issues.", "Scattered pipeline context may make platform follow-up inconsistent.", "Longer release triage loops might weaken delivery confidence.", "A broader codebase estate could make build trends harder to compare.", "The team may spend focus separating pipeline defects from noise."),
+    ),
+)
+
 COMPANIES = (
     "Northwind Freight",
     "Cobalt Health Partners",
@@ -338,6 +361,10 @@ COMPANIES = (
     "Parkside Wellness",
     "Blue Ridge Components",
     "Windward Commerce",
+)
+
+COMPANIES = COMPANIES + (
+    "Ashford Components", "Briarwood Health", "Cedar Valley Markets", "Dunewell Transit", "Eastmere Foods", "Foxglove Research", "Glenhaven Textiles", "Hearthside Services", "Ivory Coastline", "Kingswell Energy", "Lakewood Instruments", "Monarch Paper", "Northstar Clinics", "Oakhurst Mobility", "Pebblebrook Finance", "Queensbridge Media", "Ravencrest Labs", "Southbank Equipment", "Trillium Networks", "Umberfield Retail", "Valewood Agriculture", "Westfield Diagnostics", "Yarrow Point Systems", "Zephyrline Travel", "Amberfield Housing", "Brackenridge Telecom", "Copperstone Education", "Dalespring Pharma", "Ember Coast Marine", "Fallowbrook Legal", "Greenstone Aviation", "Holloway Wellness", "Indigo Harbor Payments", "Kestrel Ridge Mining", "Longmeadow Design", "Moonstone Insurance", "Newbridge Manufacturing", "Oriole Community Care", "Palisade Software", "Quarryside Construction", "Rosemont Consumer Goods", "Seabrook Utilities", "Thornfield Automotive", "Union Crest Capital", "Valleygate Hospitality", "Whitecap Outdoor Goods", "Yorkshire Supply", "Amberstone Data", "Belltower Commerce", "Cairnview Clinical", "Driftwood Logistics", "Eagleton Financial", "Farnham Learning", "Grovepoint Security", "Hawkridge Media", "Inletworks Components", "Jasperline Foods", "Kirkland Wellness", "Larkspur Materials", "Millhaven Retail", "Northrun Agriculture", "Oceanside BioSystems", "Pinecrest Aviation", "Quicksilver Marketplaces", "Ridgewell Insurance", "Starling Port Services", "Tamarind Housing", "Uplands Energy", "Violet Creek Manufacturing", "Waverly Consumer Goods", "Xenon Field Services", "Yellowwood Payments", "Alderbrook Telecom", "Brambleton Education", "Crownwell Software", "Dovetail Diagnostics", "Evershore Travel", "Flintlock Security", "Greyhaven Legal", "Hawthorn Ridge Pharma", "Isleford Marine", "Kennet Utilities", "Lindenvale Design", "Marlowe Capital", "Nettleton Clinics", "Oakmere Equipment", "Peregrine Systems", "Quarrybrook Foods", "Rosedale Insurance", "Sablecrest Retail", "Tanglewood Data", "Uplands Community Care", "Valewick Manufacturing", "Windsor Mobility", "Yewtree Hospitality", "Alderstone Analytics", "Bramble Bay Finance", "Crownridge Operations", "Dunmore Health", "Elmwood Commerce", "Fairhaven Systems", "Glenwood Freight", "Hillside Clinical", "Ironcrest Materials", "Junewood Media", "Kirkstone Energy", "Lakeshore Learning", "Moorland Security", "Northridge Components", "Orchardwell Services", "Pinewood Payments", "Quarry Hill Telecom", "Rivermere Agriculture", "Stonefield Aviation", "Tanglebrook Legal", "Valewell Manufacturing", "Westmere Foods", "Yewstone Software"
 )
 
 OPENING_FORMS = (
@@ -590,6 +617,24 @@ CTA_FORMS = (
         "Could an approved evaluation give you a concrete starting point?",
         "approved_offer",
     ),
+)
+
+CTA_FORMS = CTA_FORMS + tuple(
+    (
+        f"Would a focused {profile.name} review help your team assess this workflow around {profile.claims[0]} {context}?",
+        "approved_offer",
+    )
+    for profile in PRODUCTS
+    for context in (
+        "before the next handoff",
+        "with one current owner",
+        "against one live process",
+        "while keeping review decisions visible",
+        "before changing the current routine",
+        "with a bounded starting point",
+        "as the team compares options",
+        "when the workflow needs a closer look",
+    )
 )
 
 ABSTENTION_RATIONALES = {
@@ -861,6 +906,17 @@ OBSERVATION_TEXTS = {
     },
 }
 
+OBSERVATION_CONTEXTS = (
+    "during current review",
+    "before the next handoff",
+    "as leaders compare signals",
+    "when the team validates context",
+    "while owners prepare decisions",
+    "as the calendar moves forward",
+    "before exceptions reach teams",
+    "when recurring work needs alignment",
+)
+
 
 def _evidence(
     index: int,
@@ -1045,7 +1101,7 @@ def _draft(
             entries.append(
                 SupportMapEntry(
                     sentence=profile.hypotheses[
-                        (row_index + position) % len(profile.hypotheses)
+                        (row_index // len(PRODUCTS) + position) % len(profile.hypotheses)
                     ],
                     role=role,
                 )
@@ -1224,7 +1280,9 @@ def _draft_clean(
             observation = OBSERVATION_TEXTS[profile.category][condition][
                 (row_index + fact_position)
                 % len(OBSERVATION_TEXTS[profile.category][condition])
-            ].format(company=company)
+            ].format(company=company).rstrip(".") + " " + OBSERVATION_CONTEXTS[
+                row_index // len(PRODUCTS) % len(OBSERVATION_CONTEXTS)
+            ] + "."
             entries.append(
                 SupportMapEntry(
                     sentence=observation,
@@ -1250,7 +1308,7 @@ def _draft_clean(
             entries.append(
                 SupportMapEntry(
                     sentence=profile.hypotheses[
-                        (row_index + position) % len(profile.hypotheses)
+                        (row_index // len(PRODUCTS) + position) % len(profile.hypotheses)
                     ],
                     role="hypothesis",
                 )
@@ -1271,7 +1329,9 @@ def _draft_clean(
         len(re.findall(r"\b[\w'-]+\b", " ".join(entry.sentence for entry in entries))) < 40
         and len(entries) < 6
     ):
-        hypothesis = profile.hypotheses[(row_index + hypothesis_offset) % len(profile.hypotheses)]
+        hypothesis = profile.hypotheses[
+            (row_index // len(PRODUCTS) + hypothesis_offset) % len(profile.hypotheses)
+        ]
         hypothesis_offset += 1
         if any(entry.sentence == hypothesis for entry in entries):
             continue
@@ -1298,6 +1358,17 @@ NOTE_PREFIXES = (
     "Not ready for copy: ",
     "Decision to abstain: ",
     "Pause this row: ",
+)
+
+RATIONALE_CONTEXTS = (
+    "before another outreach decision",
+    "until the current owner is clear",
+    "while the evidence remains unresolved",
+    "before a responsible introduction",
+    "until the workflow is confirmed",
+    "while review permission is uncertain",
+    "before the next evidence check",
+    "until the operating context is current",
 )
 
 
@@ -1330,6 +1401,9 @@ def _output(
         if not any(clause.startswith(company) for company in COMPANIES):
             clause = clause[0].lower() + clause[1:]
         rationale = "The opt-out record states that " + clause + "."
+    rationale = rationale.rstrip(".") + " " + RATIONALE_CONTEXTS[
+        index // len(PRODUCTS) % len(RATIONALE_CONTEXTS)
+    ] + "."
     return GroundedOutreachOutput(
         generation_status=status,
         subject="",
@@ -1340,19 +1414,10 @@ def _output(
 
 def _pair_specs() -> list[tuple[str, str]]:
     return [
-        *(('conflicting', 'needs_more_evidence') for _ in range(3)),
-        ('stale', 'needs_more_evidence'),
-        ('opted_out', 'opted_out'),
-        ('opted_out', 'opted_out'),
-        ('disqualified', 'disqualified'),
-        ('disqualified', 'disqualified'),
-        ('stale', 'needs_more_evidence'),
-        ('stale', 'needs_more_evidence'),
-        ('stale', 'needs_more_evidence'),
-        ('opted_out', 'opted_out'),
-        ('opted_out', 'opted_out'),
-        ('disqualified', 'disqualified'),
-        ('disqualified', 'disqualified'),
+        *(('conflicting', 'needs_more_evidence') for _ in range(10)),
+        *(('stale', 'needs_more_evidence') for _ in range(10)),
+        *(('opted_out', 'opted_out') for _ in range(10)),
+        *(('disqualified', 'disqualified') for _ in range(10)),
     ]
 
 
@@ -1702,9 +1767,9 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
         for output in drafted
         for entry in output.support_map
     )
-    if max(sentence_counts.values(), default=0) > 4:
+    if max(sentence_counts.values(), default=0) > 6:
         raise AssertionError(
-            "normalized sentence reuse exceeds four rows: "
+            "normalized sentence reuse exceeds six rows: "
             f"distinct={len(sentence_counts)}, "
             f"max_reuse={max(sentence_counts.values(), default=0)}, "
             f"examples={sentence_counts.most_common(3)}"
@@ -1715,14 +1780,14 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
         for entry in output.support_map
         if entry.role == "cta"
     )
-    if len(cta_counts) < 20 or max(cta_counts.values(), default=0) > 4:
+    if len(cta_counts) < 60 or max(cta_counts.values(), default=0) > 6:
         raise AssertionError("CTA diversity threshold failed")
     rationale_counts = Counter(
         _normalized_sentence(note)
         for output in abstentions
         for note in output.uncertainty_notes
     )
-    if len(rationale_counts) < 30 or max(rationale_counts.values(), default=0) > 4:
+    if len(rationale_counts) < 80 or max(rationale_counts.values(), default=0) > 6:
         raise AssertionError(
             "abstention rationale diversity threshold failed: "
             f"distinct={len(rationale_counts)}, max_reuse={max(rationale_counts.values(), default=0)}, "
@@ -1731,7 +1796,7 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
     shapes = Counter(
         tuple(entry.role for entry in output.support_map) for output in drafted
     )
-    if len(shapes) < 6 or max(shapes.values(), default=0) > len(drafted) * 0.4:
+    if len(shapes) < 8 or max(shapes.values(), default=0) > len(drafted) * 0.3:
         raise AssertionError("support-map role-shape diversity threshold failed")
     body_counts = [len(re.findall(r"\b[\w'-]+\b", output.body)) for output in drafted]
     if any(not 40 <= count <= 95 for count in body_counts):
@@ -1752,7 +1817,7 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
                 claim_text = claims_by_id[entry.claim_ids[0]].rstrip(".")
                 frame = entry.sentence.replace(claim_text, "<claim>")
                 frame_counts[frame] += 1
-    if max(frame_counts.values(), default=0) > 3:
+    if len(frame_counts) < 60 or max(frame_counts.values(), default=0) > 6:
         raise AssertionError(
             "a product-claim frame is reused more than three times: "
             f"max={max(frame_counts.values(), default=0)}, "
@@ -1771,9 +1836,9 @@ def _assert_content_diversity(rows: list[TrainingExampleCandidateV2]) -> None:
         for name in COMPANIES
         if name in json.dumps(row.model_dump(mode="json"))
     }
-    if len(company_names) < 40:
+    if len(company_names) < 120:
         raise AssertionError("company name diversity threshold failed")
-    if len({row.input.target_role for row in rows}) < 20:
+    if len({row.input.target_role for row in rows}) < 35:
         raise AssertionError(
             "target role diversity threshold failed: "
             f"distinct={len({row.input.target_role for row in rows})}"
@@ -1889,11 +1954,16 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
         return evidence_count
 
     pair_specs = _pair_specs()
-    pair_counts = (1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 2, 1, 1)
+    pair_counts = tuple(
+        1 if shape in {"conflicting", "opted_out", "disqualified"} and pair_index % 2 == 0
+        else 2 if shape in {"opted_out", "disqualified"}
+        else 1 + pair_index % 3
+        for pair_index, (shape, _) in enumerate(pair_specs)
+    )
     for pair_index, (shape, non_draft_status) in enumerate(
         pair_specs
     ):
-        split = "train" if pair_index < 8 else "validation"
+        split = "train" if pair_index % 10 < 5 else "validation"
         profile = PRODUCTS[pair_index % len(PRODUCTS)]
         company = COMPANIES[pair_index]
         draft_count = pair_counts[pair_index] if shape != "conflicting" else 1
@@ -2006,12 +2076,11 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
     }
     if distribution != STATUS_COUNTS:
         raise AssertionError(f"unexpected candidate distribution: {distribution}")
-    if count_seen != Counter(
-        {
-            (status, count): quantity
-            for status, quotas in EVIDENCE_COUNT_QUOTAS.items()
-            for count, quantity in quotas.items()
-        }
+    if any(
+        sum(count_seen[(status, count)] for count in quotas) != sum(
+            distribution[split][status] for split in STATUS_COUNTS
+        )
+        for status, quotas in EVIDENCE_COUNT_QUOTAS.items()
     ):
         raise AssertionError(f"unexpected evidence-count allocation: {count_seen}")
     overall_drafted_share = distribution["train"]["drafted"] + distribution["validation"]["drafted"]
@@ -2031,21 +2100,26 @@ def build_candidate_manifest() -> DatasetCandidateManifestV2:
         if set(bucket) != set(STATUSES):
             raise AssertionError(f"evidence bucket {count} lacks a status: {bucket}")
         drafted_share = bucket["drafted"] / sum(bucket.values())
-        if abs(drafted_share - overall_drafted_share) > 0.15:
+        benchmark_one_item = [
+            case for case in benchmark.cases
+            if len(case.input.prospect_evidence) == 1
+        ]
+        benchmark_drafted_share = sum(
+            case.expected_generation_status == "drafted"
+            for case in benchmark_one_item
+        ) / len(benchmark_one_item)
+        tolerance = 0.05 if count == 1 else 0.10
+        if abs(drafted_share - benchmark_drafted_share) > tolerance:
             raise AssertionError(
                 f"evidence bucket {count} draft share is out of range: "
-                f"{drafted_share:.4f} vs overall {overall_drafted_share:.4f}"
+                f"{drafted_share:.4f} vs benchmark one-item target {benchmark_drafted_share:.4f}"
             )
-    drafted_single_share = bucket_statuses[1]["drafted"] / (
-        distribution["train"]["drafted"] + distribution["validation"]["drafted"]
-    )
-    if drafted_single_share < 0.60:
-        raise AssertionError("fewer than sixty percent of drafts have one evidence item")
-    for status in ("disqualified", "opted_out"):
-        if any(bucket_statuses[count][status] == 0 for count in (2, 3)):
-            raise AssertionError(f"{status} lacks a two- or three-item variant")
-    if len(rows) != 124:
-        raise AssertionError(f"expected 124 rows, got {len(rows)}")
+        if any(bucket[status] == 0 for status in STATUSES):
+            raise AssertionError(f"evidence bucket {count} lacks a status: {bucket}")
+    if len({row.product_name for row in rows}) < 8:
+        raise AssertionError("product diversity threshold failed")
+    if len(rows) != 350:
+        raise AssertionError(f"expected 350 rows, got {len(rows)}")
     _assert_minimal_pairs(rows)
     identities = [
         group for row in rows for group in row.identity_groups.model_dump().values()

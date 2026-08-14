@@ -17,7 +17,7 @@ OUTPUT_PATH = Path("results/phase6-dataset-v2-review-sheet.md")
 # Ceiling on the reviewer-facing sheet so it stays readable in a couple of passes.
 # It is a working-artifact budget, not a data contract: raise it when the dataset
 # legitimately grows (the 40->65 drafted rebalance took the sheet past 20k words).
-WORD_LIMIT = 30_000
+WORD_LIMIT = 65_000
 
 PRODUCT_CATEGORIES = {
     "MetricMosaic": "reporting_automation",
@@ -61,8 +61,8 @@ def _pair_map(rows: list[TrainingExampleCandidateV2]) -> dict[str, str]:
     for row in rows:
         grouped[tuple(row.identity_groups.model_dump().values())].append(row)
     pairs = [group for group in grouped.values() if len(group) == 2]
-    if len(pairs) != 15:
-        raise AssertionError(f"expected 15 contrastive pairs, found {len(pairs)}")
+    if len(pairs) != 40:
+        raise AssertionError(f"expected 40 contrastive pairs, found {len(pairs)}")
     result: dict[str, str] = {}
     for pair in pairs:
         left, right = pair
@@ -91,8 +91,8 @@ def _pair_lines(rows: list[TrainingExampleCandidateV2], pair_map: dict[str, str]
             f"flipped signal: {_evidence_condition(row)} -> "
             f"{_evidence_condition(other)})"
         )
-    if len(lines) != 15:
-        raise AssertionError(f"expected 15 pair lines, found {len(lines)}")
+    if len(lines) != 40:
+        raise AssertionError(f"expected 40 pair lines, found {len(lines)}")
     return lines
 
 

@@ -9,7 +9,7 @@ from src.evaluation.review_sheet_phase6_dataset_v2 import (
 from src.schemas.dataset import DatasetCandidateManifestV2
 
 
-def test_review_sheet_contains_all_rows_and_fifteen_pairs(tmp_path: Path):
+def test_review_sheet_contains_all_rows_and_forty_pairs(tmp_path: Path):
     output_path = tmp_path / OUTPUT_PATH.name
     write_review_sheet(output_path=output_path)
     sheet = output_path.read_text(encoding="utf-8")
@@ -21,6 +21,6 @@ def test_review_sheet_contains_all_rows_and_fifteen_pairs(tmp_path: Path):
         f"### {example.example_id} | " in sheet for example in manifest.examples
     )
     summary = sheet.split("## train", maxsplit=1)[0]
-    assert summary.count(" <-> ") == 15
+    assert summary.count(" <-> ") == 40
     assert len(sheet.split()) <= WORD_LIMIT
     assert build_review_sheet().splitlines() == sheet.splitlines()

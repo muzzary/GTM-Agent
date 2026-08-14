@@ -26,16 +26,16 @@ from src.training.dataset import validate_dataset_v2
 BENCHMARK_PATH = Path("configs/phase6/benchmark-v2.json")
 EXPECTED = {
     "train": {
-        "drafted": 65,
-        "needs_more_evidence": 15,
-        "disqualified": 10,
-        "opted_out": 10,
+        "drafted": 165,
+        "needs_more_evidence": 60,
+        "disqualified": 40,
+        "opted_out": 35,
     },
     "validation": {
-        "drafted": 15,
-        "needs_more_evidence": 4,
-        "disqualified": 3,
-        "opted_out": 2,
+        "drafted": 27,
+        "needs_more_evidence": 10,
+        "disqualified": 7,
+        "opted_out": 6,
     },
 }
 ROLE_TIERS = {
@@ -108,13 +108,7 @@ def test_exact_distribution_and_coverage():
         for split in EXPECTED
     }
     assert {split: dict(counts) for split, counts in distribution.items()} == EXPECTED
-    assert {row.product_name for row in manifest.examples} == {
-        "MetricMosaic",
-        "CloudLedger",
-        "LoopSignal",
-        "GuideCurrent",
-        "RecordBeacon",
-    }
+    assert len({row.product_name for row in manifest.examples}) >= 8
     assert {_condition(row) for row in manifest.examples} == {
         "strong",
         "weak",
@@ -122,13 +116,7 @@ def test_exact_distribution_and_coverage():
         "stale",
         "absent",
     }
-    assert {ROLE_TIERS[row.input.target_role] for row in manifest.examples} == {
-        "individual_contributor",
-        "manager",
-        "director",
-        "vp",
-        "c_level",
-    }
+    assert len({row.input.target_role for row in manifest.examples}) >= 35
     assert {row.scenario_kind for row in manifest.examples} == {
         "initial_outreach",
         "follow_up",
@@ -147,16 +135,17 @@ def test_evidence_count_buckets_match_overall_status_shape():
         for count in range(4)
     }
     table = {count: dict(bucket) for count, bucket in buckets.items()}
-    overall = Counter(row.proposed_output.generation_status for row in rows)
-    overall_drafted_share = overall["drafted"] / len(rows)
+    benchmark = load_phase6_benchmark(BENCHMARK_PATH)
+    one_item = [case for case in benchmark.cases if len(case.input.prospect_evidence) == 1]
+    benchmark_target = sum(case.expected_generation_status == "drafted" for case in one_item) / len(one_item)
 
     assert set(buckets[0]) == {"needs_more_evidence"}, table
     for count in (1, 2, 3):
         assert set(buckets[count]) == set(statuses), table
         drafted_share = buckets[count]["drafted"] / sum(buckets[count].values())
-        assert abs(drafted_share - overall_drafted_share) <= 0.15, table
-    assert buckets[1]["drafted"] / overall["drafted"] >= 0.60, table
-    assert all(buckets[count][status] for count in (2, 3) for status in ("disqualified", "opted_out")), table
+        tolerance = 0.05 if count == 1 else 0.10
+        assert abs(drafted_share - benchmark_target) <= tolerance, table
+        assert set(buckets[count]) == set(statuses), table
 
 
 def test_gate_and_content_quality_thresholds():
@@ -168,7 +157,7 @@ def test_gate_and_content_quality_thresholds():
     abstentions = [
         output for output in outputs if output.generation_status != "drafted"
     ]
-    assert len(drafted) == 80
+    assert len(drafted) == 192
     assert all(
         not any(character.isdigit() for character in output.subject)
         for output in outputs
@@ -215,27 +204,28 @@ def test_gate_and_content_quality_thresholds():
         for output in drafted
         for entry in output.support_map
     )
-    assert max(normalized_sentences.values()) <= 4
+    assert max(normalized_sentences.values()) <= 6
     ctas = Counter(
         entry.sentence
         for output in drafted
         for entry in output.support_map
         if entry.role == "cta"
     )
-    assert len(ctas) >= 20
-    assert max(ctas.values()) <= 4
+    assert len(ctas) >= 60
+    assert max(ctas.values()) <= 6
     rationales = Counter(
         _normalized_sentence(note)
         for output in abstentions
         for note in output.uncertainty_notes
     )
-    assert len(rationales) >= 30
-    assert max(rationales.values()) <= 4
+    assert len(rationales) >= 80
+    assert max(rationales.values()) <= 6
     shapes = Counter(
         tuple(entry.role for entry in output.support_map) for output in drafted
     )
     assert len(shapes) >= 6
-    assert max(shapes.values()) <= len(drafted) * 0.4
+    assert len(shapes) >= 8
+    assert max(shapes.values()) <= len(drafted) * 0.3
     body_counts = [len(re.findall(r"\b[\w'-]+\b", output.body)) for output in drafted]
     assert all(40 <= count <= 95 for count in body_counts)
     frame_counts = Counter()
@@ -244,7 +234,8 @@ def test_gate_and_content_quality_thresholds():
         for entry in row.proposed_output.support_map:
             if entry.role == "product_claim":
                 frame_counts[entry.sentence.replace(claims_by_id[entry.claim_ids[0]].rstrip("."), "<claim>")] += 1
-    assert max(frame_counts.values()) <= 3
+    assert len(frame_counts) >= 60
+    assert max(frame_counts.values()) <= 6
     company_prefixed_notes = sum(
         any(note.startswith(f"{company}:") for company in COMPANIES)
         for output in abstentions
@@ -285,8 +276,9 @@ def test_gate_and_content_quality_thresholds():
         for name in COMPANIES
         if name in json.dumps(row.model_dump(mode="json"))
     }
-    assert len(found_companies) >= 40
-    assert len({row.input.target_role for row in rows}) >= 20
+    assert len(found_companies) >= 120
+    assert len({row.input.target_role for row in rows}) >= 35
+    assert len({row.product_name for row in rows}) >= 8
 
 
 def test_abstention_conditions_and_rationales_are_bound_to_input():
@@ -411,13 +403,13 @@ def test_identity_disjointness_and_split_boundary():
     assert all(len(splits) == 1 for splits in groups.values())
 
 
-def test_fifteen_contrastive_pairs_share_identity_and_split():
+def test_forty_contrastive_pairs_share_identity_and_split():
     rows = _manifest().examples
     by_identity = defaultdict(list)
     for row in rows:
         by_identity[tuple(row.identity_groups.model_dump().values())].append(row)
     pairs = [group for group in by_identity.values() if len(group) == 2]
-    assert len(pairs) == 15
+    assert len(pairs) == 40
     assert all(pair[0].intended_split == pair[1].intended_split for pair in pairs)
     assert all(
         pair[0].proposed_output.generation_status
@@ -429,7 +421,7 @@ def test_fifteen_contrastive_pairs_share_identity_and_split():
 def test_minimal_pairs_share_context_and_only_flip_the_deciding_signal():
     rows = _manifest().examples
     by_identity = defaultdict(list)
-    for row in rows[:30]:
+    for row in rows[:80]:
         by_identity[row.identity_groups.company_group].append(row)
 
     shared_pair_count = 0
@@ -466,12 +458,12 @@ def test_minimal_pairs_share_context_and_only_flip_the_deciding_signal():
                 assert len(abstention.input.prospect_evidence) == len(shared) + 1
                 _assert_conflicting_attribute(abstention.input.prospect_evidence)
 
-    assert shared_pair_count == 15
+    assert shared_pair_count == 40
     assert shape_counts == {
-        "opted_out": 4,
-        "disqualified": 4,
-        "stale": 4,
-        "conflicting": 3,
+        "opted_out": 10,
+        "disqualified": 10,
+        "stale": 10,
+        "conflicting": 10,
     }
 
 

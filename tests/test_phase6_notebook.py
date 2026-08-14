@@ -468,7 +468,7 @@ def test_phase6_v2_training_json_matches_the_training_contract() -> None:
     assert config.config_version == "2.0"
     assert config.adapter_id == "gtm-agent-outreach-v2"
     assert config.max_length == 1536
-    assert config.epochs == 8
+    assert config.epochs == 5
     assert config.learning_rate == 0.0001
     assert config.lora_rank == 16
     assert config.lora_alpha == 32
