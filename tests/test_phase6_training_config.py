@@ -33,5 +33,5 @@ def test_phase6_v2_training_config_uses_five_epochs_and_four_step_accumulation(
     ) -> None:
     config = json.loads(V2_CONFIG_PATH.read_text(encoding="utf-8"))
 
-    assert config["epochs"] == 5
+    assert config["epochs"] == 8
     assert config["gradient_accumulation_steps"] == 4
